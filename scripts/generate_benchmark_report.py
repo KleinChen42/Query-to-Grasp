@@ -166,6 +166,15 @@ def render_markdown_report(
     lines.extend(
         [
             "",
+            "## Ambiguity Conclusion",
+            "",
+            _ambiguity_conclusion(metrics),
+        ]
+    )
+
+    lines.extend(
+        [
+            "",
             "## Per-Query Breakdown",
             "",
             "| Query | total_runs | mean_raw_num_detections | mean_num_detections | mean_num_ranked_candidates | mean_num_3d_points | fraction_with_3d_target | pick_success_rate | fraction_top1_changed_by_rerank | mean_runtime_seconds |",
@@ -259,6 +268,16 @@ def _as_float(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _ambiguity_conclusion(metrics: dict[str, Any]) -> str:
+    mean_raw = _as_float(metrics.get("mean_raw_num_detections"))
+    top1_changed = _as_float(metrics.get("fraction_top1_changed_by_rerank"))
+    if mean_raw <= 1.2 and top1_changed == 0.0:
+        return "Current ambiguity benchmark still does not provide useful reranking headroom."
+    if mean_raw > 1.0 and top1_changed > 0.0:
+        return "Reranking has measurable opportunity in this benchmark setting."
+    return "Current ambiguity benchmark provides limited or inconclusive reranking headroom."
 
 
 def _escape_table_cell(value: Any) -> str:

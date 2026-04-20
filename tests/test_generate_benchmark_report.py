@@ -23,6 +23,8 @@ def test_generate_benchmark_report_writes_outputs(tmp_path: Path) -> None:
     assert "mean_runtime_seconds" in markdown
     assert "mean_raw_num_detections" in markdown
     assert "fraction_top1_changed_by_rerank" in markdown
+    assert "## Ambiguity Conclusion" in markdown
+    assert "Current ambiguity benchmark still does not provide useful reranking headroom." in markdown
     assert "## Per-Query Breakdown" in markdown
     assert report_summary["benchmark_dir"] == str(benchmark_dir)
     assert saved_summary["primary_summary"]["detector_backend"] == "mock"
@@ -54,6 +56,24 @@ def test_generate_benchmark_report_comparison_mode(tmp_path: Path) -> None:
     assert "mean_raw_num_detections" in saved_summary["comparison_metrics"]
     assert "fraction_top1_changed_by_rerank" in saved_summary["comparison_metrics"]
     assert saved_summary["compare_benchmark_dir"] == str(secondary_dir)
+
+
+def test_generate_benchmark_report_notes_reranking_opportunity(tmp_path: Path) -> None:
+    benchmark_dir = tmp_path / "benchmark"
+    _write_fake_benchmark(
+        benchmark_dir,
+        query="object",
+        mean_detections=2.0,
+        pick_rate=0.0,
+        top1_changed_rate=0.5,
+    )
+
+    output_md = benchmark_dir / "report.md"
+    generate_report(benchmark_dir=benchmark_dir, output_md=output_md, output_json=benchmark_dir / "report_summary.json")
+
+    markdown = output_md.read_text(encoding="utf-8")
+    assert "## Ambiguity Conclusion" in markdown
+    assert "Reranking has measurable opportunity in this benchmark setting." in markdown
 
 
 def test_generate_benchmark_report_supports_old_summary_without_runtime(tmp_path: Path) -> None:
@@ -103,7 +123,13 @@ def test_generate_benchmark_report_supports_old_summary_without_runtime(tmp_path
     assert "| red cube | 1 | 1 | 1 | 1 | 10 | 1 | 0 | 0 | 0 |" in markdown
 
 
-def _write_fake_benchmark(benchmark_dir: Path, query: str, mean_detections: float, pick_rate: float) -> None:
+def _write_fake_benchmark(
+    benchmark_dir: Path,
+    query: str,
+    mean_detections: float,
+    pick_rate: float,
+    top1_changed_rate: float = 0.0,
+) -> None:
     benchmark_dir.mkdir(parents=True, exist_ok=True)
     rows = [
         {
@@ -112,7 +138,7 @@ def _write_fake_benchmark(benchmark_dir: Path, query: str, mean_detections: floa
             "raw_num_detections": int(mean_detections),
             "num_detections": int(mean_detections),
             "num_ranked_candidates": 1,
-            "top1_changed_by_rerank": False,
+            "top1_changed_by_rerank": top1_changed_rate > 0.0,
             "detector_top_phrase": query,
             "final_top_phrase": query,
             "has_3d_target": True,
@@ -138,7 +164,7 @@ def _write_fake_benchmark(benchmark_dir: Path, query: str, mean_detections: floa
             "mean_num_3d_points": 10.0,
             "fraction_with_3d_target": 1.0,
             "pick_success_rate": pick_rate,
-            "fraction_top1_changed_by_rerank": 0.0,
+            "fraction_top1_changed_by_rerank": top1_changed_rate,
             "mean_runtime_seconds": 1.5,
             "pick_stage_counts": {"placeholder_not_executed": 1},
         },
@@ -151,7 +177,7 @@ def _write_fake_benchmark(benchmark_dir: Path, query: str, mean_detections: floa
                 "mean_num_3d_points": 10.0,
                 "fraction_with_3d_target": 1.0,
                 "pick_success_rate": pick_rate,
-                "fraction_top1_changed_by_rerank": 0.0,
+                "fraction_top1_changed_by_rerank": top1_changed_rate,
                 "mean_runtime_seconds": 1.5,
                 "pick_stage_counts": {"placeholder_not_executed": 1},
             }

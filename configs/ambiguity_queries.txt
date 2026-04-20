@@ -1,0 +1,18 @@
+# Exact object queries
+red cube
+blue mug
+
+# Generic category queries
+cube
+mug
+cup
+block
+
+# Broader ambiguous queries
+object
+container
+toy block
+
+# Near-synonym queries
+red block
+blue cup
