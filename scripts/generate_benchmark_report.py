@@ -68,6 +68,11 @@ def generate_report(
     primary_summary = load_benchmark_summary(primary_dir)
     secondary_summary = load_benchmark_summary(secondary_dir) if secondary_dir is not None else None
     comparison_metrics = compute_comparison_metrics(primary_summary, secondary_summary) if secondary_summary is not None else None
+    comparison_takeaway = (
+        compute_comparison_takeaway(primary_summary, secondary_summary, comparison_metrics)
+        if secondary_summary is not None and comparison_metrics is not None
+        else None
+    )
 
     markdown = render_markdown_report(
         benchmark_dir=primary_dir,
@@ -76,6 +81,7 @@ def generate_report(
         compare_benchmark_dir=secondary_dir,
         secondary_summary=secondary_summary,
         comparison_metrics=comparison_metrics,
+        comparison_takeaway=comparison_takeaway,
     )
     output_md_path.parent.mkdir(parents=True, exist_ok=True)
     output_md_path.write_text(markdown, encoding="utf-8")
@@ -88,6 +94,7 @@ def generate_report(
         report_summary["compare_benchmark_dir"] = str(secondary_dir)
         report_summary["secondary_summary"] = secondary_summary
         report_summary["comparison_metrics"] = comparison_metrics
+        report_summary["comparison_takeaway"] = comparison_takeaway
     write_json(report_summary, output_json_path)
     return report_summary
 
@@ -131,6 +138,55 @@ def compute_comparison_metrics(primary_summary: dict[str, Any], secondary_summar
     return comparison
 
 
+def compute_comparison_takeaway(
+    primary_summary: dict[str, Any],
+    secondary_summary: dict[str, Any],
+    comparison_metrics: dict[str, dict[str, float]],
+) -> str:
+    """Render a compact, paper-oriented interpretation of a benchmark comparison."""
+
+    primary_skip_clip = _optional_bool(primary_summary.get("skip_clip"))
+    secondary_skip_clip = _optional_bool(secondary_summary.get("skip_clip"))
+    if primary_skip_clip is not None and secondary_skip_clip is not None and primary_skip_clip != secondary_skip_clip:
+        primary_metrics = _metrics(primary_summary)
+        secondary_metrics = _metrics(secondary_summary)
+        clip_metrics = secondary_metrics if primary_skip_clip else primary_metrics
+        no_clip_metrics = primary_metrics if primary_skip_clip else secondary_metrics
+        clip_label = "Secondary" if primary_skip_clip else "Primary"
+        raw_candidates = _as_float(clip_metrics.get("mean_raw_num_detections"))
+        top1_changed = _as_float(clip_metrics.get("fraction_top1_changed_by_rerank"))
+        pick_delta = _as_float(clip_metrics.get("pick_success_rate")) - _as_float(no_clip_metrics.get("pick_success_rate"))
+        target_delta = _as_float(clip_metrics.get("fraction_with_3d_target")) - _as_float(no_clip_metrics.get("fraction_with_3d_target"))
+        runtime_delta = _as_float(clip_metrics.get("mean_runtime_seconds")) - _as_float(no_clip_metrics.get("mean_runtime_seconds"))
+        if raw_candidates <= 1.2 and top1_changed == 0.0:
+            return (
+                f"CLIP ablation takeaway: {clip_label} uses CLIP, but candidate multiplicity is low "
+                f"(mean_raw_num_detections={_format_number(raw_candidates)}) and reranking never changes top-1. "
+                "Prioritize candidate generation or ambiguity before tuning CLIP."
+            )
+        if pick_delta > 0.0 or target_delta > 0.0:
+            return (
+                "CLIP ablation takeaway: CLIP shows a positive downstream signal in this comparison "
+                f"(pick_success_delta={_format_number(pick_delta)}, target_fraction_delta={_format_number(target_delta)}), "
+                f"with runtime_delta={_format_number(runtime_delta)} seconds."
+            )
+        if top1_changed > 0.0:
+            return (
+                "CLIP ablation takeaway: CLIP changes top-1 in this comparison, but downstream metrics do not improve yet. "
+                f"Treat it as useful for diagnosis, not as a stronger baseline yet; runtime_delta={_format_number(runtime_delta)} seconds."
+            )
+        return "CLIP ablation takeaway: CLIP does not show a measurable benefit in this comparison."
+
+    improved = [
+        key
+        for key, values in comparison_metrics.items()
+        if key != "mean_runtime_seconds" and _as_float(values.get("delta")) > 0.0
+    ]
+    if improved:
+        return f"Comparison takeaway: Primary improves {', '.join(improved)} over secondary."
+    return "Comparison takeaway: No positive primary-vs-secondary metric deltas are visible in this summary."
+
+
 def render_markdown_report(
     benchmark_dir: Path,
     rows: list[dict[str, Any]],
@@ -138,6 +194,7 @@ def render_markdown_report(
     compare_benchmark_dir: Path | None = None,
     secondary_summary: dict[str, Any] | None = None,
     comparison_metrics: dict[str, dict[str, float]] | None = None,
+    comparison_takeaway: str | None = None,
 ) -> str:
     """Render a compact markdown report."""
 
@@ -214,6 +271,8 @@ def render_markdown_report(
                 f"| {key} | {_format_number(values['primary'])} | "
                 f"{_format_number(values['secondary'])} | {_format_number(values['delta'])} |"
             )
+        if comparison_takeaway:
+            lines.extend(["", "## Comparison Takeaway", "", comparison_takeaway])
 
     lines.append("")
     return "\n".join(lines)
@@ -269,6 +328,19 @@ def _as_float(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _optional_bool(value: Any) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "y"}:
+            return True
+        if lowered in {"0", "false", "no", "n"}:
+            return False
+        return None
+    return bool(value)
 
 
 def _ambiguity_conclusion(metrics: dict[str, Any]) -> str:

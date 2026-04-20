@@ -54,7 +54,32 @@ def test_generate_benchmark_report_comparison_mode(tmp_path: Path) -> None:
     assert "mean_runtime_seconds" in saved_summary["comparison_metrics"]
     assert "mean_raw_num_detections" in saved_summary["comparison_metrics"]
     assert "fraction_top1_changed_by_rerank" in saved_summary["comparison_metrics"]
+    assert "## Comparison Takeaway" in markdown
+    assert "comparison_takeaway" in saved_summary
     assert saved_summary["compare_benchmark_dir"] == str(secondary_dir)
+
+
+def test_generate_benchmark_report_interprets_clip_ablation_without_headroom(tmp_path: Path) -> None:
+    primary_dir = tmp_path / "with_clip"
+    secondary_dir = tmp_path / "no_clip"
+    _write_fake_benchmark(primary_dir, query="red cube", mean_detections=1.0, pick_rate=0.0, skip_clip=False, runtime_seconds=2.0)
+    _write_fake_benchmark(secondary_dir, query="red cube", mean_detections=1.0, pick_rate=0.0, skip_clip=True, runtime_seconds=1.0)
+
+    output_md = primary_dir / "report.md"
+    output_json = primary_dir / "report_summary.json"
+    generate_report(
+        benchmark_dir=primary_dir,
+        compare_benchmark_dir=secondary_dir,
+        output_md=output_md,
+        output_json=output_json,
+    )
+
+    markdown = output_md.read_text(encoding="utf-8")
+    saved_summary = json.loads(output_json.read_text(encoding="utf-8"))
+    assert "## Comparison Takeaway" in markdown
+    assert "candidate multiplicity is low" in markdown
+    assert "Prioritize candidate generation or ambiguity before tuning CLIP." in markdown
+    assert "candidate multiplicity is low" in saved_summary["comparison_takeaway"]
 
 
 def test_generate_benchmark_report_notes_reranking_opportunity(tmp_path: Path) -> None:
@@ -140,6 +165,8 @@ def _write_fake_benchmark(
     mean_detections: float,
     pick_rate: float,
     top1_changed_rate: float = 0.0,
+    skip_clip: bool = True,
+    runtime_seconds: float = 1.5,
 ) -> None:
     benchmark_dir.mkdir(parents=True, exist_ok=True)
     rows = [
@@ -156,7 +183,7 @@ def _write_fake_benchmark(
             "num_3d_points": 10,
             "pick_success": pick_rate > 0.0,
             "pick_stage": "placeholder_not_executed",
-            "runtime_seconds": 1.5,
+            "runtime_seconds": runtime_seconds,
             "artifacts": str(benchmark_dir / "runs" / "run_0001"),
         }
     ]
@@ -165,7 +192,7 @@ def _write_fake_benchmark(
         "total_runs": 1,
         "unique_queries": [query],
         "detector_backend": "mock",
-        "skip_clip": True,
+        "skip_clip": skip_clip,
         "depth_scale": 1000.0,
         "aggregate_metrics": {
             "total_runs": 1,
@@ -176,7 +203,7 @@ def _write_fake_benchmark(
             "fraction_with_3d_target": 1.0,
             "pick_success_rate": pick_rate,
             "fraction_top1_changed_by_rerank": top1_changed_rate,
-            "mean_runtime_seconds": 1.5,
+            "mean_runtime_seconds": runtime_seconds,
             "pick_stage_counts": {"placeholder_not_executed": 1},
         },
         "per_query_metrics": {
@@ -189,7 +216,7 @@ def _write_fake_benchmark(
                 "fraction_with_3d_target": 1.0,
                 "pick_success_rate": pick_rate,
                 "fraction_top1_changed_by_rerank": top1_changed_rate,
-                "mean_runtime_seconds": 1.5,
+                "mean_runtime_seconds": runtime_seconds,
                 "pick_stage_counts": {"placeholder_not_executed": 1},
             }
         },
