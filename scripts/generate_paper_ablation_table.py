@@ -6,6 +6,7 @@ import argparse
 import csv
 import json
 from pathlib import Path
+import sys
 from typing import Any
 
 TABLE_COLUMNS = [
@@ -32,23 +33,45 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--output-md", type=Path, default=Path("outputs") / "paper_ablation_table.md")
     parser.add_argument("--output-csv", type=Path, default=Path("outputs") / "paper_ablation_table.csv")
+    parser.add_argument("--skip-missing", action="store_true", help="Skip benchmark entries without benchmark_summary.json instead of failing.")
     return parser.parse_args()
 
 
-def main() -> None:
+def main() -> int:
     args = parse_args()
-    rows = build_table_rows(args.benchmark)
+    try:
+        rows = build_table_rows(args.benchmark, skip_missing=args.skip_missing)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
     write_rows_csv(rows, args.output_csv)
     args.output_md.parent.mkdir(parents=True, exist_ok=True)
     args.output_md.write_text(render_markdown_table(rows), encoding="utf-8")
     print(f"Wrote paper ablation markdown: {args.output_md}")
     print(f"Wrote paper ablation CSV:      {args.output_csv}")
+    return 0
 
 
-def build_table_rows(benchmark_specs: list[str]) -> list[dict[str, Any]]:
+def build_table_rows(benchmark_specs: list[str], skip_missing: bool = False) -> list[dict[str, Any]]:
     """Build one ablation table row per benchmark directory."""
 
-    return [row_from_benchmark(label, benchmark_dir) for label, benchmark_dir in map(parse_benchmark_spec, benchmark_specs)]
+    entries = [parse_benchmark_spec(spec) for spec in benchmark_specs]
+    missing_entries = [
+        (label, benchmark_dir, benchmark_summary_path(benchmark_dir))
+        for label, benchmark_dir in entries
+        if not benchmark_summary_path(benchmark_dir).exists()
+    ]
+    if missing_entries and not skip_missing:
+        raise FileNotFoundError(format_missing_summaries_message(missing_entries))
+
+    rows = [
+        row_from_benchmark(label, benchmark_dir)
+        for label, benchmark_dir in entries
+        if benchmark_summary_path(benchmark_dir).exists()
+    ]
+    if not rows:
+        raise ValueError("No benchmark summaries were available to include in the paper ablation table.")
+    return rows
 
 
 def parse_benchmark_spec(spec: str) -> tuple[str, Path]:
@@ -87,10 +110,26 @@ def row_from_benchmark(label: str, benchmark_dir: Path) -> dict[str, Any]:
     return row
 
 
+def benchmark_summary_path(benchmark_dir: str | Path) -> Path:
+    """Return the expected benchmark summary path for a benchmark directory."""
+
+    return Path(benchmark_dir) / "benchmark_summary.json"
+
+
+def format_missing_summaries_message(missing_entries: list[tuple[str, Path, Path]]) -> str:
+    """Format an actionable error for missing benchmark summaries."""
+
+    lines = ["Missing benchmark_summary.json for requested benchmark entries:"]
+    for label, _benchmark_dir, summary_path in missing_entries:
+        lines.append(f"- {label}: {summary_path}")
+    lines.append("Rerun the missing benchmark(s), check the output directory names, or pass --skip-missing to generate a partial table.")
+    return "\n".join(lines)
+
+
 def load_benchmark_summary(benchmark_dir: str | Path) -> dict[str, Any]:
     """Load ``benchmark_summary.json`` from a benchmark directory."""
 
-    path = Path(benchmark_dir) / "benchmark_summary.json"
+    path = benchmark_summary_path(benchmark_dir)
     if not path.exists():
         raise FileNotFoundError(f"Required benchmark summary not found: {path}")
     with path.open("r", encoding="utf-8-sig") as file:
@@ -167,4 +206,4 @@ def _as_int(value: Any) -> int:
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

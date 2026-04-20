@@ -4,8 +4,11 @@ import csv
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.generate_paper_ablation_table import (
     build_table_rows,
+    format_missing_summaries_message,
     parse_benchmark_spec,
     render_markdown_table,
     write_rows_csv,
@@ -39,6 +42,46 @@ def test_build_table_rows_uses_summary_metrics(tmp_path: Path) -> None:
     assert rows[1]["skip_clip"] == "False"
     assert rows[1]["mean_raw_num_detections"] == 2.0
     assert rows[1]["fraction_top1_changed_by_rerank"] == 0.5
+
+
+def test_build_table_rows_reports_all_missing_summaries(tmp_path: Path) -> None:
+    first = tmp_path / "missing_a"
+    second = tmp_path / "missing_b"
+
+    with pytest.raises(FileNotFoundError) as error:
+        build_table_rows([f"A={first}", f"B={second}"])
+
+    message = str(error.value)
+    assert "Missing benchmark_summary.json" in message
+    assert f"A: {first / 'benchmark_summary.json'}" in message
+    assert f"B: {second / 'benchmark_summary.json'}" in message
+    assert "--skip-missing" in message
+
+
+def test_build_table_rows_can_skip_missing_summaries(tmp_path: Path) -> None:
+    existing = tmp_path / "existing"
+    missing = tmp_path / "missing"
+    _write_summary(existing, skip_clip=True, raw=1.0, changed=0.0, runtime=1.0)
+
+    rows = build_table_rows([f"Existing={existing}", f"Missing={missing}"], skip_missing=True)
+
+    assert len(rows) == 1
+    assert rows[0]["label"] == "Existing"
+
+
+def test_build_table_rows_skip_missing_still_requires_one_summary(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="No benchmark summaries"):
+        build_table_rows([f"Missing={tmp_path / 'missing'}"], skip_missing=True)
+
+
+def test_format_missing_summaries_message_is_actionable(tmp_path: Path) -> None:
+    path = tmp_path / "run" / "benchmark_summary.json"
+
+    message = format_missing_summaries_message([("Run", tmp_path / "run", path)])
+
+    assert "Run" in message
+    assert str(path) in message
+    assert "Rerun" in message
 
 
 def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
