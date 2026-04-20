@@ -49,6 +49,14 @@ class DetectionCandidate:
         }
 
 
+@dataclass(frozen=True)
+class HFDependencyDiagnosis:
+    """Human-readable diagnosis for HF GroundingDINO dependency failures."""
+
+    probable_cause: str
+    suggested_action: str
+
+
 class GroundingDINOAdapter(Protocol):
     """Protocol for detector backends."""
 
@@ -215,18 +223,26 @@ class HuggingFaceGroundingDINOAdapter:
     def __init__(self, model_id: str, device: str | None = None) -> None:
         try:
             import torch
+        except Exception as exc:
+            raise_hf_groundingdino_error("importing torch", exc)
+
+        try:
+            import torchvision  # noqa: F401
+        except Exception as exc:
+            raise_hf_groundingdino_error("importing torchvision", exc)
+
+        try:
             from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
-        except ImportError as exc:
-            raise RuntimeError(
-                "Hugging Face GroundingDINO backend requires `torch` and `transformers`. "
-                "Install them with `pip install torch transformers`, or use the original "
-                "GroundingDINO backend with config/checkpoint paths."
-            ) from exc
+        except Exception as exc:
+            raise_hf_groundingdino_error("importing Transformers GroundingDINO classes", exc)
 
         self.torch = torch
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.processor = AutoProcessor.from_pretrained(model_id)
-        self.model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(self.device)
+        try:
+            self.processor = AutoProcessor.from_pretrained(model_id)
+            self.model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(self.device)
+        except Exception as exc:
+            raise_hf_groundingdino_error(f"loading HF model {model_id!r}", exc)
         self.model.eval()
         self.model_id = model_id
 
@@ -386,6 +402,114 @@ def _tensor_to_numpy(value: Any) -> np.ndarray:
     if hasattr(value, "numpy"):
         value = value.numpy()
     return np.asarray(value)
+
+
+def classify_hf_groundingdino_exception(exc: BaseException) -> HFDependencyDiagnosis:
+    """Classify common HF GroundingDINO dependency failures."""
+
+    text = _exception_chain_text(exc)
+    lowered = text.lower()
+    if _looks_like_torchvision_binary_mismatch(lowered):
+        return HFDependencyDiagnosis(
+            probable_cause="torch/torchvision binary or CUDA version mismatch",
+            suggested_action=(
+                "Install matching torch and torchvision wheels for the same CUDA runtime, "
+                "then rerun `python scripts/check_hf_groundingdino_env.py`."
+            ),
+        )
+    if "torchvision" in lowered:
+        return HFDependencyDiagnosis(
+            probable_cause="torchvision import failure",
+            suggested_action=(
+                "Reinstall torchvision so it matches the installed torch build. In Colab, "
+                "restart the runtime after changing torch/torchvision packages."
+            ),
+        )
+    if "autoprocessor" in lowered:
+        return HFDependencyDiagnosis(
+            probable_cause="Transformers AutoProcessor import failure",
+            suggested_action=(
+                "Upgrade Transformers to a version with GroundingDINO zero-shot object "
+                "detection support, for example `pip install -U transformers`."
+            ),
+        )
+    if "automodelforzeroshotobjectdetection" in lowered:
+        return HFDependencyDiagnosis(
+            probable_cause="Transformers zero-shot object detection class import failure",
+            suggested_action=(
+                "Upgrade Transformers to a version that provides "
+                "`AutoModelForZeroShotObjectDetection`."
+            ),
+        )
+    if "no module named 'transformers'" in lowered or "no module named transformers" in lowered:
+        return HFDependencyDiagnosis(
+            probable_cause="Transformers is not installed",
+            suggested_action="Install Transformers with `pip install transformers`.",
+        )
+    if "no module named 'torch'" in lowered or "no module named torch" in lowered:
+        return HFDependencyDiagnosis(
+            probable_cause="PyTorch is not installed",
+            suggested_action="Install PyTorch for your Python/CUDA environment.",
+        )
+    if "from_pretrained" in lowered or "huggingface" in lowered or "model" in lowered:
+        return HFDependencyDiagnosis(
+            probable_cause="HF model loading failed",
+            suggested_action=(
+                "Check the model id, network access, and Hugging Face cache permissions. "
+                "Use `--try-model-load` in the diagnostic script for a focused check."
+            ),
+        )
+    return HFDependencyDiagnosis(
+        probable_cause="HF GroundingDINO dependency initialization failed",
+        suggested_action=(
+            "Run `python scripts/check_hf_groundingdino_env.py` to inspect torch, "
+            "torchvision, and Transformers imports."
+        ),
+    )
+
+
+def format_hf_groundingdino_error(stage: str, exc: BaseException) -> str:
+    """Build an actionable RuntimeError message for HF detector setup failures."""
+
+    diagnosis = classify_hf_groundingdino_exception(exc)
+    original = _exception_chain_text(exc)
+    return (
+        f"Failed while {stage} for the Hugging Face GroundingDINO backend.\n"
+        f"Original exception: {original}\n"
+        f"Probable cause: {diagnosis.probable_cause}.\n"
+        f"Suggested next action: {diagnosis.suggested_action}"
+    )
+
+
+def raise_hf_groundingdino_error(stage: str, exc: BaseException) -> None:
+    """Raise an actionable HF GroundingDINO RuntimeError while preserving context."""
+
+    raise RuntimeError(format_hf_groundingdino_error(stage, exc)) from exc
+
+
+def _exception_chain_text(exc: BaseException) -> str:
+    parts: list[str] = []
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        parts.append(f"{type(current).__name__}: {current}")
+        current = current.__cause__ or current.__context__
+    return " | ".join(parts)
+
+
+def _looks_like_torchvision_binary_mismatch(text: str) -> bool:
+    mismatch_patterns = [
+        "operator torchvision::nms does not exist",
+        "couldn't load custom c++ ops",
+        "could not load custom c++ ops",
+        "undefined symbol",
+        "dll load failed",
+        "cuda",
+    ]
+    if "torchvision" not in text:
+        return False
+    return any(pattern in text for pattern in mismatch_patterns)
 
 
 def _cxcywh_to_xyxy_pixels(boxes: np.ndarray, width: int, height: int) -> np.ndarray:
