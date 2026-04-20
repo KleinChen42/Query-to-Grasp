@@ -1,0 +1,9 @@
+numpy
+pillow
+open3d
+gymnasium
+mani_skill
+pytest
+torch
+transformers
+open_clip_torch
