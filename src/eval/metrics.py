@@ -28,6 +28,7 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
     num_3d_points = _as_int(summary.get("num_3d_points"), default=0)
     pick_success = _as_bool(summary.get("pick_success", pick_result.get("success", False)))
     pick_stage = str(summary.get("pick_stage") or pick_result.get("stage") or "unknown")
+    runtime_seconds = _as_float(summary.get("runtime_seconds"), default=0.0)
     return {
         "query": str(summary.get("query") or ""),
         "num_detections": _as_int(summary.get("num_detections"), default=0),
@@ -36,6 +37,7 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
         "num_3d_points": num_3d_points,
         "pick_success": pick_success,
         "pick_stage": pick_stage,
+        "runtime_seconds": runtime_seconds,
         "artifacts": str(summary.get("artifacts") or ""),
     }
 
@@ -52,6 +54,7 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_num_3d_points": 0.0,
             "fraction_with_3d_target": 0.0,
             "pick_success_rate": 0.0,
+            "mean_runtime_seconds": 0.0,
             "pick_stage_counts": {},
         }
 
@@ -63,8 +66,19 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_num_3d_points": _mean(_as_int(row.get("num_3d_points"), 0) for row in rows),
         "fraction_with_3d_target": _mean(1 if _as_bool(row.get("has_3d_target")) else 0 for row in rows),
         "pick_success_rate": _mean(1 if _as_bool(row.get("pick_success")) else 0 for row in rows),
+        "mean_runtime_seconds": _mean(_as_float(row.get("runtime_seconds"), 0.0) for row in rows),
         "pick_stage_counts": dict(sorted(stage_counts.items())),
     }
+
+
+def aggregate_runs_by_query(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Aggregate benchmark rows separately for each query string."""
+
+    grouped_rows: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        query = str(row.get("query") or "")
+        grouped_rows.setdefault(query, []).append(row)
+    return {query: aggregate_runs(query_rows) for query, query_rows in sorted(grouped_rows.items())}
 
 
 def _load_json_dict(path: str | Path) -> dict[str, Any]:
@@ -107,9 +121,17 @@ def _as_bool(value: Any) -> bool:
     return bool(value)
 
 
+def _as_float(value: Any, default: float = 0.0) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _mean(values: Any) -> float:
     values_list = list(values)
     if not values_list:
         return 0.0
     return float(sum(values_list) / len(values_list))
-

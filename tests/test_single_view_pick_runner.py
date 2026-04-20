@@ -24,6 +24,7 @@ def test_single_view_pick_benchmark_writes_outputs(monkeypatch, tmp_path) -> Non
             "num_3d_points": 12,
             "pick_success": False,
             "pick_stage": "placeholder_not_executed",
+            "runtime_seconds": 1.5,
             "artifacts": str(run_dir),
         }
         pick_result = {
@@ -74,5 +75,9 @@ def test_single_view_pick_benchmark_writes_outputs(monkeypatch, tmp_path) -> Non
     assert len(rows) == 4
     assert rows[0]["seed"] == 0
     assert rows[0]["run_failed"] is False
+    assert rows[0]["runtime_seconds"] == 1.5
     assert summary["total_runs"] == 4
     assert summary["aggregate_metrics"]["total_runs"] == 4
+    assert summary["aggregate_metrics"]["mean_runtime_seconds"] == 1.5
+    assert "red cube" in summary["per_query_metrics"]
+    assert "runtime_seconds" in rows_csv.read_text(encoding="utf-8").splitlines()[0]

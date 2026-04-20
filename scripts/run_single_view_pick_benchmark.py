@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.eval.metrics import aggregate_runs, load_pick_result, load_summary, summarize_run  # noqa: E402
+from src.eval.metrics import aggregate_runs, aggregate_runs_by_query, load_pick_result, load_summary, summarize_run  # noqa: E402
 from src.io.export_utils import write_json  # noqa: E402
 
 LOGGER = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ CSV_COLUMNS = [
     "num_3d_points",
     "pick_success",
     "pick_stage",
+    "runtime_seconds",
     "artifacts",
 ]
 
@@ -87,6 +88,7 @@ def main() -> None:
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),
         "aggregate_metrics": aggregate_runs(rows),
+        "per_query_metrics": aggregate_runs_by_query(rows),
     }
     write_json(benchmark_summary, args.output_dir / "benchmark_summary.json")
     print_benchmark_summary(benchmark_summary, args.output_dir)
@@ -227,6 +229,7 @@ def failed_row(
         "num_3d_points": 0,
         "pick_success": False,
         "pick_stage": "run_failed",
+        "runtime_seconds": 0.0,
         "artifacts": artifacts,
         "run_failed": True,
         "error_message": message,
@@ -255,9 +258,9 @@ def print_benchmark_summary(benchmark_summary: dict[str, Any], output_dir: Path)
     print(f"  Queries:     {', '.join(benchmark_summary['unique_queries'])}")
     print(f"  3D target:   {metrics['fraction_with_3d_target']:.3f}")
     print(f"  Pick rate:   {metrics['pick_success_rate']:.3f}")
+    print(f"  Runtime:     {metrics.get('mean_runtime_seconds', 0.0):.3f}s")
     print(f"  Artifacts:   {output_dir}")
 
 
 if __name__ == "__main__":
     main()
-

@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.eval.metrics import aggregate_runs_by_query  # noqa: E402
 from src.io.export_utils import write_json  # noqa: E402
 
 METRIC_KEYS = [
@@ -21,6 +22,7 @@ METRIC_KEYS = [
     "mean_num_3d_points",
     "fraction_with_3d_target",
     "pick_success_rate",
+    "mean_runtime_seconds",
 ]
 
 
@@ -138,6 +140,7 @@ def render_markdown_report(
     """Render a compact markdown report."""
 
     metrics = _metrics(primary_summary)
+    per_query_metrics = _per_query_metrics(primary_summary, rows)
     lines = [
         "# Benchmark Report",
         "",
@@ -157,6 +160,27 @@ def render_markdown_report(
     for key in METRIC_KEYS:
         lines.append(f"| {key} | {_format_number(metrics.get(key))} |")
     lines.append(f"| pick_stage_counts | `{json.dumps(metrics.get('pick_stage_counts', {}), sort_keys=True)}` |")
+
+    lines.extend(
+        [
+            "",
+            "## Per-Query Breakdown",
+            "",
+            "| Query | total_runs | mean_num_detections | mean_num_ranked_candidates | mean_num_3d_points | fraction_with_3d_target | pick_success_rate | mean_runtime_seconds |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for query, query_metrics in per_query_metrics.items():
+        lines.append(
+            f"| {_escape_table_cell(query)} | "
+            f"{_format_number(query_metrics.get('total_runs'))} | "
+            f"{_format_number(query_metrics.get('mean_num_detections'))} | "
+            f"{_format_number(query_metrics.get('mean_num_ranked_candidates'))} | "
+            f"{_format_number(query_metrics.get('mean_num_3d_points'))} | "
+            f"{_format_number(query_metrics.get('fraction_with_3d_target'))} | "
+            f"{_format_number(query_metrics.get('pick_success_rate'))} | "
+            f"{_format_number(query_metrics.get('mean_runtime_seconds'))} |"
+        )
 
     if compare_benchmark_dir is not None and secondary_summary is not None and comparison_metrics is not None:
         lines.extend(
@@ -195,6 +219,16 @@ def _metrics(summary: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def _per_query_metrics(summary: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    metrics = summary.get("per_query_metrics")
+    if isinstance(metrics, dict):
+        return {
+            str(query): query_metrics if isinstance(query_metrics, dict) else {}
+            for query, query_metrics in sorted(metrics.items())
+        }
+    return aggregate_runs_by_query(rows)
+
+
 def _format_queries(value: Any) -> str:
     if isinstance(value, list):
         return ", ".join(str(item) for item in value) if value else "unknown"
@@ -223,6 +257,9 @@ def _as_float(value: Any) -> float:
         return 0.0
 
 
+def _escape_table_cell(value: Any) -> str:
+    return str(value).replace("|", "\\|")
+
+
 if __name__ == "__main__":
     main()
-

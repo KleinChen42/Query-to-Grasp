@@ -7,6 +7,7 @@ from datetime import datetime
 import logging
 from pathlib import Path
 import sys
+import time
 from typing import Any
 
 import numpy as np
@@ -66,6 +67,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
+    pipeline_start_time = time.perf_counter()
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = args.output_dir / f"{timestamp}_{_slug(args.query)}"
@@ -195,6 +197,7 @@ def main() -> None:
             candidate_3d=candidate_3d,
             pick_result=pick_result,
             run_dir=run_dir,
+            runtime_seconds=time.perf_counter() - pipeline_start_time,
         )
         write_json(summary, run_dir / "summary.json")
         print_pick_summary(summary)
@@ -220,6 +223,7 @@ def build_summary(
     candidate_3d: Candidate3D | None,
     pick_result: dict[str, Any],
     run_dir: Path,
+    runtime_seconds: float,
 ) -> dict[str, Any]:
     """Build a concise run summary."""
 
@@ -234,6 +238,7 @@ def build_summary(
         "pick_success": bool(pick_result.get("success", False)),
         "pick_stage": pick_result.get("stage"),
         "pick_message": pick_result.get("message"),
+        "runtime_seconds": float(runtime_seconds),
         "artifacts": str(run_dir),
     }
 
@@ -250,6 +255,7 @@ def print_pick_summary(summary: dict[str, Any]) -> None:
     print(f"  World XYZ:    {summary['world_xyz']}")
     print(f"  Pick success: {summary['pick_success']}")
     print(f"  Pick stage:   {summary['pick_stage']}")
+    print(f"  Runtime:      {summary.get('runtime_seconds', 0.0):.3f}s")
     print(f"  Artifacts:    {summary['artifacts']}")
 
 
@@ -271,4 +277,3 @@ def _slug(value: str) -> str:
 
 if __name__ == "__main__":
     main()
-
