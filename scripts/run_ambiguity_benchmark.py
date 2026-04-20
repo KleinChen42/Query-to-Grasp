@@ -92,6 +92,8 @@ def build_benchmark_command(args: argparse.Namespace) -> list[str]:
         command.extend(str(seed) for seed in args.seeds)
     if args.skip_clip:
         command.append("--skip-clip")
+    else:
+        command.append("--use-clip")
     return command
 
 

@@ -36,7 +36,7 @@ def test_build_benchmark_command_defaults_to_clip_enabled(tmp_path: Path) -> Non
     assert command[0] == sys.executable
     assert "--queries-file" in command
     assert "--skip-clip" not in command
-    assert "--use-clip" not in command
+    assert "--use-clip" in command
     assert command[command.index("--output-dir") + 1] == str(args.output_dir)
 
 

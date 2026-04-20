@@ -163,14 +163,15 @@ def render_markdown_report(
         lines.append(f"| {key} | {_format_number(metrics.get(key))} |")
     lines.append(f"| pick_stage_counts | `{json.dumps(metrics.get('pick_stage_counts', {}), sort_keys=True)}` |")
 
-    lines.extend(
-        [
-            "",
-            "## Ambiguity Conclusion",
-            "",
-            _ambiguity_conclusion(metrics),
-        ]
-    )
+    if _is_ambiguity_benchmark(benchmark_dir):
+        lines.extend(
+            [
+                "",
+                "## Ambiguity Conclusion",
+                "",
+                _ambiguity_conclusion(metrics),
+            ]
+        )
 
     lines.extend(
         [
@@ -278,6 +279,10 @@ def _ambiguity_conclusion(metrics: dict[str, Any]) -> str:
     if mean_raw > 1.0 and top1_changed > 0.0:
         return "Reranking has measurable opportunity in this benchmark setting."
     return "Current ambiguity benchmark provides limited or inconclusive reranking headroom."
+
+
+def _is_ambiguity_benchmark(benchmark_dir: Path) -> bool:
+    return "ambiguity" in benchmark_dir.name.lower()
 
 
 def _escape_table_cell(value: Any) -> str:

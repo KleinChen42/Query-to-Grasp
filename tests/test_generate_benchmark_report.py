@@ -23,8 +23,7 @@ def test_generate_benchmark_report_writes_outputs(tmp_path: Path) -> None:
     assert "mean_runtime_seconds" in markdown
     assert "mean_raw_num_detections" in markdown
     assert "fraction_top1_changed_by_rerank" in markdown
-    assert "## Ambiguity Conclusion" in markdown
-    assert "Current ambiguity benchmark still does not provide useful reranking headroom." in markdown
+    assert "## Ambiguity Conclusion" not in markdown
     assert "## Per-Query Breakdown" in markdown
     assert report_summary["benchmark_dir"] == str(benchmark_dir)
     assert saved_summary["primary_summary"]["detector_backend"] == "mock"
@@ -59,7 +58,7 @@ def test_generate_benchmark_report_comparison_mode(tmp_path: Path) -> None:
 
 
 def test_generate_benchmark_report_notes_reranking_opportunity(tmp_path: Path) -> None:
-    benchmark_dir = tmp_path / "benchmark"
+    benchmark_dir = tmp_path / "ambiguity_benchmark"
     _write_fake_benchmark(
         benchmark_dir,
         query="object",
@@ -74,6 +73,18 @@ def test_generate_benchmark_report_notes_reranking_opportunity(tmp_path: Path) -
     markdown = output_md.read_text(encoding="utf-8")
     assert "## Ambiguity Conclusion" in markdown
     assert "Reranking has measurable opportunity in this benchmark setting." in markdown
+
+
+def test_generate_benchmark_report_notes_limited_ambiguity_headroom(tmp_path: Path) -> None:
+    benchmark_dir = tmp_path / "ambiguity_benchmark"
+    _write_fake_benchmark(benchmark_dir, query="object", mean_detections=1.0, pick_rate=0.0)
+
+    output_md = benchmark_dir / "report.md"
+    generate_report(benchmark_dir=benchmark_dir, output_md=output_md, output_json=benchmark_dir / "report_summary.json")
+
+    markdown = output_md.read_text(encoding="utf-8")
+    assert "## Ambiguity Conclusion" in markdown
+    assert "Current ambiguity benchmark still does not provide useful reranking headroom." in markdown
 
 
 def test_generate_benchmark_report_supports_old_summary_without_runtime(tmp_path: Path) -> None:
