@@ -8,11 +8,11 @@ __pycache__/
 .coverage
 htmlcov/
 
-.venv/
-venv/
+/.venv/
+/venv/
 /env/
 
-outputs/
+/outputs/
 data/logs/
 data/videos/
 data/pointclouds/
