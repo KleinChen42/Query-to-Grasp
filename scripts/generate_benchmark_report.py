@@ -17,11 +17,13 @@ from src.io.export_utils import write_json  # noqa: E402
 
 METRIC_KEYS = [
     "total_runs",
+    "mean_raw_num_detections",
     "mean_num_detections",
     "mean_num_ranked_candidates",
     "mean_num_3d_points",
     "fraction_with_3d_target",
     "pick_success_rate",
+    "fraction_top1_changed_by_rerank",
     "mean_runtime_seconds",
 ]
 
@@ -166,19 +168,21 @@ def render_markdown_report(
             "",
             "## Per-Query Breakdown",
             "",
-            "| Query | total_runs | mean_num_detections | mean_num_ranked_candidates | mean_num_3d_points | fraction_with_3d_target | pick_success_rate | mean_runtime_seconds |",
-            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| Query | total_runs | mean_raw_num_detections | mean_num_detections | mean_num_ranked_candidates | mean_num_3d_points | fraction_with_3d_target | pick_success_rate | fraction_top1_changed_by_rerank | mean_runtime_seconds |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for query, query_metrics in per_query_metrics.items():
         lines.append(
             f"| {_escape_table_cell(query)} | "
             f"{_format_number(query_metrics.get('total_runs'))} | "
+            f"{_format_number(query_metrics.get('mean_raw_num_detections'))} | "
             f"{_format_number(query_metrics.get('mean_num_detections'))} | "
             f"{_format_number(query_metrics.get('mean_num_ranked_candidates'))} | "
             f"{_format_number(query_metrics.get('mean_num_3d_points'))} | "
             f"{_format_number(query_metrics.get('fraction_with_3d_target'))} | "
             f"{_format_number(query_metrics.get('pick_success_rate'))} | "
+            f"{_format_number(query_metrics.get('fraction_top1_changed_by_rerank'))} | "
             f"{_format_number(query_metrics.get('mean_runtime_seconds'))} |"
         )
 

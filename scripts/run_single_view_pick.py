@@ -198,6 +198,9 @@ def main() -> None:
             pick_result=pick_result,
             run_dir=run_dir,
             runtime_seconds=time.perf_counter() - pipeline_start_time,
+            detector_top_phrase=_top_phrase(detections),
+            final_top_phrase=_top_phrase(reranked),
+            top1_changed_by_rerank=_top1_changed_by_rerank(detections, reranked, skip_clip=args.skip_clip),
         )
         write_json(summary, run_dir / "summary.json")
         print_pick_summary(summary)
@@ -224,14 +227,21 @@ def build_summary(
     pick_result: dict[str, Any],
     run_dir: Path,
     runtime_seconds: float,
+    detector_top_phrase: str | None,
+    final_top_phrase: str | None,
+    top1_changed_by_rerank: bool,
 ) -> dict[str, Any]:
     """Build a concise run summary."""
 
     return {
         "query": args.query,
         "normalized_prompt": parsed_query["normalized_prompt"],
+        "raw_num_detections": num_detections,
         "num_detections": num_detections,
         "num_ranked_candidates": num_ranked,
+        "top1_changed_by_rerank": bool(top1_changed_by_rerank),
+        "detector_top_phrase": detector_top_phrase,
+        "final_top_phrase": final_top_phrase,
         "camera_xyz": None if candidate_3d is None or candidate_3d.camera_xyz is None else candidate_3d.camera_xyz.tolist(),
         "world_xyz": None if candidate_3d is None or candidate_3d.world_xyz is None else candidate_3d.world_xyz.tolist(),
         "num_3d_points": 0 if candidate_3d is None else candidate_3d.num_points,
@@ -251,6 +261,7 @@ def print_pick_summary(summary: dict[str, Any]) -> None:
     print(f"  Prompt:       {summary['normalized_prompt']}")
     print(f"  Detections:   {summary['num_detections']}")
     print(f"  Ranked:       {summary['num_ranked_candidates']}")
+    print(f"  Rerank top-1: {summary['top1_changed_by_rerank']}")
     print(f"  Camera XYZ:   {summary['camera_xyz']}")
     print(f"  World XYZ:    {summary['world_xyz']}")
     print(f"  Pick success: {summary['pick_success']}")
@@ -268,6 +279,25 @@ def _pick_not_attempted(message: str) -> dict[str, Any]:
         "trajectory_summary": {"planned_stages": [], "executed_stages": [], "num_env_steps": 0},
         "metadata": {"executor": None},
     }
+
+
+def _top_phrase(candidates: list[Any]) -> str | None:
+    if not candidates:
+        return None
+    return str(candidates[0].phrase)
+
+
+def _top1_changed_by_rerank(detections: list[Any], reranked: list[Any], skip_clip: bool) -> bool:
+    if skip_clip or not detections or not reranked:
+        return False
+    detector_top = detections[0]
+    final_top = reranked[0]
+    if str(detector_top.phrase) != str(final_top.phrase):
+        return True
+    return not np.allclose(
+        np.asarray(detector_top.box_xyxy, dtype=float),
+        np.asarray(final_top.box_xyxy, dtype=float),
+    )
 
 
 def _slug(value: str) -> str:

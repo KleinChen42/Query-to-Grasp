@@ -21,6 +21,8 @@ def test_generate_benchmark_report_writes_outputs(tmp_path: Path) -> None:
     assert "# Benchmark Report" in markdown
     assert "Aggregate Metrics" in markdown
     assert "mean_runtime_seconds" in markdown
+    assert "mean_raw_num_detections" in markdown
+    assert "fraction_top1_changed_by_rerank" in markdown
     assert "## Per-Query Breakdown" in markdown
     assert report_summary["benchmark_dir"] == str(benchmark_dir)
     assert saved_summary["primary_summary"]["detector_backend"] == "mock"
@@ -49,6 +51,8 @@ def test_generate_benchmark_report_comparison_mode(tmp_path: Path) -> None:
     assert "comparison_metrics" in saved_summary
     assert saved_summary["comparison_metrics"]["mean_num_detections"]["delta"] == 1.0
     assert "mean_runtime_seconds" in saved_summary["comparison_metrics"]
+    assert "mean_raw_num_detections" in saved_summary["comparison_metrics"]
+    assert "fraction_top1_changed_by_rerank" in saved_summary["comparison_metrics"]
     assert saved_summary["compare_benchmark_dir"] == str(secondary_dir)
 
 
@@ -93,8 +97,10 @@ def test_generate_benchmark_report_supports_old_summary_without_runtime(tmp_path
 
     markdown = output_md.read_text(encoding="utf-8")
     assert "mean_runtime_seconds" in markdown
+    assert "mean_raw_num_detections" in markdown
+    assert "fraction_top1_changed_by_rerank" in markdown
     assert "## Per-Query Breakdown" in markdown
-    assert "| red cube | 1 | 1 | 1 | 10 | 1 | 0 | 0 |" in markdown
+    assert "| red cube | 1 | 1 | 1 | 1 | 10 | 1 | 0 | 0 | 0 |" in markdown
 
 
 def _write_fake_benchmark(benchmark_dir: Path, query: str, mean_detections: float, pick_rate: float) -> None:
@@ -103,8 +109,12 @@ def _write_fake_benchmark(benchmark_dir: Path, query: str, mean_detections: floa
         {
             "query": query,
             "seed": 0,
+            "raw_num_detections": int(mean_detections),
             "num_detections": int(mean_detections),
             "num_ranked_candidates": 1,
+            "top1_changed_by_rerank": False,
+            "detector_top_phrase": query,
+            "final_top_phrase": query,
             "has_3d_target": True,
             "num_3d_points": 10,
             "pick_success": pick_rate > 0.0,
@@ -122,22 +132,26 @@ def _write_fake_benchmark(benchmark_dir: Path, query: str, mean_detections: floa
         "depth_scale": 1000.0,
         "aggregate_metrics": {
             "total_runs": 1,
+            "mean_raw_num_detections": mean_detections,
             "mean_num_detections": mean_detections,
             "mean_num_ranked_candidates": 1.0,
             "mean_num_3d_points": 10.0,
             "fraction_with_3d_target": 1.0,
             "pick_success_rate": pick_rate,
+            "fraction_top1_changed_by_rerank": 0.0,
             "mean_runtime_seconds": 1.5,
             "pick_stage_counts": {"placeholder_not_executed": 1},
         },
         "per_query_metrics": {
             query: {
                 "total_runs": 1,
+                "mean_raw_num_detections": mean_detections,
                 "mean_num_detections": mean_detections,
                 "mean_num_ranked_candidates": 1.0,
                 "mean_num_3d_points": 10.0,
                 "fraction_with_3d_target": 1.0,
                 "pick_success_rate": pick_rate,
+                "fraction_top1_changed_by_rerank": 0.0,
                 "mean_runtime_seconds": 1.5,
                 "pick_stage_counts": {"placeholder_not_executed": 1},
             }

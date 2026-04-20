@@ -29,10 +29,16 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
     pick_success = _as_bool(summary.get("pick_success", pick_result.get("success", False)))
     pick_stage = str(summary.get("pick_stage") or pick_result.get("stage") or "unknown")
     runtime_seconds = _as_float(summary.get("runtime_seconds"), default=0.0)
+    num_detections = _as_int(summary.get("num_detections"), default=0)
+    raw_num_detections = _as_int(summary.get("raw_num_detections"), default=num_detections)
     return {
         "query": str(summary.get("query") or ""),
-        "num_detections": _as_int(summary.get("num_detections"), default=0),
+        "raw_num_detections": raw_num_detections,
+        "num_detections": num_detections,
         "num_ranked_candidates": _as_int(summary.get("num_ranked_candidates"), default=0),
+        "top1_changed_by_rerank": _as_bool(summary.get("top1_changed_by_rerank", False)),
+        "detector_top_phrase": _as_optional_str(summary.get("detector_top_phrase")),
+        "final_top_phrase": _as_optional_str(summary.get("final_top_phrase")),
         "has_3d_target": _has_3d_target(summary, pick_result, num_3d_points),
         "num_3d_points": num_3d_points,
         "pick_success": pick_success,
@@ -49,11 +55,13 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
     if total_runs == 0:
         return {
             "total_runs": 0,
+            "mean_raw_num_detections": 0.0,
             "mean_num_detections": 0.0,
             "mean_num_ranked_candidates": 0.0,
             "mean_num_3d_points": 0.0,
             "fraction_with_3d_target": 0.0,
             "pick_success_rate": 0.0,
+            "fraction_top1_changed_by_rerank": 0.0,
             "mean_runtime_seconds": 0.0,
             "pick_stage_counts": {},
         }
@@ -61,11 +69,13 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
     stage_counts = Counter(str(row.get("pick_stage") or "unknown") for row in rows)
     return {
         "total_runs": total_runs,
+        "mean_raw_num_detections": _mean(_row_raw_num_detections(row) for row in rows),
         "mean_num_detections": _mean(_as_int(row.get("num_detections"), 0) for row in rows),
         "mean_num_ranked_candidates": _mean(_as_int(row.get("num_ranked_candidates"), 0) for row in rows),
         "mean_num_3d_points": _mean(_as_int(row.get("num_3d_points"), 0) for row in rows),
         "fraction_with_3d_target": _mean(1 if _as_bool(row.get("has_3d_target")) else 0 for row in rows),
         "pick_success_rate": _mean(1 if _as_bool(row.get("pick_success")) else 0 for row in rows),
+        "fraction_top1_changed_by_rerank": _mean(1 if _as_bool(row.get("top1_changed_by_rerank")) else 0 for row in rows),
         "mean_runtime_seconds": _mean(_as_float(row.get("runtime_seconds"), 0.0) for row in rows),
         "pick_stage_counts": dict(sorted(stage_counts.items())),
     }
@@ -121,6 +131,12 @@ def _as_bool(value: Any) -> bool:
     return bool(value)
 
 
+def _as_optional_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    return str(value)
+
+
 def _as_float(value: Any, default: float = 0.0) -> float:
     try:
         if value is None:
@@ -128,6 +144,10 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _row_raw_num_detections(row: dict[str, Any]) -> int:
+    return _as_int(row.get("raw_num_detections"), _as_int(row.get("num_detections"), 0))
 
 
 def _mean(values: Any) -> float:
