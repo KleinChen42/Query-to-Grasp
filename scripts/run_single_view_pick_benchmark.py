@@ -48,8 +48,8 @@ def parse_args() -> argparse.Namespace:
         choices=["auto", "hf", "transformers", "groundingdino", "original", "mock"],
     )
     parser.add_argument("--mock-box-position", default="center", choices=["center", "left", "right", "all"])
-    parser.add_argument("--skip-clip", dest="skip_clip", action="store_true", default=True)
-    parser.add_argument("--use-clip", dest="skip_clip", action="store_false", help="Run CLIP reranking instead of skipping it.")
+    parser.add_argument("--skip-clip", dest="skip_clip", action="store_true", default=False)
+    parser.add_argument("--use-clip", dest="skip_clip", action="store_false", help="Run CLIP reranking. This is the default unless --skip-clip is set.")
     parser.add_argument("--depth-scale", type=float, default=1000.0)
     parser.add_argument("--env-id", default="PickCube-v1")
     parser.add_argument("--obs-mode", default="rgbd")

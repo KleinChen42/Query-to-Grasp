@@ -9,7 +9,10 @@ import scripts.run_single_view_pick_benchmark as benchmark
 
 
 def test_single_view_pick_benchmark_writes_outputs(monkeypatch, tmp_path) -> None:
+    seen_commands = []
+
     def fake_run(command, cwd, capture_output, text, check):
+        seen_commands.append(command)
         output_dir = Path(command[command.index("--output-dir") + 1])
         query = command[command.index("--query") + 1]
         seed = int(command[command.index("--seed") + 1])
@@ -77,7 +80,70 @@ def test_single_view_pick_benchmark_writes_outputs(monkeypatch, tmp_path) -> Non
     assert rows[0]["run_failed"] is False
     assert rows[0]["runtime_seconds"] == 1.5
     assert summary["total_runs"] == 4
+    assert summary["skip_clip"] is True
     assert summary["aggregate_metrics"]["total_runs"] == 4
     assert summary["aggregate_metrics"]["mean_runtime_seconds"] == 1.5
     assert "red cube" in summary["per_query_metrics"]
     assert "runtime_seconds" in rows_csv.read_text(encoding="utf-8").splitlines()[0]
+    assert all("--skip-clip" in command for command in seen_commands)
+
+
+def test_single_view_pick_benchmark_defaults_to_clip_enabled(monkeypatch, tmp_path) -> None:
+    seen_commands = []
+
+    def fake_run(command, cwd, capture_output, text, check):
+        seen_commands.append(command)
+        output_dir = Path(command[command.index("--output-dir") + 1])
+        query = command[command.index("--query") + 1]
+        seed = int(command[command.index("--seed") + 1])
+        run_dir = output_dir / f"fake_run_{seed}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "query": query,
+            "num_detections": 1,
+            "num_ranked_candidates": 1,
+            "camera_xyz": [0.1, 0.2, 0.3],
+            "world_xyz": None,
+            "num_3d_points": 12,
+            "pick_success": False,
+            "pick_stage": "placeholder_not_executed",
+            "runtime_seconds": 1.5,
+            "artifacts": str(run_dir),
+        }
+        pick_result = {
+            "success": False,
+            "stage": "placeholder_not_executed",
+            "target_xyz": [0.1, 0.2, 0.3],
+        }
+        (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+        (run_dir / "pick_result.json").write_text(json.dumps(pick_result), encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    output_dir = tmp_path / "benchmark"
+    monkeypatch.setattr(benchmark.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_single_view_pick_benchmark.py",
+            "--queries",
+            "red cube",
+            "--seeds",
+            "0",
+            "--detector-backend",
+            "mock",
+            "--mock-box-position",
+            "center",
+            "--depth-scale",
+            "1000",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    benchmark.main()
+
+    summary = json.loads((output_dir / "benchmark_summary.json").read_text(encoding="utf-8"))
+    assert summary["skip_clip"] is False
+    assert seen_commands
+    assert all("--skip-clip" not in command for command in seen_commands)
