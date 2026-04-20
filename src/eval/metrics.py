@@ -1,0 +1,115 @@
+"""Minimal metrics for single-view placeholder-pick benchmark outputs."""
+
+from __future__ import annotations
+
+from collections import Counter
+import json
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+
+def load_summary(path: str | Path) -> dict[str, Any]:
+    """Load a per-run ``summary.json`` file."""
+
+    return _load_json_dict(path)
+
+
+def load_pick_result(path: str | Path) -> dict[str, Any]:
+    """Load a per-run ``pick_result.json`` file."""
+
+    return _load_json_dict(path)
+
+
+def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[str, Any]:
+    """Convert current pipeline outputs into one flat benchmark row."""
+
+    num_3d_points = _as_int(summary.get("num_3d_points"), default=0)
+    pick_success = _as_bool(summary.get("pick_success", pick_result.get("success", False)))
+    pick_stage = str(summary.get("pick_stage") or pick_result.get("stage") or "unknown")
+    return {
+        "query": str(summary.get("query") or ""),
+        "num_detections": _as_int(summary.get("num_detections"), default=0),
+        "num_ranked_candidates": _as_int(summary.get("num_ranked_candidates"), default=0),
+        "has_3d_target": _has_3d_target(summary, pick_result, num_3d_points),
+        "num_3d_points": num_3d_points,
+        "pick_success": pick_success,
+        "pick_stage": pick_stage,
+        "artifacts": str(summary.get("artifacts") or ""),
+    }
+
+
+def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Aggregate flat benchmark rows into simple mean/rate metrics."""
+
+    total_runs = len(rows)
+    if total_runs == 0:
+        return {
+            "total_runs": 0,
+            "mean_num_detections": 0.0,
+            "mean_num_ranked_candidates": 0.0,
+            "mean_num_3d_points": 0.0,
+            "fraction_with_3d_target": 0.0,
+            "pick_success_rate": 0.0,
+            "pick_stage_counts": {},
+        }
+
+    stage_counts = Counter(str(row.get("pick_stage") or "unknown") for row in rows)
+    return {
+        "total_runs": total_runs,
+        "mean_num_detections": _mean(_as_int(row.get("num_detections"), 0) for row in rows),
+        "mean_num_ranked_candidates": _mean(_as_int(row.get("num_ranked_candidates"), 0) for row in rows),
+        "mean_num_3d_points": _mean(_as_int(row.get("num_3d_points"), 0) for row in rows),
+        "fraction_with_3d_target": _mean(1 if _as_bool(row.get("has_3d_target")) else 0 for row in rows),
+        "pick_success_rate": _mean(1 if _as_bool(row.get("pick_success")) else 0 for row in rows),
+        "pick_stage_counts": dict(sorted(stage_counts.items())),
+    }
+
+
+def _load_json_dict(path: str | Path) -> dict[str, Any]:
+    path = Path(path)
+    with path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected JSON object in {path}, got {type(data).__name__}.")
+    return data
+
+
+def _has_3d_target(summary: dict[str, Any], pick_result: dict[str, Any], num_3d_points: int) -> bool:
+    if _looks_like_xyz(summary.get("world_xyz")) or _looks_like_xyz(summary.get("camera_xyz")):
+        return True
+    if num_3d_points > 0:
+        return True
+    return _looks_like_xyz(pick_result.get("target_xyz"))
+
+
+def _looks_like_xyz(value: Any) -> bool:
+    try:
+        array = np.asarray(value, dtype=np.float32)
+    except Exception:
+        return False
+    return array.shape == (3,) and bool(np.all(np.isfinite(array)))
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y"}
+    return bool(value)
+
+
+def _mean(values: Any) -> float:
+    values_list = list(values)
+    if not values_list:
+        return 0.0
+    return float(sum(values_list) / len(values_list))
+

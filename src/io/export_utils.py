@@ -101,7 +101,7 @@ def save_rgb_png(rgb: np.ndarray, path: str | Path) -> None:
     Image.fromarray(array.astype(np.uint8, copy=False), mode="RGB").save(path)
 
 
-def write_json(data: dict[str, Any], path: str | Path) -> None:
+def write_json(data: Any, path: str | Path) -> None:
     """Write JSON with stable indentation."""
 
     path = Path(path)
