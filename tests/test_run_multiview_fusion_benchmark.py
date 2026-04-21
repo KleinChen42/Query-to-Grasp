@@ -1,0 +1,183 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+import scripts.run_multiview_fusion_benchmark as benchmark
+
+
+def test_build_child_command_only_appends_skip_clip_when_requested(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=False, view_ids=["front", "left"])
+
+    command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
+
+    assert "run_multiview_fusion_debug.py" in command[1]
+    assert "--query" in command
+    assert command[command.index("--query") + 1] == "red cube"
+    assert "--seed" in command
+    assert command[command.index("--seed") + 1] == "3"
+    assert "--view-ids" in command
+    assert "front" in command
+    assert "left" in command
+    assert "--skip-clip" not in command
+
+    args.skip_clip = True
+    command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
+
+    assert "--skip-clip" in command
+
+
+def test_summarize_fusion_run_defaults_missing_fields() -> None:
+    row = benchmark.summarize_fusion_run(
+        {
+            "query": "red cube",
+            "num_views": 2,
+            "num_memory_objects": 1,
+            "num_observations_added": 2,
+            "selected_object_id": "obj_0000",
+            "selected_overall_confidence": 0.75,
+            "skip_clip": "true",
+        }
+    )
+
+    assert row["query"] == "red cube"
+    assert row["has_selected_object"] is True
+    assert row["selected_overall_confidence"] == 0.75
+    assert row["runtime_seconds"] == 0.0
+    assert row["skip_clip"] is True
+
+
+def test_aggregate_rows_by_query() -> None:
+    rows = [
+        {
+            "query": "red cube",
+            "num_views": 1,
+            "num_memory_objects": 1,
+            "num_observations_added": 1,
+            "has_selected_object": True,
+            "selected_overall_confidence": 0.6,
+            "runtime_seconds": 10.0,
+            "run_failed": False,
+        },
+        {
+            "query": "red cube",
+            "num_views": 1,
+            "num_memory_objects": 0,
+            "num_observations_added": 0,
+            "has_selected_object": False,
+            "selected_overall_confidence": 0.0,
+            "runtime_seconds": 4.0,
+            "run_failed": True,
+        },
+        {
+            "query": "blue mug",
+            "num_views": 2,
+            "num_memory_objects": 2,
+            "num_observations_added": 3,
+            "has_selected_object": True,
+            "selected_overall_confidence": 0.8,
+            "runtime_seconds": 12.0,
+            "run_failed": False,
+        },
+    ]
+
+    aggregate = benchmark.aggregate_rows(rows)
+    per_query = benchmark.aggregate_rows_by_query(rows)
+
+    assert aggregate["total_runs"] == 3
+    assert aggregate["failed_runs"] == 1
+    assert aggregate["fraction_with_selected_object"] == 2 / 3
+    assert aggregate["mean_selected_overall_confidence"] == (0.6 + 0.0 + 0.8) / 3
+    assert per_query["red cube"]["total_runs"] == 2
+    assert per_query["red cube"]["fraction_run_failed"] == 0.5
+    assert per_query["blue mug"]["mean_num_views"] == 2.0
+
+
+def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) -> None:
+    seen_commands = []
+
+    def fake_run(command, cwd, capture_output, text, check):
+        seen_commands.append(command)
+        output_dir = Path(command[command.index("--output-dir") + 1])
+        query = command[command.index("--query") + 1]
+        seed = int(command[command.index("--seed") + 1])
+        run_dir = output_dir / f"fake_run_{seed}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "query": query,
+            "num_views": 1,
+            "num_memory_objects": 2,
+            "num_observations_added": 2,
+            "selected_object_id": "obj_0000",
+            "selected_top_label": query,
+            "selection_label": query,
+            "selected_overall_confidence": 0.7,
+            "runtime_seconds": 2.5,
+            "detector_backend": "mock",
+            "skip_clip": True,
+            "artifacts": str(run_dir),
+        }
+        (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    output_dir = tmp_path / "benchmark"
+    monkeypatch.setattr(benchmark.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_multiview_fusion_benchmark.py",
+            "--queries",
+            "red cube",
+            "blue mug",
+            "--seeds",
+            "0",
+            "1",
+            "--detector-backend",
+            "mock",
+            "--mock-box-position",
+            "all",
+            "--skip-clip",
+            "--depth-scale",
+            "1000",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    benchmark.main()
+
+    rows = json.loads((output_dir / "benchmark_rows.json").read_text(encoding="utf-8"))
+    summary = json.loads((output_dir / "benchmark_summary.json").read_text(encoding="utf-8"))
+    csv_header = (output_dir / "benchmark_rows.csv").read_text(encoding="utf-8").splitlines()[0]
+
+    assert len(rows) == 4
+    assert rows[0]["seed"] == 0
+    assert rows[0]["has_selected_object"] is True
+    assert summary["total_runs"] == 4
+    assert summary["skip_clip"] is True
+    assert summary["aggregate_metrics"]["fraction_with_selected_object"] == 1.0
+    assert summary["aggregate_metrics"]["mean_num_memory_objects"] == 2.0
+    assert "selected_overall_confidence" in csv_header
+    assert all("--skip-clip" in command for command in seen_commands)
+
+
+def _args(output_dir: Path, skip_clip: bool, view_ids: list[str] | None = None):
+    return type(
+        "Args",
+        (),
+        {
+            "env_id": "PickCube-v1",
+            "obs_mode": "rgbd",
+            "detector_backend": "mock",
+            "mock_box_position": "center",
+            "depth_scale": 1000.0,
+            "merge_distance": 0.08,
+            "camera_name": None,
+            "view_ids": view_ids or [],
+            "skip_clip": skip_clip,
+            "output_dir": output_dir,
+        },
+    )()
