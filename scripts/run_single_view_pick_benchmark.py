@@ -104,11 +104,20 @@ def load_queries(queries_file: Path | None, inline_queries: list[str]) -> list[s
     queries: list[str] = []
     if queries_file is not None:
         with queries_file.open("r", encoding="utf-8") as file:
-            queries.extend(line.strip() for line in file if line.strip())
+            queries.extend(_clean_query_line(line) for line in file if _clean_query_line(line) is not None)
     queries.extend(query.strip() for query in inline_queries if query.strip())
     if not queries:
         raise ValueError("Provide at least one query via --queries-file or --queries.")
     return queries
+
+
+def _clean_query_line(line: str) -> str | None:
+    """Return a query line, skipping blanks and whole-line comments."""
+
+    query = line.strip()
+    if not query or query.startswith("#"):
+        return None
+    return query
 
 
 def run_one_child(

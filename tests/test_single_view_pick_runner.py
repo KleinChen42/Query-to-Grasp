@@ -8,6 +8,15 @@ import sys
 import scripts.run_single_view_pick_benchmark as benchmark
 
 
+def test_load_queries_ignores_blank_lines_and_comments(tmp_path: Path) -> None:
+    queries_file = tmp_path / "queries.txt"
+    queries_file.write_text("# exact objects\n\nred cube\n  blue mug  \n# broad queries\nobject\n", encoding="utf-8")
+
+    queries = benchmark.load_queries(queries_file, ["  cup  ", ""])
+
+    assert queries == ["red cube", "blue mug", "object", "cup"]
+
+
 def test_single_view_pick_benchmark_writes_outputs(monkeypatch, tmp_path) -> None:
     seen_commands = []
 
