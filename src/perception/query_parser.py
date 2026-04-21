@@ -43,7 +43,6 @@ STOP_WORDS = {
     "find",
     "get",
     "grab",
-    "object",
     "of",
     "pick",
     "please",
@@ -73,6 +72,7 @@ SYNONYMS: dict[str, list[str]] = {
     "bottle": ["bottle"],
     "banana": ["banana"],
     "apple": ["apple"],
+    "object": ["object"],
 }
 
 
@@ -217,4 +217,3 @@ def _dedupe(items: Sequence[str]) -> list[str]:
             seen.add(item)
             deduped.append(item)
     return deduped
-
