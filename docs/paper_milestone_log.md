@@ -30,6 +30,7 @@ Current evidence supports the following narrower near-term claim:
 | Full tabletop_3 fusion comparison | Single-view vs virtual 3-view fusion comparison | `outputs/h200_60071_tabletop3_full/fusion_comparison_table_tabletop3_full.md` |
 | Full tabletop_3 fusion summary | Machine-readable multi-view fusion benchmark summary | `outputs/h200_60071_tabletop3_full/benchmark_summary.json` |
 | Multi-view memory diagnostics | Merge-distance sweep and cross-view 3D consistency diagnosis | `outputs/h200_60071_tabletop3_full/memory_diagnostics.md` |
+| Cross-view geometry sanity report | Per-view boxes, camera/world coordinates, extrinsic source, transform sanity | `outputs/h200_60071_tabletop3_full/cross_view_geometry_report.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
 
 ## Milestone Timeline
@@ -45,6 +46,7 @@ Current evidence supports the following narrower near-term claim:
 | Camera view probe | Done | `check_maniskill_camera_views.py` and H200 probe | `PickCube-v1` exposes only `base_camera` by default. |
 | Virtual tabletop_3 multi-view capture | Done | `--view-preset tabletop_3` smoke and benchmark | True distinct RGB-D views can be captured by moving `base_camera`. |
 | Multi-view memory diagnostics | Done | `memory_diagnostics.md/json` | Multi-view capture works, but same-label 3D estimates are far apart across views. |
+| Cross-view geometry sanity report | Done | `cross_view_geometry_report.md/json` | World coordinates are internally consistent with the selected extrinsic, but the selected source is `cam2world_gl`. |
 
 ## Key Quantitative Results
 
@@ -119,6 +121,33 @@ Paper note:
 > camera-pose alignment, or detector consistency, not merely a conservative
 > memory merge threshold.
 
+### Cross-View Geometry Sanity
+
+Source: `outputs/h200_60071_tabletop3_full/cross_view_geometry_report.md`
+
+| metric | value |
+| --- | ---: |
+| runs | 6 |
+| mean_top_rank_pairwise_distance | 1.1301 |
+| mean_same_label_pairwise_distance | 1.0693 |
+| mean_world_recompute_error | 0.0284 |
+| extrinsic source | `sensor_param.base_camera.cam2world_gl` |
+
+Interpretation:
+
+The stored `world_xyz` values are largely consistent with applying the selected
+extrinsic to `camera_xyz`; the mean recomputation difference is only `0.0284 m`.
+This is small relative to the `1.0693 m` same-label cross-view spread and can be
+explained by estimating medians in camera/world point sets separately.
+
+Paper note:
+
+> The geometric inconsistency is not primarily caused by a serialization or
+> memory bookkeeping error. The next targeted check should compare ManiSkill's
+> `cam2world_gl` against `extrinsic_cv`/OpenCV conventions, because RGB-D lifting
+> currently projects points in an OpenCV-style pinhole frame while the selected
+> extrinsic source is OpenGL-labeled.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -183,20 +212,23 @@ PYTHONPATH=$PWD python scripts/generate_fusion_comparison_table.py \
 3. Virtual multi-view capture works, but same-label 3D estimates are not
    geometrically consistent across views.
 4. Memory merge threshold tuning alone is unlikely to solve fragmentation.
-5. Real robot control is still intentionally absent; placeholder pick success is
+5. The current RGB-D lifting path likely needs an explicit ManiSkill
+   `extrinsic_cv` vs `cam2world_gl` convention check.
+6. Real robot control is still intentionally absent; placeholder pick success is
    not an end-to-end grasp metric.
 
 ## Next Recommended Milestone
 
-Build a cross-view geometry sanity report for one `tabletop_3` run:
+Compare `extrinsic_cv` and `cam2world_gl` for the same `tabletop_3` run:
 
-1. For each view, record selected candidate box, camera extrinsic, camera_xyz,
-   world_xyz, depth_valid_ratio, and num_points.
-2. Compare same-label `world_xyz` across views.
-3. Verify whether the issue is depth scaling, extrinsic convention, detector box
-   inconsistency, or using median crop depth over background-heavy boxes.
-4. Only after that decide whether to adjust lifting, camera pose handling,
-   segmentation support, or memory merge logic.
+1. Make observation extraction prefer or expose `extrinsic_cv` explicitly.
+2. Recompute candidate `world_xyz` with both conventions for the same per-view
+   detections.
+3. Compare same-label cross-view distance under both transforms.
+4. If `extrinsic_cv` greatly reduces the spread, patch the default extrinsic
+   selection for RGB-D lifting.
+5. If both remain inconsistent, inspect detector crop consistency and depth
+   statistics before changing memory merge logic.
 
 Candidate paper framing:
 
