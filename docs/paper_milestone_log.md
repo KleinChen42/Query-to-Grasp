@@ -40,6 +40,7 @@ Current evidence supports the following narrower near-term claim:
 | CV-fixed with-CLIP fusion diagnostics | Post-fix tabletop_3 fusion benchmark with CLIP enabled | `outputs/h200_60071_tabletop3_with_clip_cvfix/memory_diagnostics.md` |
 | Selection trace example | Paper-friendly explanation of corrected multi-view target selection | `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
+| Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
 
 ## Milestone Timeline
@@ -62,6 +63,8 @@ Current evidence supports the following narrower near-term claim:
 | CV-fixed CLIP fusion ablation | Done | `fusion_comparison_table_tabletop3_cvfix_clip_ablation.md/csv` | CLIP increases selected confidence but not selection rate or cross-view geometry in this benchmark. |
 | Multi-view selection trace | Done | `selection_trace.json/md` per debug run | Target selection is now explainable through label pool, confidence terms, views, votes, and deterministic tie-breaks. |
 | Paper figure pack | Done | `build_paper_figure_pack.py` and `outputs/paper_figure_pack_latest` | Key tables, geometry reports, diagnostics, traces, and milestone notes can be gathered with one command. |
+| Formal target selector module | Done | `src/policy/target_selector.py` | Selection and trace rendering are now reusable policy code, not debug-script-only helpers. |
+| Paper draft outline | Done | `docs/paper_draft_outline.md` | Current claims, experiments, limitations, and next coding milestone are explicitly scoped. |
 
 ## Key Quantitative Results
 
@@ -420,13 +423,14 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Start a compact paper draft scaffold around the current evidence:
+Implement the minimal rule-based re-observation policy:
 
-1. Create `docs/paper_draft_outline.md` with title, abstract skeleton, method
-   sections, experiment table placeholders, and limitations.
-2. Reference the figure-pack artifacts by path so each claim points to a report.
-3. Keep real robot control out of scope until the perception/fusion claims are
-   stable.
+1. Add `src/policy/reobserve_policy.py` with a deterministic
+   `ReobserveDecision`.
+2. Use selected confidence, top-1/top-2 confidence gap, view count, geometry
+   confidence, and point count as rule inputs.
+3. Write `reobserve_decision.json` for multi-view debug runs, but do not yet
+   automatically move cameras in a closed loop.
 
 Candidate paper framing:
 
