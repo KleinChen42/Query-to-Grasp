@@ -58,6 +58,7 @@ def test_fusion_row_maps_memory_metrics(tmp_path: Path) -> None:
     assert row["mean_num_views"] == 2.0
     assert row["mean_num_memory_objects"] == 3.0
     assert row["mean_num_observations_added"] == 4.0
+    assert row["mean_same_label_pairwise_distance"] == 0.12
     assert row["mean_selected_overall_confidence"] == 0.75
     assert row["pick_success_rate"] == "n/a"
 
@@ -100,6 +101,7 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
             "mean_num_views": 1.0,
             "mean_num_memory_objects": 1.0,
             "mean_num_observations_added": 1.0,
+            "mean_same_label_pairwise_distance": 0.12,
             "mean_selected_overall_confidence": 0.5,
             "pick_success_rate": "n/a",
         }
@@ -112,8 +114,10 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
     assert "# Single-View vs Fusion Comparison Table" in markdown
     assert "HF fusion" in markdown
     assert "0.5000" in markdown
+    assert "mean_same_label_pairwise_distance" in markdown
     csv_rows = list(csv.DictReader(csv_path.open("r", encoding="utf-8")))
     assert csv_rows[0]["label"] == "HF fusion"
+    assert csv_rows[0]["mean_same_label_pairwise_distance"] == "0.12"
     assert csv_rows[0]["mean_selected_overall_confidence"] == "0.5"
 
 
@@ -152,3 +156,9 @@ def _write_fusion_summary(benchmark_dir: Path) -> None:
         },
     }
     (benchmark_dir / "benchmark_summary.json").write_text(json.dumps(summary), encoding="utf-8")
+    diagnostics = {
+        "aggregate": {
+            "mean_same_label_pairwise_distance": 0.12,
+        }
+    }
+    (benchmark_dir / "memory_diagnostics.json").write_text(json.dumps(diagnostics), encoding="utf-8")

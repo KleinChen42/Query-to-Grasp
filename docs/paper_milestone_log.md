@@ -36,6 +36,8 @@ Current evidence supports the following narrower near-term claim:
 | CV-fixed tabletop_3 fusion comparison | Single-view vs virtual 3-view fusion after camera convention fix | `outputs/h200_60071_tabletop3_cvfix/fusion_comparison_table_tabletop3_cvfix.md` |
 | CV-fixed memory diagnostics | Post-fix merge-distance sweep and cross-view 3D consistency diagnosis | `outputs/h200_60071_tabletop3_cvfix/memory_diagnostics.md` |
 | CV-fixed cross-view geometry sanity report | Post-fix transform sanity and cross-view geometry report | `outputs/h200_60071_tabletop3_cvfix/cross_view_geometry_report_tabletop3_cvfix.md` |
+| CV-fixed CLIP ablation table | Single-view/fusion and no-CLIP/with-CLIP comparison after camera convention fix | `outputs/h200_60071_tabletop3_cvfix_clip_ablation/fusion_comparison_table_tabletop3_cvfix_clip_ablation.md` |
+| CV-fixed with-CLIP fusion diagnostics | Post-fix tabletop_3 fusion benchmark with CLIP enabled | `outputs/h200_60071_tabletop3_with_clip_cvfix/memory_diagnostics.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
 
 ## Milestone Timeline
@@ -55,6 +57,7 @@ Current evidence supports the following narrower near-term claim:
 | Extrinsic convention comparison | Done | `extrinsic_convention_report.md/json` | `cam2world_gl @ OpenCV-to-OpenGL` reduces same-label cross-view distance from `1.0693 m` to `0.0518 m`. |
 | RGB-D lifting camera convention fix | Done | `mask_projector.py` + H200 cvfix benchmark | Default lifting now converts OpenCV-projected points before applying ManiSkill `cam2world_gl`. |
 | CV-fixed tabletop_3 fusion | Done | `h200_60071_tabletop3_cvfix` reports | Multi-view memory fragmentation drops from `3.3333` to `1.3333` objects/run. |
+| CV-fixed CLIP fusion ablation | Done | `fusion_comparison_table_tabletop3_cvfix_clip_ablation.md/csv` | CLIP increases selected confidence but not selection rate or cross-view geometry in this benchmark. |
 
 ## Key Quantitative Results
 
@@ -215,6 +218,33 @@ Paper note:
 > that the multi-view path can support the project thesis, although the current
 > benchmark still uses placeholder pick execution and a small object/query set.
 
+### Corrected Multi-View CLIP Ablation
+
+Source:
+`outputs/h200_60071_tabletop3_cvfix_clip_ablation/fusion_comparison_table_tabletop3_cvfix_clip_ablation.md`
+
+| setting | runs | primary_rate | runtime_s | views | memory_objects | observations | same_label_dist | selected_confidence |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| HF single no CLIP | 6 | 1.0000 | 52.6174 | 1.0000 | n/a | n/a | n/a | n/a |
+| HF single with CLIP | 6 | 1.0000 | 39.3762 | 1.0000 | n/a | n/a | n/a | n/a |
+| HF tabletop_3 fusion no CLIP cvfix | 6 | 1.0000 | 96.9404 | 3.0000 | 1.3333 | 3.6667 | 0.0518 | 0.5282 |
+| HF tabletop_3 fusion with CLIP cvfix | 6 | 1.0000 | 233.6068 | 3.0000 | 1.3333 | 3.6667 | 0.0518 | 0.7091 |
+
+Interpretation:
+
+Corrected multi-view fusion gives compact object memory with or without CLIP.
+In this small HF tabletop benchmark, CLIP improves the selected memory object's
+confidence (`0.5282` to `0.7091`) but does not change the selected-object rate,
+memory fragmentation, or cross-view same-label distance. Runtime increases by
+about `2.41x` relative to no-CLIP fusion.
+
+Paper note:
+
+> The strongest current evidence for the project hypothesis comes from corrected
+> multi-view geometry, not CLIP reranking. CLIP can be kept as a confidence term,
+> but should not be claimed as the main source of retrieval improvement until
+> candidate multiplicity and top-1 changes are observed.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -253,6 +283,20 @@ PYTHONPATH=$PWD python scripts/run_multiview_fusion_benchmark.py \
   --depth-scale 1000 \
   --view-preset tabletop_3 \
   --output-dir outputs/multiview_fusion_tabletop3_hf_no_clip
+```
+
+tabletop_3 multi-view fusion with CLIP:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_multiview_fusion_benchmark.py \
+  --queries "red cube" "blue mug" \
+  --seeds 0 1 2 \
+  --detector-backend hf \
+  --use-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --output-dir outputs/multiview_fusion_tabletop3_hf_with_clip_cvfix
 ```
 
 Memory diagnostics:
@@ -295,13 +339,25 @@ PYTHONPATH=$PWD python scripts/generate_cross_view_geometry_report.py \
   --output-md outputs/cross_view_geometry_report_tabletop3_cvfix.md
 ```
 
+Corrected fusion CLIP ablation table:
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_fusion_comparison_table.py \
+  --single-view "HF single no CLIP=outputs/benchmark_hf_no_clip" \
+  --single-view "HF single with CLIP=outputs/benchmark_hf_with_clip" \
+  --fusion "HF tabletop_3 fusion no CLIP cvfix=outputs/multiview_fusion_tabletop3_hf_no_clip_cvfix" \
+  --fusion "HF tabletop_3 fusion with CLIP cvfix=outputs/multiview_fusion_tabletop3_hf_with_clip_cvfix" \
+  --output-md outputs/fusion_comparison_table_tabletop3_cvfix_clip_ablation.md \
+  --output-csv outputs/fusion_comparison_table_tabletop3_cvfix_clip_ablation.csv
+```
+
 ## Current Bottlenecks
 
 1. Detector candidate multiplicity is still low in most exact-object settings.
 2. CLIP reranking has no current top-1 effect because candidate sets are too small.
 3. Corrected virtual multi-view capture now gives compact memory in the small
-   HF/no-CLIP benchmark, but this needs a with-CLIP and ambiguity rerun before
-   becoming a full ablation.
+   HF no-CLIP and with-CLIP benchmarks, but the claim still needs broader query
+   and seed coverage before becoming a final result.
 4. Memory merge behavior is now plausible at `0.08 m`, but selection traces need
    to be easier to inspect for paper figures.
 5. The RGB-D lifting camera convention bug is fixed for `cam2world_gl`, but
@@ -311,15 +367,13 @@ PYTHONPATH=$PWD python scripts/generate_cross_view_geometry_report.py \
 
 ## Next Recommended Milestone
 
-Promote the corrected multi-view path from a debug milestone into a minimal
-paper ablation:
+Add a compact selection-trace artifact for corrected multi-view runs:
 
-1. Re-run the same `tabletop_3` benchmark with CLIP enabled.
-2. Generate a single paper table comparing single-view vs corrected multi-view,
-   no-CLIP vs with-CLIP, and ambiguity vs exact-object queries.
-3. Add a compact target-selection trace artifact that explains why the selected
-   memory object won.
-4. Keep real robot control out of scope until the perception/fusion claims are
+1. For each fusion run, save a concise `selection_trace.json` and Markdown
+   section showing candidate memory objects, confidence terms, labels, views,
+   and tie-break decisions.
+2. Generate one paper-friendly example trace for `red cube` seed `0`.
+3. Keep real robot control out of scope until the perception/fusion claims are
    stable.
 
 Candidate paper framing:
@@ -327,5 +381,6 @@ Candidate paper framing:
 > The current prototype establishes a runnable language-query-to-3D-target
 > baseline and demonstrates that confidence-aware 3D fusion depends on careful
 > camera-frame convention handling. After correcting the RGB-D lifting convention,
-> virtual three-view fusion produces compact object memory in the HF/no-CLIP
-> benchmark, making it ready for the next controlled ablation.
+> virtual three-view fusion produces compact object memory in the HF benchmark.
+> CLIP increases fused confidence but does not improve geometric consistency or
+> selected-object rate in the current small setting.

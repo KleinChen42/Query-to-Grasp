@@ -37,6 +37,7 @@ TABLE_COLUMNS = [
     "mean_num_views",
     "mean_num_memory_objects",
     "mean_num_observations_added",
+    "mean_same_label_pairwise_distance",
     "mean_selected_overall_confidence",
     "pick_success_rate",
 ]
@@ -140,6 +141,7 @@ def single_view_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "mean_num_views": 1.0,
         "mean_num_memory_objects": NA,
         "mean_num_observations_added": NA,
+        "mean_same_label_pairwise_distance": NA,
         "mean_selected_overall_confidence": NA,
         "pick_success_rate": _as_float(metrics.get("pick_success_rate")),
     }
@@ -150,6 +152,7 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
 
     summary = load_benchmark_summary(benchmark_dir)
     metrics = _metrics(summary)
+    memory_metrics = load_memory_diagnostics_metrics(benchmark_dir)
     fraction_with_selected_object = _as_float(metrics.get("fraction_with_selected_object"))
     return {
         "label": label,
@@ -165,6 +168,9 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
         "mean_num_views": _as_float(metrics.get("mean_num_views")),
         "mean_num_memory_objects": _as_float(metrics.get("mean_num_memory_objects")),
         "mean_num_observations_added": _as_float(metrics.get("mean_num_observations_added")),
+        "mean_same_label_pairwise_distance": _optional_float(
+            memory_metrics.get("mean_same_label_pairwise_distance")
+        ),
         "mean_selected_overall_confidence": _as_float(metrics.get("mean_selected_overall_confidence")),
         "pick_success_rate": NA,
     }
@@ -181,6 +187,20 @@ def load_benchmark_summary(benchmark_dir: str | Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"Expected JSON object in {path}, got {type(data).__name__}.")
     return data
+
+
+def load_memory_diagnostics_metrics(benchmark_dir: str | Path) -> dict[str, Any]:
+    """Load optional memory diagnostics aggregate metrics for fusion rows."""
+
+    path = Path(benchmark_dir) / "memory_diagnostics.json"
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8-sig") as file:
+        data = json.load(file)
+    if not isinstance(data, dict):
+        return {}
+    aggregate = data.get("aggregate")
+    return aggregate if isinstance(aggregate, dict) else {}
 
 
 def write_rows_csv(rows: list[dict[str, Any]], path: Path) -> None:
@@ -243,6 +263,15 @@ def _as_float(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _optional_float(value: Any) -> float | str:
+    try:
+        if value is None:
+            return NA
+        return float(value)
+    except (TypeError, ValueError):
+        return NA
 
 
 def _as_int(value: Any) -> int:
