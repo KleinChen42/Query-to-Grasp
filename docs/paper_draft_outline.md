@@ -154,6 +154,24 @@ Evidence:
 
 - `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md`
 
+### 8. Rule-Based Re-Observation Decision
+
+Implemented in:
+
+- `src/policy/reobserve_policy.py`
+
+Current behavior:
+
+- Produces a `ReobserveDecision`.
+- Uses selected confidence, top-1/top-2 confidence gap, view count, geometry
+  confidence, and mean valid 3D point count.
+- Writes `reobserve_decision.json` in multi-view debug runs.
+- Does not yet automatically move cameras or rerun perception.
+
+Evidence:
+
+- `outputs/h200_60071_reobserve_smoke/reobserve_decision.json`
+
 ### 7. Placeholder Pick Execution
 
 Implemented in `src/manipulation/pick_executor.py`.
@@ -242,6 +260,27 @@ Artifact:
 
 - `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md`
 
+### Experiment 5: Re-Observation Decision Smoke
+
+Question:
+
+Can the system expose whether another viewpoint would be useful before claiming
+a closed-loop re-observation policy?
+
+Current result:
+
+- Query: `red cube`
+- Detector: mock
+- View preset: `tabletop_3`
+- Decision: `should_reobserve = true`
+- Reason: `ambiguous_top_candidates`
+- Suggested view: `left`
+- Confidence gap: `0.0165`
+
+Artifact:
+
+- `outputs/h200_60071_reobserve_smoke/reobserve_decision.json`
+
 ## Figures and Tables
 
 Current pack:
@@ -255,7 +294,8 @@ Planned paper assets:
 2. Main ablation table: corrected multi-view CLIP ablation.
 3. Geometry validation table: extrinsic convention comparison.
 4. Qualitative example: selection trace for `red cube`.
-5. Limitation box: placeholder pick and low detector multiplicity.
+5. Policy diagnostic: `reobserve_decision.json` example.
+6. Limitation box: placeholder pick and low detector multiplicity.
 
 ## Limitations
 
@@ -275,8 +315,8 @@ Be explicit:
 Important for a stronger v1:
 
 - [x] Formal target selector module.
-- [ ] Minimal rule-based re-observation policy module.
-- [ ] `reobserve_decision.json` artifact in multi-view runs.
+- [x] Minimal rule-based re-observation policy module.
+- [x] `reobserve_decision.json` artifact in multi-view runs.
 - [ ] Small paper/demo architecture diagram.
 - [ ] README cleanup and current quickstart refresh.
 - [ ] Optional Gradio demo shell.
@@ -284,28 +324,10 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Implement `src/policy/reobserve_policy.py` as a minimal, testable rule-based
-module.
+Surface re-observation metrics in the paper-facing reports:
 
-Initial inputs:
-
-- Selected object confidence.
-- Top-1 vs top-2 confidence gap.
-- Minimum view count.
-- Geometry confidence.
-- Number of 3D points.
-
-Initial output:
-
-```python
-{
-  "should_reobserve": bool,
-  "reason": str,
-  "suggested_view_ids": list[str],
-  "diagnostics": dict,
-}
-```
-
-Keep this policy separate from automatically moving cameras at first. The first
-milestone should only produce a decision artifact that can be benchmarked and
-reported.
+1. Add `reobserve_trigger_rate` and reason counts to the fusion comparison table
+   or a small policy diagnostics table.
+2. Add one short Markdown report for re-observation policy decisions.
+3. Keep closed-loop camera movement as future work until the policy metrics are
+   interpretable.

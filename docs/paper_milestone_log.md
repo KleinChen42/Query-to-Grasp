@@ -39,6 +39,7 @@ Current evidence supports the following narrower near-term claim:
 | CV-fixed CLIP ablation table | Single-view/fusion and no-CLIP/with-CLIP comparison after camera convention fix | `outputs/h200_60071_tabletop3_cvfix_clip_ablation/fusion_comparison_table_tabletop3_cvfix_clip_ablation.md` |
 | CV-fixed with-CLIP fusion diagnostics | Post-fix tabletop_3 fusion benchmark with CLIP enabled | `outputs/h200_60071_tabletop3_with_clip_cvfix/memory_diagnostics.md` |
 | Selection trace example | Paper-friendly explanation of corrected multi-view target selection | `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md` |
+| Re-observation decision example | Rule-based confidence-aware re-observation decision smoke | `outputs/h200_60071_reobserve_smoke/reobserve_decision.json` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -65,6 +66,7 @@ Current evidence supports the following narrower near-term claim:
 | Paper figure pack | Done | `build_paper_figure_pack.py` and `outputs/paper_figure_pack_latest` | Key tables, geometry reports, diagnostics, traces, and milestone notes can be gathered with one command. |
 | Formal target selector module | Done | `src/policy/target_selector.py` | Selection and trace rendering are now reusable policy code, not debug-script-only helpers. |
 | Paper draft outline | Done | `docs/paper_draft_outline.md` | Current claims, experiments, limitations, and next coding milestone are explicitly scoped. |
+| Rule-based re-observation policy | Done | `src/policy/reobserve_policy.py` and `reobserve_decision.json` smoke | Multi-view runs now emit confidence-aware re-observation decisions without automatically moving cameras. |
 
 ## Key Quantitative Results
 
@@ -400,6 +402,21 @@ PYTHONPATH=$PWD python scripts/run_multiview_fusion_debug.py \
   --output-dir outputs/selection_trace_tabletop3_red_cube_seed0_cvfix
 ```
 
+Re-observation decision smoke:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_multiview_fusion_debug.py \
+  --query "red cube" \
+  --seed 0 \
+  --detector-backend mock \
+  --mock-box-position center \
+  --skip-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --output-dir outputs/reobserve_smoke_mock_tabletop3
+```
+
 Paper figure pack:
 
 ```bash
@@ -423,14 +440,13 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Implement the minimal rule-based re-observation policy:
+Surface re-observation policy metrics in paper-facing reports:
 
-1. Add `src/policy/reobserve_policy.py` with a deterministic
-   `ReobserveDecision`.
-2. Use selected confidence, top-1/top-2 confidence gap, view count, geometry
-   confidence, and point count as rule inputs.
-3. Write `reobserve_decision.json` for multi-view debug runs, but do not yet
-   automatically move cameras in a closed loop.
+1. Add a small re-observation diagnostics table/report using
+   `reobserve_trigger_rate` and reason counts from fusion benchmark summaries.
+2. Include one qualitative `reobserve_decision.json` example in the paper pack.
+3. Keep closed-loop camera movement as future work until policy metrics are
+   interpretable.
 
 Candidate paper framing:
 

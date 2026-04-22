@@ -33,6 +33,8 @@ CSV_COLUMNS = [
     "selected_top_label",
     "selected_overall_confidence",
     "selection_label",
+    "should_reobserve",
+    "reobserve_reason",
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
@@ -228,6 +230,8 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "selected_top_label": _optional_str(summary.get("selected_top_label")),
         "selected_overall_confidence": _as_float(summary.get("selected_overall_confidence"), 0.0),
         "selection_label": _optional_str(summary.get("selection_label")),
+        "should_reobserve": _as_bool(summary.get("should_reobserve")),
+        "reobserve_reason": _optional_str(summary.get("reobserve_reason")),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
@@ -250,6 +254,8 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_num_memory_objects": 0.0,
             "mean_num_observations_added": 0.0,
             "fraction_with_selected_object": 0.0,
+            "reobserve_trigger_rate": 0.0,
+            "reobserve_reason_counts": {},
             "mean_selected_overall_confidence": 0.0,
             "mean_runtime_seconds": 0.0,
         }
@@ -263,6 +269,11 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_num_memory_objects": _mean(_as_int(row.get("num_memory_objects"), 0) for row in rows),
         "mean_num_observations_added": _mean(_as_int(row.get("num_observations_added"), 0) for row in rows),
         "fraction_with_selected_object": _mean(1 if _as_bool(row.get("has_selected_object")) else 0 for row in rows),
+        "reobserve_trigger_rate": _mean(1 if _as_bool(row.get("should_reobserve")) else 0 for row in rows),
+        "reobserve_reason_counts": count_values(
+            row.get("reobserve_reason") or "none"
+            for row in rows
+        ),
         "mean_selected_overall_confidence": _mean(_as_float(row.get("selected_overall_confidence"), 0.0) for row in rows),
         "mean_runtime_seconds": _mean(_as_float(row.get("runtime_seconds"), 0.0) for row in rows),
     }
@@ -298,6 +309,8 @@ def failed_row(
         "selected_top_label": None,
         "selected_overall_confidence": 0.0,
         "selection_label": None,
+        "should_reobserve": False,
+        "reobserve_reason": None,
         "runtime_seconds": 0.0,
         "detector_backend": "",
         "skip_clip": False,
@@ -343,6 +356,7 @@ def print_benchmark_summary(benchmark_summary: dict[str, Any], output_dir: Path)
     print(f"  Selected frac: {metrics['fraction_with_selected_object']:.3f}")
     print(f"  Objects/run:   {metrics['mean_num_memory_objects']:.3f}")
     print(f"  Confidence:    {metrics['mean_selected_overall_confidence']:.3f}")
+    print(f"  Reobserve:     {metrics['reobserve_trigger_rate']:.3f}")
     print(f"  Runtime:       {metrics['mean_runtime_seconds']:.3f}s")
     print(f"  Artifacts:     {output_dir}")
 
@@ -383,6 +397,16 @@ def _mean(values: Any) -> float:
     if not values_list:
         return 0.0
     return float(sum(values_list) / len(values_list))
+
+
+def count_values(values: Any) -> dict[str, int]:
+    """Count stringified values."""
+
+    counts: dict[str, int] = {}
+    for value in values:
+        key = str(value or "none")
+        counts[key] = counts.get(key, 0) + 1
+    return counts
 
 
 if __name__ == "__main__":

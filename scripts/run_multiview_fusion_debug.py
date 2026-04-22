@@ -26,6 +26,7 @@ from src.memory.object_memory_3d import (  # noqa: E402
     ObjectMemoryConfig,
     ObjectObservation3D,
 )
+from src.policy.reobserve_policy import ReobservePolicyConfig, decide_reobserve  # noqa: E402
 from src.policy.target_selector import (  # noqa: E402
     build_selection_trace,
     render_selection_trace_markdown,
@@ -106,6 +107,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fusion-view-weight", type=float, default=0.15)
     parser.add_argument("--fusion-consistency-weight", type=float, default=0.15)
     parser.add_argument("--fusion-geometry-weight", type=float, default=0.10)
+    parser.add_argument("--reobserve-min-confidence", type=float, default=0.50)
+    parser.add_argument("--reobserve-min-confidence-gap", type=float, default=0.05)
+    parser.add_argument("--reobserve-min-views", type=int, default=2)
+    parser.add_argument("--reobserve-min-geometry-confidence", type=float, default=0.50)
+    parser.add_argument("--reobserve-min-mean-points", type=float, default=100.0)
+    parser.add_argument("--reobserve-suggested-view-ids", nargs="*", default=["top_down", "closer_oblique"])
     parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
@@ -174,6 +181,15 @@ def main() -> None:
         selection_trace_md = run_dir / "selection_trace.md"
         write_json(selection_trace, selection_trace_json)
         selection_trace_md.write_text(render_selection_trace_markdown(selection_trace), encoding="utf-8")
+        reobserve_decision = decide_reobserve(
+            memory=memory,
+            selected=selected,
+            selection_label=selection_label,
+            config=build_reobserve_config(args),
+            candidate_view_ids=[view_id for view_id, _ in frames],
+        )
+        reobserve_decision_path = run_dir / "reobserve_decision.json"
+        write_json(reobserve_decision.to_json_dict(), reobserve_decision_path)
 
         summary = build_summary(
             args=args,
@@ -188,6 +204,9 @@ def main() -> None:
         )
         summary["selection_trace_json"] = str(selection_trace_json)
         summary["selection_trace_md"] = str(selection_trace_md)
+        summary["reobserve_decision_json"] = str(reobserve_decision_path)
+        summary["should_reobserve"] = bool(reobserve_decision.should_reobserve)
+        summary["reobserve_reason"] = reobserve_decision.reason
         write_json(summary, run_dir / "summary.json")
         print_summary(summary)
     finally:
@@ -208,6 +227,19 @@ def build_memory_config(args: argparse.Namespace) -> ObjectMemoryConfig:
             consistency_score=float(args.fusion_consistency_weight),
             geometry_score=float(args.fusion_geometry_weight),
         ),
+    )
+
+
+def build_reobserve_config(args: argparse.Namespace) -> ReobservePolicyConfig:
+    """Build re-observation policy config from CLI args."""
+
+    return ReobservePolicyConfig(
+        min_overall_confidence=float(args.reobserve_min_confidence),
+        min_confidence_gap=float(args.reobserve_min_confidence_gap),
+        min_views=int(args.reobserve_min_views),
+        min_geometry_confidence=float(args.reobserve_min_geometry_confidence),
+        min_mean_num_points=float(args.reobserve_min_mean_points),
+        default_suggested_view_ids=tuple(str(item) for item in args.reobserve_suggested_view_ids),
     )
 
 
@@ -481,6 +513,7 @@ def print_summary(summary: dict[str, Any]) -> None:
     print(f"  Memory objects: {summary['num_memory_objects']}")
     print(f"  Selected:       {summary['selected_object_id']}")
     print(f"  Confidence:     {summary['selected_overall_confidence']:.3f}")
+    print(f"  Reobserve:      {summary.get('should_reobserve')} ({summary.get('reobserve_reason')})")
     print(f"  Runtime:        {summary['runtime_seconds']:.3f}s")
     print(f"  Artifacts:      {summary['artifacts']}")
 

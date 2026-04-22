@@ -62,6 +62,26 @@ def test_build_memory_config_uses_cli_weights() -> None:
     assert config.fusion_weights.geometry_score == 0.5
 
 
+def test_build_reobserve_config_uses_cli_thresholds() -> None:
+    config = multiview.build_reobserve_config(
+        argparse.Namespace(
+            reobserve_min_confidence=0.6,
+            reobserve_min_confidence_gap=0.2,
+            reobserve_min_views=3,
+            reobserve_min_geometry_confidence=0.4,
+            reobserve_min_mean_points=250.0,
+            reobserve_suggested_view_ids=["top", "right"],
+        )
+    )
+
+    assert config.min_overall_confidence == 0.6
+    assert config.min_confidence_gap == 0.2
+    assert config.min_views == 3
+    assert config.min_geometry_confidence == 0.4
+    assert config.min_mean_num_points == 250.0
+    assert config.default_suggested_view_ids == ("top", "right")
+
+
 def test_select_memory_target_prefers_exact_query_label() -> None:
     memory = ObjectMemory3D()
     memory.add_observation(

@@ -47,6 +47,8 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
             "num_observations_added": 2,
             "selected_object_id": "obj_0000",
             "selected_overall_confidence": 0.75,
+            "should_reobserve": True,
+            "reobserve_reason": "ambiguous_top_candidates",
             "skip_clip": "true",
         }
     )
@@ -54,6 +56,8 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["query"] == "red cube"
     assert row["has_selected_object"] is True
     assert row["selected_overall_confidence"] == 0.75
+    assert row["should_reobserve"] is True
+    assert row["reobserve_reason"] == "ambiguous_top_candidates"
     assert row["runtime_seconds"] == 0.0
     assert row["skip_clip"] is True
     assert row["view_preset"] == "none"
@@ -68,6 +72,8 @@ def test_aggregate_rows_by_query() -> None:
             "num_observations_added": 1,
             "has_selected_object": True,
             "selected_overall_confidence": 0.6,
+            "should_reobserve": True,
+            "reobserve_reason": "low_overall_confidence",
             "runtime_seconds": 10.0,
             "run_failed": False,
         },
@@ -78,6 +84,8 @@ def test_aggregate_rows_by_query() -> None:
             "num_observations_added": 0,
             "has_selected_object": False,
             "selected_overall_confidence": 0.0,
+            "should_reobserve": False,
+            "reobserve_reason": None,
             "runtime_seconds": 4.0,
             "run_failed": True,
         },
@@ -88,6 +96,8 @@ def test_aggregate_rows_by_query() -> None:
             "num_observations_added": 3,
             "has_selected_object": True,
             "selected_overall_confidence": 0.8,
+            "should_reobserve": True,
+            "reobserve_reason": "ambiguous_top_candidates",
             "runtime_seconds": 12.0,
             "run_failed": False,
         },
@@ -99,6 +109,12 @@ def test_aggregate_rows_by_query() -> None:
     assert aggregate["total_runs"] == 3
     assert aggregate["failed_runs"] == 1
     assert aggregate["fraction_with_selected_object"] == 2 / 3
+    assert aggregate["reobserve_trigger_rate"] == 2 / 3
+    assert aggregate["reobserve_reason_counts"] == {
+        "ambiguous_top_candidates": 1,
+        "low_overall_confidence": 1,
+        "none": 1,
+    }
     assert aggregate["mean_selected_overall_confidence"] == (0.6 + 0.0 + 0.8) / 3
     assert per_query["red cube"]["total_runs"] == 2
     assert per_query["red cube"]["fraction_run_failed"] == 0.5
@@ -124,6 +140,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "selected_top_label": query,
             "selection_label": query,
             "selected_overall_confidence": 0.7,
+            "should_reobserve": True,
+            "reobserve_reason": "ambiguous_top_candidates",
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
@@ -171,8 +189,11 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["total_runs"] == 4
     assert summary["skip_clip"] is True
     assert summary["aggregate_metrics"]["fraction_with_selected_object"] == 1.0
+    assert summary["aggregate_metrics"]["reobserve_trigger_rate"] == 1.0
+    assert summary["aggregate_metrics"]["reobserve_reason_counts"] == {"ambiguous_top_candidates": 4}
     assert summary["aggregate_metrics"]["mean_num_memory_objects"] == 2.0
     assert "selected_overall_confidence" in csv_header
+    assert "should_reobserve" in csv_header
     assert all("--skip-clip" in command for command in seen_commands)
 
 

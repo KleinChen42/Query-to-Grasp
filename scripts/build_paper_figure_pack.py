@@ -90,6 +90,15 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="reobserve_decision_example",
+        source_path=Path("outputs/h200_60071_reobserve_smoke/reobserve_decision.json"),
+        category="policy",
+        caption=(
+            "Rule-based re-observation decision example. Shows whether another "
+            "view is requested, why, and which view ids are suggested."
+        ),
+    ),
+    ArtifactSpec(
         label="paper_milestone_log",
         source_path=Path("docs/paper_milestone_log.md"),
         category="notes",
