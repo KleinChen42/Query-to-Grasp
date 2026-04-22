@@ -60,6 +60,8 @@ def test_fusion_row_maps_memory_metrics(tmp_path: Path) -> None:
     assert row["mean_num_observations_added"] == 4.0
     assert row["mean_same_label_pairwise_distance"] == 0.12
     assert row["mean_selected_overall_confidence"] == 0.75
+    assert row["reobserve_trigger_rate"] == 0.5
+    assert row["reobserve_reason_counts"] == "ambiguous_top_candidates: 1; confident_enough: 1"
     assert row["pick_success_rate"] == "n/a"
 
 
@@ -103,6 +105,8 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
             "mean_num_observations_added": 1.0,
             "mean_same_label_pairwise_distance": 0.12,
             "mean_selected_overall_confidence": 0.5,
+            "reobserve_trigger_rate": 0.25,
+            "reobserve_reason_counts": "ambiguous_top_candidates: 1; none: 3",
             "pick_success_rate": "n/a",
         }
     ]
@@ -115,10 +119,13 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
     assert "HF fusion" in markdown
     assert "0.5000" in markdown
     assert "mean_same_label_pairwise_distance" in markdown
+    assert "reobserve_trigger_rate" in markdown
+    assert "ambiguous_top_candidates: 1" in markdown
     csv_rows = list(csv.DictReader(csv_path.open("r", encoding="utf-8")))
     assert csv_rows[0]["label"] == "HF fusion"
     assert csv_rows[0]["mean_same_label_pairwise_distance"] == "0.12"
     assert csv_rows[0]["mean_selected_overall_confidence"] == "0.5"
+    assert csv_rows[0]["reobserve_trigger_rate"] == "0.25"
 
 
 def _write_single_summary(benchmark_dir: Path) -> None:
@@ -152,6 +159,11 @@ def _write_fusion_summary(benchmark_dir: Path) -> None:
             "mean_num_observations_added": 4.0,
             "fraction_with_selected_object": 0.5,
             "mean_selected_overall_confidence": 0.75,
+            "reobserve_trigger_rate": 0.5,
+            "reobserve_reason_counts": {
+                "ambiguous_top_candidates": 1,
+                "confident_enough": 1,
+            },
             "mean_runtime_seconds": 20.0,
         },
     }

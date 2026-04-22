@@ -295,7 +295,8 @@ Planned paper assets:
 3. Geometry validation table: extrinsic convention comparison.
 4. Qualitative example: selection trace for `red cube`.
 5. Policy diagnostic: `reobserve_decision.json` example.
-6. Limitation box: placeholder pick and low detector multiplicity.
+6. Policy diagnostic table: re-observation trigger rates and reason counts.
+7. Limitation box: placeholder pick and low detector multiplicity.
 
 ## Limitations
 
@@ -317,6 +318,7 @@ Important for a stronger v1:
 - [x] Formal target selector module.
 - [x] Minimal rule-based re-observation policy module.
 - [x] `reobserve_decision.json` artifact in multi-view runs.
+- [x] Small re-observation policy report/table generator.
 - [ ] Small paper/demo architecture diagram.
 - [ ] README cleanup and current quickstart refresh.
 - [ ] Optional Gradio demo shell.
@@ -326,8 +328,8 @@ Important for a stronger v1:
 
 Surface re-observation metrics in the paper-facing reports:
 
-1. Add `reobserve_trigger_rate` and reason counts to the fusion comparison table
-   or a small policy diagnostics table.
-2. Add one short Markdown report for re-observation policy decisions.
+1. Run `scripts/generate_reobserve_policy_report.py` on the corrected HF fusion
+   benchmarks.
+2. Add the generated policy report to the paper figure pack.
 3. Keep closed-loop camera movement as future work until the policy metrics are
    interpretable.

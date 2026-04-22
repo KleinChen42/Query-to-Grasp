@@ -99,6 +99,15 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="reobserve_policy_report",
+        source_path=Path("outputs/h200_60071_tabletop3_cvfix/reobserve_policy_report.md"),
+        category="policy",
+        caption=(
+            "Aggregate re-observation policy diagnostics. Summarizes trigger "
+            "rate, reason counts, per-query policy behavior, and example runs."
+        ),
+    ),
+    ArtifactSpec(
         label="paper_milestone_log",
         source_path=Path("docs/paper_milestone_log.md"),
         category="notes",
@@ -275,6 +284,7 @@ def render_pack_readme(manifest: dict[str, Any]) -> str:
             "- Use the corrected multi-view CLIP ablation table as the main quantitative table.",
             "- Use the extrinsic convention and cross-view geometry reports as system validation evidence.",
             "- Use the selection trace as a qualitative example for explainable target selection.",
+            "- Use the re-observation policy report as open-loop uncertainty-policy evidence.",
             "",
         ]
     )

@@ -39,6 +39,8 @@ TABLE_COLUMNS = [
     "mean_num_observations_added",
     "mean_same_label_pairwise_distance",
     "mean_selected_overall_confidence",
+    "reobserve_trigger_rate",
+    "reobserve_reason_counts",
     "pick_success_rate",
 ]
 
@@ -143,6 +145,8 @@ def single_view_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "mean_num_observations_added": NA,
         "mean_same_label_pairwise_distance": NA,
         "mean_selected_overall_confidence": NA,
+        "reobserve_trigger_rate": NA,
+        "reobserve_reason_counts": NA,
         "pick_success_rate": _as_float(metrics.get("pick_success_rate")),
     }
 
@@ -172,6 +176,8 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
             memory_metrics.get("mean_same_label_pairwise_distance")
         ),
         "mean_selected_overall_confidence": _as_float(metrics.get("mean_selected_overall_confidence")),
+        "reobserve_trigger_rate": _optional_float(metrics.get("reobserve_trigger_rate")),
+        "reobserve_reason_counts": format_reason_counts(metrics.get("reobserve_reason_counts")),
         "pick_success_rate": NA,
     }
 
@@ -238,6 +244,18 @@ def _format_cell(value: Any) -> str:
     if isinstance(value, float):
         return _format_float(value)
     return _escape_table_cell(_value(value))
+
+
+def format_reason_counts(value: Any) -> str:
+    """Render re-observation reason counts in one compact table cell."""
+
+    if not isinstance(value, dict) or not value:
+        return NA
+    parts = [
+        f"{reason}: {count}"
+        for reason, count in sorted(value.items(), key=lambda item: (-_as_int(item[1]), str(item[0])))
+    ]
+    return "; ".join(parts)
 
 
 def _format_float(value: float) -> str:

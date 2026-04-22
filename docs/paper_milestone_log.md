@@ -417,6 +417,16 @@ PYTHONPATH=$PWD python scripts/run_multiview_fusion_debug.py \
   --output-dir outputs/reobserve_smoke_mock_tabletop3
 ```
 
+Re-observation policy report:
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_reobserve_policy_report.py \
+  --benchmark "HF tabletop_3 fusion no CLIP cvfix=outputs/multiview_fusion_tabletop3_hf_no_clip_cvfix" \
+  --benchmark "HF tabletop_3 fusion with CLIP cvfix=outputs/multiview_fusion_tabletop3_hf_with_clip_cvfix" \
+  --output-md outputs/reobserve_policy_report_tabletop3_cvfix.md \
+  --output-json outputs/reobserve_policy_report_tabletop3_cvfix.json
+```
+
 Paper figure pack:
 
 ```bash
@@ -442,9 +452,9 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 Surface re-observation policy metrics in paper-facing reports:
 
-1. Add a small re-observation diagnostics table/report using
-   `reobserve_trigger_rate` and reason counts from fusion benchmark summaries.
-2. Include one qualitative `reobserve_decision.json` example in the paper pack.
+1. Run the re-observation policy report on the corrected HF fusion benchmarks.
+2. Include the aggregate report and one qualitative `reobserve_decision.json`
+   example in the paper pack.
 3. Keep closed-loop camera movement as future work until policy metrics are
    interpretable.
 
