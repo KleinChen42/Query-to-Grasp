@@ -17,6 +17,30 @@ def test_normalize_view_ids_uses_default_when_no_view_is_requested() -> None:
     assert multiview.normalize_view_ids(["", "front", " left "], None) == ["front", "left"]
 
 
+def test_collect_frames_with_tabletop_preset_recaptures_base_camera() -> None:
+    class FakeScene:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def capture_observation_from_camera_pose(self, camera_name, eye, target, up):
+            self.calls.append((camera_name, eye, target, up))
+            return SimpleNamespace(label=f"frame_{len(self.calls)}")
+
+    scene = FakeScene()
+
+    frames = multiview.collect_frames(
+        scene,
+        view_ids=[None],
+        view_preset="tabletop_3",
+        preset_camera_name="base_camera",
+    )
+
+    assert [view_id for view_id, _ in frames] == ["front", "left", "right"]
+    assert len(scene.calls) == 3
+    assert all(call[0] == "base_camera" for call in scene.calls)
+    assert scene.calls[0][1] == (0.35, 0.0, 0.55)
+
+
 def test_build_memory_config_uses_cli_weights() -> None:
     config = multiview.build_memory_config(
         argparse.Namespace(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from datetime import datetime
 import logging
 from pathlib import Path
@@ -33,14 +34,39 @@ from src.perception.query_parser import parse_query  # noqa: E402
 LOGGER = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class VirtualCameraView:
+    """One synthetic camera pose used to recapture an existing ManiSkill sensor."""
+
+    label: str
+    eye: tuple[float, float, float]
+    target: tuple[float, float, float]
+    up: tuple[float, float, float] = (0.0, 0.0, 1.0)
+
+
+VIEW_PRESETS: dict[str, tuple[VirtualCameraView, ...]] = {
+    "tabletop_3": (
+        VirtualCameraView(label="front", eye=(0.35, 0.0, 0.55), target=(0.0, 0.0, 0.05)),
+        VirtualCameraView(label="left", eye=(0.0, 0.35, 0.55), target=(0.0, 0.0, 0.05)),
+        VirtualCameraView(label="right", eye=(0.0, -0.35, 0.55), target=(0.0, 0.0, 0.05)),
+    )
+}
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Debug multi-view 3D semantic fusion on one ManiSkill reset.")
     parser.add_argument("--query", default="red cube", help="Natural language target query.")
     parser.add_argument("--view-ids", nargs="*", default=None, help="Camera keys to extract from the reset observation.")
+    parser.add_argument(
+        "--view-preset",
+        default="none",
+        choices=["none", *sorted(VIEW_PRESETS)],
+        help="Optional virtual camera pose preset. Reuses --camera-name, defaulting to base_camera.",
+    )
     parser.add_argument("--env-id", default="PickCube-v1", help="ManiSkill environment id.")
     parser.add_argument("--obs-mode", default="rgbd", help="ManiSkill observation mode.")
     parser.add_argument("--control-mode", default=None, help="Optional ManiSkill control mode.")
-    parser.add_argument("--camera-name", default=None, help="Fallback camera key when --view-ids is omitted.")
+    parser.add_argument("--camera-name", default=None, help="Camera key to extract or recapture for preset views.")
     parser.add_argument("--seed", type=int, default=0, help="Environment reset seed.")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs") / "multiview_fusion_debug")
     parser.add_argument("--prefer-llm-parser", action="store_true", help="Try LLM parsing before deterministic rules.")
@@ -103,7 +129,12 @@ def main() -> None:
     )
     try:
         scene.reset(seed=args.seed)
-        frames = collect_frames(scene, view_ids=view_ids)
+        frames = collect_frames(
+            scene,
+            view_ids=view_ids,
+            view_preset=args.view_preset,
+            preset_camera_name=args.camera_name or "base_camera",
+        )
         view_results: list[dict[str, Any]] = []
         total_observations_added = 0
         for view_id, frame in frames:
@@ -175,9 +206,16 @@ def normalize_view_ids(view_ids: Sequence[str] | None, camera_name: str | None) 
     return [camera_name.strip()] if camera_name and camera_name.strip() else [None]
 
 
-def collect_frames(scene: ManiSkillScene, view_ids: Sequence[str | None]) -> list[tuple[str, ObservationFrame]]:
+def collect_frames(
+    scene: ManiSkillScene,
+    view_ids: Sequence[str | None],
+    view_preset: str = "none",
+    preset_camera_name: str = "base_camera",
+) -> list[tuple[str, ObservationFrame]]:
     """Collect frames for requested view ids."""
 
+    if view_preset != "none":
+        return collect_preset_frames(scene, view_preset=view_preset, camera_name=preset_camera_name)
     if len(view_ids) == 1 and view_ids[0] is None:
         return [("default", scene.get_observation())]
     frames: list[tuple[str, ObservationFrame]] = []
@@ -186,6 +224,29 @@ def collect_frames(scene: ManiSkillScene, view_ids: Sequence[str | None]) -> lis
             frames.append(("default", scene.get_observation()))
         else:
             frames.append((view_id, scene.get_observation(camera_name=view_id)))
+    return frames
+
+
+def collect_preset_frames(
+    scene: ManiSkillScene,
+    view_preset: str,
+    camera_name: str,
+) -> list[tuple[str, ObservationFrame]]:
+    """Collect virtual multi-view frames by moving one existing ManiSkill camera."""
+
+    preset = VIEW_PRESETS.get(view_preset)
+    if preset is None:
+        raise ValueError(f"Unknown view preset {view_preset!r}. Available presets: {sorted(VIEW_PRESETS)}")
+
+    frames: list[tuple[str, ObservationFrame]] = []
+    for view in preset:
+        frame = scene.capture_observation_from_camera_pose(
+            camera_name=camera_name,
+            eye=view.eye,
+            target=view.target,
+            up=view.up,
+        )
+        frames.append((view.label, frame))
     return frames
 
 
@@ -403,6 +464,8 @@ def build_summary(
         "runtime_seconds": float(runtime_seconds),
         "skip_clip": bool(args.skip_clip),
         "detector_backend": args.detector_backend,
+        "view_preset": args.view_preset,
+        "camera_name": args.camera_name,
         "artifacts": str(run_dir),
     }
 

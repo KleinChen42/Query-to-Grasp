@@ -9,7 +9,7 @@ import scripts.run_multiview_fusion_benchmark as benchmark
 
 
 def test_build_child_command_only_appends_skip_clip_when_requested(tmp_path: Path) -> None:
-    args = _args(output_dir=tmp_path, skip_clip=False, view_ids=["front", "left"])
+    args = _args(output_dir=tmp_path, skip_clip=False, view_ids=["front", "left"], view_preset="none")
 
     command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
 
@@ -27,6 +27,15 @@ def test_build_child_command_only_appends_skip_clip_when_requested(tmp_path: Pat
     command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
 
     assert "--skip-clip" in command
+
+
+def test_build_child_command_forwards_view_preset(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+
+    command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
+
+    assert "--view-preset" in command
+    assert command[command.index("--view-preset") + 1] == "tabletop_3"
 
 
 def test_summarize_fusion_run_defaults_missing_fields() -> None:
@@ -47,6 +56,7 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["selected_overall_confidence"] == 0.75
     assert row["runtime_seconds"] == 0.0
     assert row["skip_clip"] is True
+    assert row["view_preset"] == "none"
 
 
 def test_aggregate_rows_by_query() -> None:
@@ -117,6 +127,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
+            "view_preset": "none",
+            "camera_name": None,
             "artifacts": str(run_dir),
         }
         (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
@@ -164,7 +176,12 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert all("--skip-clip" in command for command in seen_commands)
 
 
-def _args(output_dir: Path, skip_clip: bool, view_ids: list[str] | None = None):
+def _args(
+    output_dir: Path,
+    skip_clip: bool,
+    view_ids: list[str] | None = None,
+    view_preset: str = "none",
+):
     return type(
         "Args",
         (),
@@ -176,6 +193,7 @@ def _args(output_dir: Path, skip_clip: bool, view_ids: list[str] | None = None):
             "depth_scale": 1000.0,
             "merge_distance": 0.08,
             "camera_name": None,
+            "view_preset": view_preset,
             "view_ids": view_ids or [],
             "skip_clip": skip_clip,
             "output_dir": output_dir,

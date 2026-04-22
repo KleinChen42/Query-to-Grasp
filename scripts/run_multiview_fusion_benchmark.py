@@ -36,6 +36,8 @@ CSV_COLUMNS = [
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
+    "view_preset",
+    "camera_name",
     "artifacts",
     "run_failed",
     "error_message",
@@ -49,6 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seeds", nargs="*", type=int, default=None, help="Integer seeds. Defaults to range(num-runs).")
     parser.add_argument("--num-runs", type=int, default=1, help="Fallback number of seeds when --seeds is omitted.")
     parser.add_argument("--view-ids", nargs="*", default=[], help="Optional camera keys forwarded to the debug runner.")
+    parser.add_argument("--view-preset", default="none", help="Optional virtual camera pose preset forwarded to the debug runner.")
     parser.add_argument("--camera-name", default=None, help="Fallback camera key when --view-ids is omitted.")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs") / "multiview_fusion_benchmark")
     parser.add_argument(
@@ -103,6 +106,7 @@ def main() -> None:
         "unique_queries": sorted(set(queries)),
         "view_ids": [view_id for view_id in args.view_ids if view_id],
         "camera_name": args.camera_name,
+        "view_preset": args.view_preset,
         "detector_backend": args.detector_backend,
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),
@@ -200,6 +204,8 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
     ]
     if args.camera_name:
         command.extend(["--camera-name", args.camera_name])
+    if args.view_preset and args.view_preset != "none":
+        command.extend(["--view-preset", args.view_preset])
     if args.view_ids:
         command.append("--view-ids")
         command.extend(str(view_id) for view_id in args.view_ids if str(view_id).strip())
@@ -225,6 +231,8 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
+        "view_preset": str(summary.get("view_preset") or "none"),
+        "camera_name": _optional_str(summary.get("camera_name")),
         "artifacts": str(summary.get("artifacts") or ""),
     }
 
@@ -293,6 +301,8 @@ def failed_row(
         "runtime_seconds": 0.0,
         "detector_backend": "",
         "skip_clip": False,
+        "view_preset": "none",
+        "camera_name": None,
         "artifacts": artifacts,
         "run_failed": True,
         "error_message": message,

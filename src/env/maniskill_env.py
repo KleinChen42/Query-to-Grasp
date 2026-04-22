@@ -116,6 +116,78 @@ class ManiSkillScene:
         raw_observation = self._latest_observation()
         return [extract_observation_frame(raw_observation, camera_name=view_id) for view_id in view_ids]
 
+    def capture_observation_from_camera_pose(
+        self,
+        camera_name: str,
+        eye: Sequence[float],
+        target: Sequence[float],
+        up: Sequence[float] = (0.0, 0.0, 1.0),
+    ) -> ObservationFrame:
+        """Move a ManiSkill camera to a look-at pose and capture a fresh frame.
+
+        This is a minimal multi-view hook for environments that expose only one
+        RGB-D sensor by default. It reuses an existing sensor, updates its pose,
+        triggers ManiSkill sensor rendering, and parses the resulting raw
+        observation.
+        """
+
+        self.set_camera_look_at(camera_name=camera_name, eye=eye, target=target, up=up)
+        raw_observation = self.capture_sensor_observation()
+        return extract_observation_frame(raw_observation, camera_name=camera_name)
+
+    def set_camera_look_at(
+        self,
+        camera_name: str,
+        eye: Sequence[float],
+        target: Sequence[float],
+        up: Sequence[float] = (0.0, 0.0, 1.0),
+    ) -> None:
+        """Set an existing ManiSkill sensor camera to a look-at pose."""
+
+        camera = self._get_sensor_camera(camera_name)
+        camera_handle = getattr(camera, "camera", camera)
+        set_local_pose = getattr(camera_handle, "set_local_pose", None)
+        if not callable(set_local_pose):
+            raise RuntimeError(
+                f"Camera '{camera_name}' does not expose set_local_pose(); "
+                "cannot capture virtual multi-view observations in this ManiSkill version."
+            )
+
+        try:
+            from mani_skill.utils.sapien_utils import look_at
+        except ImportError as exc:
+            raise RuntimeError(
+                "ManiSkill look_at helper is unavailable; cannot set camera pose. "
+                f"Original error: {exc}"
+            ) from exc
+
+        pose = look_at(eye=eye, target=target, up=up)
+        set_local_pose(getattr(pose, "sp", pose))
+        config = getattr(camera, "config", None)
+        if config is not None and hasattr(config, "pose"):
+            config.pose = pose
+
+    def capture_sensor_observation(self) -> Mapping[str, Any]:
+        """Render sensors and return a fresh raw observation."""
+
+        env = self._unwrapped_env()
+        capture = getattr(env, "capture_sensor_data", None)
+        if callable(capture):
+            capture()
+
+        get_obs = getattr(env, "get_obs", None)
+        if not callable(get_obs):
+            get_obs = getattr(self.env, "get_obs", None)
+        if not callable(get_obs):
+            raise RuntimeError(
+                "No get_obs() method is available after sensor capture; "
+                "cannot refresh ManiSkill RGB-D observation."
+            )
+
+        observation = get_obs()
+        self.last_raw_observation = observation
+        return observation
+
     def execute_pick(self, target_xyz: np.ndarray) -> dict[str, Any]:
         """Execute a minimal pick attempt for a 3D target.
 
@@ -152,6 +224,22 @@ class ManiSkillScene:
             return observation
 
         raise RuntimeError("No observation is available. Call reset() before get_observation().")
+
+    def _unwrapped_env(self) -> Any:
+        return getattr(self.env, "unwrapped", self.env)
+
+    def _get_sensor_camera(self, camera_name: str) -> Any:
+        env = self._unwrapped_env()
+        sensors = getattr(env, "_sensors", None) or getattr(env, "sensors", None)
+        if not isinstance(sensors, Mapping):
+            raise RuntimeError(
+                "The ManiSkill environment does not expose a sensor mapping; "
+                "cannot set camera pose for virtual multi-view capture."
+            )
+        if camera_name not in sensors:
+            available = ", ".join(sorted(str(name) for name in sensors)) or "none"
+            raise RuntimeError(f"Camera '{camera_name}' was not found. Available cameras: {available}.")
+        return sensors[camera_name]
 
     def _make_env(self) -> Any:
         gym = _import_gym()
