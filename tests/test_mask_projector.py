@@ -43,6 +43,36 @@ def test_lift_box_to_3d_handles_invalid_depth() -> None:
     assert candidate.metadata["reason"] == "no_valid_depth"
 
 
+def test_lift_box_to_3d_converts_cam2world_gl_from_opencv_points() -> None:
+    rgb = np.zeros((2, 2, 3), dtype=np.uint8)
+    depth = np.full((2, 2), 2.0, dtype=np.float32)
+    intrinsic = np.eye(3, dtype=np.float32)
+    extrinsic = np.eye(4, dtype=np.float32)
+
+    direct = lift_box_to_3d(
+        rgb=rgb,
+        depth=depth,
+        box_xyxy=np.array([0, 0, 1, 1], dtype=np.float32),
+        intrinsic=intrinsic,
+        extrinsic=extrinsic,
+    )
+    converted = lift_box_to_3d(
+        rgb=rgb,
+        depth=depth,
+        box_xyxy=np.array([0, 0, 1, 1], dtype=np.float32),
+        intrinsic=intrinsic,
+        extrinsic=extrinsic,
+        extrinsic_source="sensor_param.base_camera.cam2world_gl",
+    )
+
+    np.testing.assert_allclose(direct.camera_xyz, np.array([0.0, 0.0, 2.0], dtype=np.float32))
+    np.testing.assert_allclose(direct.world_xyz, np.array([0.0, 0.0, 2.0], dtype=np.float32))
+    np.testing.assert_allclose(converted.camera_xyz, np.array([0.0, 0.0, 2.0], dtype=np.float32))
+    np.testing.assert_allclose(converted.world_xyz, np.array([0.0, 0.0, -2.0], dtype=np.float32))
+    assert converted.metadata["extrinsics_source"] == "sensor_param.base_camera.cam2world_gl"
+    assert converted.metadata["camera_frame_conversion"] == "opencv_to_opengl"
+
+
 def test_lift_box_to_3d_can_use_segmentation_id() -> None:
     rgb = np.zeros((3, 3, 3), dtype=np.uint8)
     depth = np.ones((3, 3), dtype=np.float32)

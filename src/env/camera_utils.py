@@ -177,6 +177,43 @@ def extract_camera_info(
     )
 
 
+def extract_observation_matrix_by_leaf(
+    observation: Mapping[str, Any],
+    leaf_key: str,
+    valid_shape: tuple[int, int],
+    camera_name: str | None = None,
+) -> tuple[np.ndarray | None, str | None]:
+    """Extract a matrix by exact leaf key, optionally preferring a camera path.
+
+    This is useful for diagnostics where similarly shaped camera matrices such
+    as ``extrinsic_cv`` and ``cam2world_gl`` must be compared explicitly instead
+    of selected through alias scoring.
+    """
+
+    leaf_key_lower = leaf_key.lower()
+    candidates: list[tuple[int, str, np.ndarray]] = []
+    for path, value in _iter_leaf_items(observation):
+        parts = path.lower().split(".")
+        if not parts or parts[-1] != leaf_key_lower:
+            continue
+        try:
+            array = np.squeeze(to_numpy(value))
+        except Exception as exc:
+            LOGGER.debug("Skipping matrix leaf %s: %s", path, exc)
+            continue
+        if tuple(array.shape) != valid_shape:
+            continue
+        score = 100 if camera_name and camera_name.lower() in path.lower() else 0
+        candidates.append((score, path, array.astype(np.float32)))
+
+    if not candidates:
+        return None, None
+
+    candidates.sort(key=lambda item: (-item[0], len(item[1])))
+    _, path, matrix = candidates[0]
+    return matrix, path
+
+
 def extract_observation_frame(
     observation: Mapping[str, Any],
     camera_name: str | None = None,
@@ -349,4 +386,3 @@ def _squeeze_vectorized_axis(array: np.ndarray) -> np.ndarray:
 
 def _array_to_list(array: np.ndarray | None) -> list[Any] | None:
     return array.tolist() if array is not None else None
-

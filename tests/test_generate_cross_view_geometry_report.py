@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.generate_cross_view_geometry_report import (
     build_conclusion,
     build_report,
@@ -20,7 +22,18 @@ def test_transform_point_applies_homogeneous_matrix() -> None:
         [0.0, 0.0, 0.0, 1.0],
     ]
 
-    assert transform_point(matrix, [0.1, 0.2, 0.3]) == [0.6, 1.2, 0.04999999999999999]
+    assert transform_point(matrix, [0.1, 0.2, 0.3]) == pytest.approx([0.6, 1.2, 0.05])
+
+
+def test_transform_point_uses_cam2world_gl_camera_conversion() -> None:
+    matrix = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+
+    assert transform_point(matrix, [0.0, 0.0, 2.0], "sensor_param.base_camera.cam2world_gl") == [0.0, 0.0, -2.0]
 
 
 def test_extract_geometry_candidates_reads_metadata_and_recompute_error(tmp_path: Path) -> None:
@@ -32,7 +45,7 @@ def test_extract_geometry_candidates_reads_metadata_and_recompute_error(tmp_path
     assert len(candidates) == 2
     assert candidates[0]["extrinsic_key"] == "sensor_param.base_camera.cam2world_gl"
     assert candidates[0]["camera_position"] == [0.0, 0.0, 0.0]
-    assert candidates[0]["world_recompute_error"] == 0.0
+    assert candidates[0]["world_recompute_error"] == pytest.approx(0.0, abs=1e-6)
     assert candidates[0]["box_xyxy"] == [1.0, 2.0, 3.0, 4.0]
 
 
@@ -54,7 +67,7 @@ def test_build_report_from_benchmark_and_render_markdown(tmp_path: Path) -> None
     markdown = render_markdown(report)
 
     assert report["aggregate"]["total_runs"] == 1
-    assert report["aggregate"]["mean_world_recompute_error"] == 0.0
+    assert report["aggregate"]["mean_world_recompute_error"] == pytest.approx(0.0, abs=1e-6)
     assert report["aggregate"]["mean_same_label_pairwise_distance"] > 0.5
     assert any("cam2world_gl" in key for key in report["aggregate"]["extrinsic_source_counts"])
     assert "compare OpenGL cam2world against extrinsic_cv" in report["aggregate"]["conclusion"]

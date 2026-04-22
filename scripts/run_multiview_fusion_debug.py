@@ -367,6 +367,7 @@ def lift_and_add_candidates(
             box_xyxy=ranked.box_xyxy,
             intrinsic=frame.camera_info.intrinsic,
             extrinsic=frame.camera_info.extrinsic,
+            extrinsic_source=frame.camera_info.extrinsic_key,
             segmentation=frame.segmentation,
             segmentation_id=args.segmentation_id,
             use_segmentation=args.use_segmentation,

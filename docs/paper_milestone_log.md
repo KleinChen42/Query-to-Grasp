@@ -17,9 +17,10 @@ Current evidence supports the following narrower near-term claim:
 
 > A language-queryable single-view perception-to-3D-target pipeline can be made
 > runnable and benchmarkable with HF GroundingDINO, optional CLIP reranking, RGB-D
-> lifting, and placeholder pick execution. The next research bottleneck is not
-> CLIP reranking quality, but candidate multiplicity and cross-view 3D geometric
-> consistency.
+> lifting, and placeholder pick execution. Corrected virtual multi-view capture
+> can reduce object-memory fragmentation when camera-frame conventions are
+> handled explicitly. CLIP reranking remains optional until detector candidate
+> multiplicity improves.
 
 ## Artifact Map
 
@@ -31,6 +32,10 @@ Current evidence supports the following narrower near-term claim:
 | Full tabletop_3 fusion summary | Machine-readable multi-view fusion benchmark summary | `outputs/h200_60071_tabletop3_full/benchmark_summary.json` |
 | Multi-view memory diagnostics | Merge-distance sweep and cross-view 3D consistency diagnosis | `outputs/h200_60071_tabletop3_full/memory_diagnostics.md` |
 | Cross-view geometry sanity report | Per-view boxes, camera/world coordinates, extrinsic source, transform sanity | `outputs/h200_60071_tabletop3_full/cross_view_geometry_report.md` |
+| Extrinsic convention comparison | Direct `cam2world_gl`, converted `cam2world_gl`, and `extrinsic_cv` comparison | `outputs/h200_60071_extrinsic_convention/extrinsic_convention_report.md` |
+| CV-fixed tabletop_3 fusion comparison | Single-view vs virtual 3-view fusion after camera convention fix | `outputs/h200_60071_tabletop3_cvfix/fusion_comparison_table_tabletop3_cvfix.md` |
+| CV-fixed memory diagnostics | Post-fix merge-distance sweep and cross-view 3D consistency diagnosis | `outputs/h200_60071_tabletop3_cvfix/memory_diagnostics.md` |
+| CV-fixed cross-view geometry sanity report | Post-fix transform sanity and cross-view geometry report | `outputs/h200_60071_tabletop3_cvfix/cross_view_geometry_report_tabletop3_cvfix.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
 
 ## Milestone Timeline
@@ -47,6 +52,9 @@ Current evidence supports the following narrower near-term claim:
 | Virtual tabletop_3 multi-view capture | Done | `--view-preset tabletop_3` smoke and benchmark | True distinct RGB-D views can be captured by moving `base_camera`. |
 | Multi-view memory diagnostics | Done | `memory_diagnostics.md/json` | Multi-view capture works, but same-label 3D estimates are far apart across views. |
 | Cross-view geometry sanity report | Done | `cross_view_geometry_report.md/json` | World coordinates are internally consistent with the selected extrinsic, but the selected source is `cam2world_gl`. |
+| Extrinsic convention comparison | Done | `extrinsic_convention_report.md/json` | `cam2world_gl @ OpenCV-to-OpenGL` reduces same-label cross-view distance from `1.0693 m` to `0.0518 m`. |
+| RGB-D lifting camera convention fix | Done | `mask_projector.py` + H200 cvfix benchmark | Default lifting now converts OpenCV-projected points before applying ManiSkill `cam2world_gl`. |
+| CV-fixed tabletop_3 fusion | Done | `h200_60071_tabletop3_cvfix` reports | Multi-view memory fragmentation drops from `3.3333` to `1.3333` objects/run. |
 
 ## Key Quantitative Results
 
@@ -148,6 +156,65 @@ Paper note:
 > currently projects points in an OpenCV-style pinhole frame while the selected
 > extrinsic source is OpenGL-labeled.
 
+### Extrinsic Convention Comparison
+
+Source: `outputs/h200_60071_extrinsic_convention/extrinsic_convention_report.md`
+
+| convention | mean_same_label_pairwise_distance | mean_top_rank_pairwise_distance | mean_world_z |
+| --- | ---: | ---: | ---: |
+| `cam2world_gl_direct` | 1.0693 | 1.1301 | 0.9303 |
+| `cam2world_gl_cv_to_gl` | 0.0518 | 0.0304 | 0.1697 |
+
+Interpretation:
+
+The RGB-D projection path produces OpenCV-style camera points (`x` right, `y`
+down, `z` forward), while ManiSkill's selected `cam2world_gl` matrix expects
+OpenGL-style camera points (`x` right, `y` up, `z` backward). Applying the fixed
+OpenCV-to-OpenGL camera-frame conversion before `cam2world_gl` makes same-label
+cross-view estimates geometrically consistent.
+
+Paper note:
+
+> A practical multi-view fusion bottleneck was not the memory merge threshold,
+> but the camera-frame convention between RGB-D lifting and simulator-provided
+> camera poses. Correcting this convention reduced same-label cross-view spread
+> by roughly `20.6x` (`1.0693 m` to `0.0518 m`).
+
+### tabletop_3 Fusion After Camera Convention Fix
+
+Source: `outputs/h200_60071_tabletop3_cvfix/fusion_comparison_table_tabletop3_cvfix.md`
+
+| setting | runs | primary_rate | mean_runtime_seconds | mean_num_views | mean_num_memory_objects | mean_num_observations_added | mean_selected_overall_confidence |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| HF single no CLIP | 6 | 1.0000 | 52.6174 | 1.0000 | n/a | n/a | n/a |
+| HF tabletop_3 fusion no CLIP cvfix | 6 | 1.0000 | 96.9404 | 3.0000 | 1.3333 | 3.6667 | 0.5282 |
+
+Post-fix memory diagnostics:
+
+| metric | before fix | after fix |
+| --- | ---: | ---: |
+| mean_num_memory_objects | 3.3333 | 1.3333 |
+| mean_same_label_pairwise_distance | 1.0693 | 0.0518 |
+| mean_top_rank_pairwise_distance | 1.1301 | 0.0304 |
+
+Merge-distance sweep after the fix:
+
+| merge_distance | mean_simulated_memory_objects |
+| ---: | ---: |
+| 0.05 | 1.8333 |
+| 0.08 | 1.3333 |
+| 0.12 | 1.1667 |
+| 0.16 | 1.0000 |
+| 0.24 | 1.0000 |
+| 0.32 | 1.0000 |
+
+Paper note:
+
+> After camera-convention correction, virtual three-view capture produces a
+> compact object memory in the HF/no-CLIP setting. This is the first evidence
+> that the multi-view path can support the project thesis, although the current
+> benchmark still uses placeholder pick execution and a small object/query set.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -205,34 +272,60 @@ PYTHONPATH=$PWD python scripts/generate_fusion_comparison_table.py \
   --output-csv outputs/fusion_comparison_table_tabletop3_full.csv
 ```
 
+Extrinsic convention comparison:
+
+```bash
+PYTHONPATH=$PWD python scripts/compare_extrinsic_conventions.py \
+  --queries "red cube" "blue mug" \
+  --seeds 0 1 2 \
+  --detector-backend hf \
+  --skip-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --output-dir outputs/extrinsic_convention_tabletop3_hf_no_clip
+```
+
+Post-fix cross-view geometry sanity report:
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_cross_view_geometry_report.py \
+  --benchmark-dir outputs/multiview_fusion_tabletop3_hf_no_clip_cvfix \
+  --output-json outputs/cross_view_geometry_report_tabletop3_cvfix.json \
+  --output-md outputs/cross_view_geometry_report_tabletop3_cvfix.md
+```
+
 ## Current Bottlenecks
 
 1. Detector candidate multiplicity is still low in most exact-object settings.
 2. CLIP reranking has no current top-1 effect because candidate sets are too small.
-3. Virtual multi-view capture works, but same-label 3D estimates are not
-   geometrically consistent across views.
-4. Memory merge threshold tuning alone is unlikely to solve fragmentation.
-5. The current RGB-D lifting path likely needs an explicit ManiSkill
-   `extrinsic_cv` vs `cam2world_gl` convention check.
+3. Corrected virtual multi-view capture now gives compact memory in the small
+   HF/no-CLIP benchmark, but this needs a with-CLIP and ambiguity rerun before
+   becoming a full ablation.
+4. Memory merge behavior is now plausible at `0.08 m`, but selection traces need
+   to be easier to inspect for paper figures.
+5. The RGB-D lifting camera convention bug is fixed for `cam2world_gl`, but
+   future geometry diagnostics should continue to log the convention explicitly.
 6. Real robot control is still intentionally absent; placeholder pick success is
    not an end-to-end grasp metric.
 
 ## Next Recommended Milestone
 
-Compare `extrinsic_cv` and `cam2world_gl` for the same `tabletop_3` run:
+Promote the corrected multi-view path from a debug milestone into a minimal
+paper ablation:
 
-1. Make observation extraction prefer or expose `extrinsic_cv` explicitly.
-2. Recompute candidate `world_xyz` with both conventions for the same per-view
-   detections.
-3. Compare same-label cross-view distance under both transforms.
-4. If `extrinsic_cv` greatly reduces the spread, patch the default extrinsic
-   selection for RGB-D lifting.
-5. If both remain inconsistent, inspect detector crop consistency and depth
-   statistics before changing memory merge logic.
+1. Re-run the same `tabletop_3` benchmark with CLIP enabled.
+2. Generate a single paper table comparing single-view vs corrected multi-view,
+   no-CLIP vs with-CLIP, and ambiguity vs exact-object queries.
+3. Add a compact target-selection trace artifact that explains why the selected
+   memory object won.
+4. Keep real robot control out of scope until the perception/fusion claims are
+   stable.
 
 Candidate paper framing:
 
 > The current prototype establishes a runnable language-query-to-3D-target
-> baseline and exposes the practical systems bottleneck for confidence-aware
-> 3D fusion: reliable cross-view geometric consistency, not merely adding more
-> views or reranking candidates.
+> baseline and demonstrates that confidence-aware 3D fusion depends on careful
+> camera-frame convention handling. After correcting the RGB-D lifting convention,
+> virtual three-view fusion produces compact object memory in the HF/no-CLIP
+> benchmark, making it ready for the next controlled ablation.

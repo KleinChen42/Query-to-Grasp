@@ -125,7 +125,7 @@ def test_lift_and_add_candidates_updates_memory(monkeypatch, tmp_path) -> None:
         rgb=np.zeros((8, 8, 3), dtype=np.uint8),
         depth=np.ones((8, 8), dtype=np.float32),
         segmentation=None,
-        camera_info=SimpleNamespace(intrinsic=None, extrinsic=None),
+        camera_info=SimpleNamespace(intrinsic=None, extrinsic=None, extrinsic_key=None),
     )
     args = argparse.Namespace(
         save_candidate_pointclouds=False,

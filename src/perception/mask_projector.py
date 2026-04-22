@@ -18,6 +18,8 @@ from src.geometry.rgbd_to_pointcloud import (
 
 LOGGER = logging.getLogger(__name__)
 
+OPENCV_TO_OPENGL_CAMERA = np.diag([1.0, -1.0, -1.0, 1.0]).astype(np.float32)
+
 
 @dataclass
 class Candidate3D:
@@ -55,6 +57,7 @@ def lift_box_to_3d(
     box_xyxy: np.ndarray | Sequence[float],
     intrinsic: np.ndarray | None = None,
     extrinsic: np.ndarray | None = None,
+    extrinsic_source: str | None = None,
     segmentation: np.ndarray | None = None,
     segmentation_id: int | None = None,
     use_segmentation: bool = False,
@@ -136,7 +139,11 @@ def lift_box_to_3d(
         box_bounds=(x0, y0, x1, y1),
         intrinsic=intrinsic_used,
     )
-    world_points = transform_camera_points(camera_points, extrinsic) if extrinsic is not None else None
+    world_points = (
+        transform_camera_points(camera_points, extrinsic, extrinsic_source=extrinsic_source)
+        if extrinsic is not None
+        else None
+    )
     camera_center = _estimate_center(camera_points, strategy=center_strategy)
     world_center = _estimate_center(world_points, strategy=center_strategy) if world_points is not None else None
 
@@ -158,7 +165,8 @@ def lift_box_to_3d(
         metadata={
             "box_bounds_xyxy_exclusive": [x0, y0, x1, y1],
             "intrinsics_source": "provided" if intrinsic is not None else "fallback",
-            "extrinsics_source": "provided" if extrinsic is not None else "missing",
+            "extrinsics_source": extrinsic_source or ("provided" if extrinsic is not None else "missing"),
+            "camera_frame_conversion": camera_frame_conversion_for_source(extrinsic_source),
             "center_strategy": center_strategy,
         },
     )
@@ -177,14 +185,44 @@ def clip_box_to_bounds(box_xyxy: np.ndarray | Sequence[float], width: int, heigh
     return x0, y0, x1, y1
 
 
-def transform_camera_points(points: np.ndarray, extrinsic: np.ndarray) -> np.ndarray:
+def transform_camera_points(
+    points: np.ndarray,
+    extrinsic: np.ndarray,
+    extrinsic_source: str | None = None,
+) -> np.ndarray:
     """Apply a camera-to-world transform to camera-frame points."""
+
+    extrinsic_array = normalize_camera_to_world_extrinsic(extrinsic, extrinsic_source=extrinsic_source)
+    homogeneous = np.concatenate([points.astype(np.float32), np.ones((points.shape[0], 1), dtype=np.float32)], axis=1)
+    return (homogeneous @ extrinsic_array.T)[:, :3].astype(np.float32)
+
+
+def normalize_camera_to_world_extrinsic(
+    extrinsic: np.ndarray,
+    extrinsic_source: str | None = None,
+) -> np.ndarray:
+    """Normalize known ManiSkill camera-to-world matrices to OpenCV point inputs.
+
+    RGB-D lifting projects pixels into OpenCV-style camera coordinates
+    (x right, y down, z forward). ManiSkill's ``cam2world_gl`` matrix expects
+    OpenGL-style camera coordinates (x right, y up, z backward), so a fixed
+    camera-frame conversion is needed before applying that transform.
+    """
 
     extrinsic_array = np.asarray(extrinsic, dtype=np.float32)
     if extrinsic_array.shape != (4, 4):
         raise ValueError(f"Extrinsic matrix must have shape (4, 4), got {extrinsic_array.shape}")
-    homogeneous = np.concatenate([points.astype(np.float32), np.ones((points.shape[0], 1), dtype=np.float32)], axis=1)
-    return (homogeneous @ extrinsic_array.T)[:, :3].astype(np.float32)
+    if camera_frame_conversion_for_source(extrinsic_source) == "opencv_to_opengl":
+        return (extrinsic_array @ OPENCV_TO_OPENGL_CAMERA).astype(np.float32)
+    return extrinsic_array
+
+
+def camera_frame_conversion_for_source(extrinsic_source: str | None) -> str:
+    """Return the camera-frame conversion implied by an extrinsic source key."""
+
+    if extrinsic_source and "cam2world_gl" in extrinsic_source.lower():
+        return "opencv_to_opengl"
+    return "none"
 
 
 def _project_crop_to_camera_points(
@@ -233,4 +271,3 @@ def _choose_segmentation_id(
     ids_to_count = foreground_ids if foreground_ids.size else ids.reshape(-1)
     values, counts = np.unique(ids_to_count, return_counts=True)
     return int(values[np.argmax(counts)]) if values.size else None
-

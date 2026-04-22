@@ -9,11 +9,14 @@ from pathlib import Path
 import sys
 from typing import Any, Iterable
 
+import numpy as np
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.io.export_utils import write_json  # noqa: E402
+from src.perception.mask_projector import transform_camera_points  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -127,7 +130,12 @@ def extract_geometry_candidates(memory_state: dict[str, Any], run_dir: Path) -> 
             world_xyz = xyz(candidate_3d.get("world_xyz"))
             if world_xyz is None:
                 continue
-            recomputed_world = transform_point(extrinsic, camera_xyz) if extrinsic is not None and camera_xyz is not None else None
+            extrinsic_key = camera_info.get("extrinsic_key")
+            recomputed_world = (
+                transform_point(extrinsic, camera_xyz, extrinsic_source=extrinsic_key)
+                if extrinsic is not None and camera_xyz is not None
+                else None
+            )
             rows.append(
                 {
                     "view_id": view_id,
@@ -144,7 +152,7 @@ def extract_geometry_candidates(memory_state: dict[str, Any], run_dir: Path) -> 
                         euclidean_distance(world_xyz, recomputed_world) if recomputed_world is not None else None
                     ),
                     "camera_position": camera_position(extrinsic),
-                    "extrinsic_key": camera_info.get("extrinsic_key"),
+                    "extrinsic_key": extrinsic_key,
                     "intrinsic_key": camera_info.get("intrinsic_key"),
                     "has_intrinsic": intrinsic is not None,
                     "has_extrinsic": extrinsic is not None,
@@ -363,11 +371,19 @@ def _default_output_path(args: argparse.Namespace, filename: str) -> Path:
     return args.benchmark_dir / filename
 
 
-def transform_point(matrix: list[list[float]], point: list[float]) -> list[float]:
+def transform_point(
+    matrix: list[list[float]],
+    point: list[float],
+    extrinsic_source: str | None = None,
+) -> list[float]:
     """Apply a 4x4 transform to a 3D point."""
 
-    homogeneous = [point[0], point[1], point[2], 1.0]
-    return [sum(matrix[row][column] * homogeneous[column] for column in range(4)) for row in range(3)]
+    points = transform_camera_points(
+        np.asarray(point, dtype=np.float32).reshape(1, 3),
+        np.asarray(matrix, dtype=np.float32),
+        extrinsic_source=extrinsic_source,
+    )
+    return [float(item) for item in points[0]]
 
 
 def camera_position(matrix: list[list[float]] | None) -> list[float] | None:

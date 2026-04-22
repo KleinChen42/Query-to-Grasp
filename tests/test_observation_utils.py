@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from src.env.camera_utils import (
+    extract_observation_matrix_by_leaf,
     extract_observation_frame,
     flatten_observation_keys,
     validate_rgb_depth_consistency,
@@ -46,10 +47,33 @@ def test_flatten_observation_keys_lists_nested_leaves() -> None:
     assert keys == ["a.b", "c"]
 
 
+def test_extract_observation_matrix_by_exact_leaf_key() -> None:
+    observation = {
+        "sensor_param": {
+            "base_camera": {
+                "extrinsic_cv": np.eye(4, dtype=np.float32),
+                "cam2world_gl": np.full((4, 4), 2.0, dtype=np.float32),
+            },
+            "other_camera": {
+                "extrinsic_cv": np.full((4, 4), 3.0, dtype=np.float32),
+            },
+        }
+    }
+
+    matrix, key = extract_observation_matrix_by_leaf(
+        observation,
+        leaf_key="extrinsic_cv",
+        valid_shape=(4, 4),
+        camera_name="base_camera",
+    )
+
+    assert key == "sensor_param.base_camera.extrinsic_cv"
+    np.testing.assert_allclose(matrix, np.eye(4, dtype=np.float32))
+
+
 def test_rgb_depth_consistency_rejects_mismatched_shapes() -> None:
     rgb = np.zeros((4, 5, 3), dtype=np.uint8)
     depth = np.ones((4, 4), dtype=np.float32)
 
     with pytest.raises(ValueError, match="spatial shapes differ"):
         validate_rgb_depth_consistency(rgb, depth)
-
