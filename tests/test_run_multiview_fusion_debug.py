@@ -97,6 +97,54 @@ def test_select_memory_target_prefers_exact_query_label() -> None:
     assert selection_label == "red cube"
 
 
+def test_build_selection_trace_explains_exact_label_selection() -> None:
+    memory = ObjectMemory3D()
+    memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            label="cube",
+            det_score=0.95,
+            fused_2d_score=0.95,
+            view_id="front",
+            num_points=1000,
+            depth_valid_ratio=1.0,
+        )
+    )
+    red_cube = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.2, 0.0, 0.0], dtype=np.float32),
+            label="red cube",
+            det_score=0.7,
+            fused_2d_score=0.7,
+            view_id="left",
+            num_points=500,
+            depth_valid_ratio=0.8,
+        )
+    )
+    parsed_query = {"raw_query": "red cube", "normalized_prompt": "red cube", "target_name": "cube", "synonyms": ["cube"]}
+    selected, selection_label = multiview.select_memory_target(memory, parsed_query)
+
+    trace = multiview.build_selection_trace(
+        memory=memory,
+        selected=selected,
+        selection_label=selection_label,
+        parsed_query=parsed_query,
+    )
+    markdown = multiview.render_selection_trace_markdown(trace)
+
+    assert selected is not None
+    assert selected.object_id == red_cube.object_id
+    assert trace["selection"]["selected_object_id"] == red_cube.object_id
+    assert trace["selection"]["selection_pool_label"] == "red cube"
+    assert trace["selection"]["selection_pool_size"] == 1
+    assert trace["selection"]["fallback_to_all_objects"] is False
+    assert trace["ranked_selection_pool"][0]["is_selected"] is True
+    assert trace["ranked_selection_pool"][0]["selection_label_vote"] > 0.0
+    assert "# Selection Trace" in markdown
+    assert "red cube" in markdown
+    assert red_cube.object_id in markdown
+
+
 def test_lift_and_add_candidates_updates_memory(monkeypatch, tmp_path) -> None:
     ranked = RankedCandidate(
         box_xyxy=np.array([1, 2, 3, 4], dtype=np.float32),

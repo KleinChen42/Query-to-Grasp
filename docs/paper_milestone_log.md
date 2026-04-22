@@ -38,6 +38,7 @@ Current evidence supports the following narrower near-term claim:
 | CV-fixed cross-view geometry sanity report | Post-fix transform sanity and cross-view geometry report | `outputs/h200_60071_tabletop3_cvfix/cross_view_geometry_report_tabletop3_cvfix.md` |
 | CV-fixed CLIP ablation table | Single-view/fusion and no-CLIP/with-CLIP comparison after camera convention fix | `outputs/h200_60071_tabletop3_cvfix_clip_ablation/fusion_comparison_table_tabletop3_cvfix_clip_ablation.md` |
 | CV-fixed with-CLIP fusion diagnostics | Post-fix tabletop_3 fusion benchmark with CLIP enabled | `outputs/h200_60071_tabletop3_with_clip_cvfix/memory_diagnostics.md` |
+| Selection trace example | Paper-friendly explanation of corrected multi-view target selection | `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
 
 ## Milestone Timeline
@@ -58,6 +59,7 @@ Current evidence supports the following narrower near-term claim:
 | RGB-D lifting camera convention fix | Done | `mask_projector.py` + H200 cvfix benchmark | Default lifting now converts OpenCV-projected points before applying ManiSkill `cam2world_gl`. |
 | CV-fixed tabletop_3 fusion | Done | `h200_60071_tabletop3_cvfix` reports | Multi-view memory fragmentation drops from `3.3333` to `1.3333` objects/run. |
 | CV-fixed CLIP fusion ablation | Done | `fusion_comparison_table_tabletop3_cvfix_clip_ablation.md/csv` | CLIP increases selected confidence but not selection rate or cross-view geometry in this benchmark. |
+| Multi-view selection trace | Done | `selection_trace.json/md` per debug run | Target selection is now explainable through label pool, confidence terms, views, votes, and deterministic tie-breaks. |
 
 ## Key Quantitative Results
 
@@ -245,6 +247,34 @@ Paper note:
 > but should not be claimed as the main source of retrieval improvement until
 > candidate multiplicity and top-1 changes are observed.
 
+### Selection Trace Example
+
+Source: `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md`
+
+Scenario:
+
+- Query: `red cube`
+- Seed: `0`
+- View preset: `tabletop_3`
+- Detector: HF GroundingDINO
+- CLIP: skipped
+
+Selection result:
+
+| rank | selected | object_id | top_label | overall | semantic | geometry | views | observations | world_xyz |
+| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | yes | `obj_0000` | `red cube` | 0.5081 | 1.0000 | 1.0000 | 3 | 4 | `[-0.001, 0.069, 0.003]` |
+| 2 | no | `obj_0001` | `red cube` | 0.4342 | 1.0000 | 1.0000 | 1 | 1 | `[-0.007, -0.039, 0.003]` |
+
+Interpretation:
+
+The selector first used the query-derived label pool (`red cube`, `cube`,
+`block`), found two memory objects containing `red cube`, and selected
+`obj_0000` because it had higher fused confidence and stronger view support
+(`3` views, `4` observations). This trace is suitable for a paper figure or demo
+debug panel because it exposes both the semantic filter and deterministic
+tie-break order.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -351,6 +381,20 @@ PYTHONPATH=$PWD python scripts/generate_fusion_comparison_table.py \
   --output-csv outputs/fusion_comparison_table_tabletop3_cvfix_clip_ablation.csv
 ```
 
+Selection trace smoke:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_multiview_fusion_debug.py \
+  --query "red cube" \
+  --seed 0 \
+  --detector-backend hf \
+  --skip-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --output-dir outputs/selection_trace_tabletop3_red_cube_seed0_cvfix
+```
+
 ## Current Bottlenecks
 
 1. Detector candidate multiplicity is still low in most exact-object settings.
@@ -367,12 +411,13 @@ PYTHONPATH=$PWD python scripts/generate_fusion_comparison_table.py \
 
 ## Next Recommended Milestone
 
-Add a compact selection-trace artifact for corrected multi-view runs:
+Turn corrected multi-view outputs into a paper/demo figure pack:
 
-1. For each fusion run, save a concise `selection_trace.json` and Markdown
-   section showing candidate memory objects, confidence terms, labels, views,
-   and tie-break decisions.
-2. Generate one paper-friendly example trace for `red cube` seed `0`.
+1. Add a lightweight figure-pack script that copies selected report tables,
+   selection traces, and key JSON summaries into one `outputs/paper_pack_*`
+   directory.
+2. Include README-style captions for the ablation table, geometry report, and
+   selection trace.
 3. Keep real robot control out of scope until the perception/fusion claims are
    stable.
 
