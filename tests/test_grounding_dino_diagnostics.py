@@ -5,6 +5,7 @@ import pytest
 from src.perception.grounding_dino import (
     classify_hf_groundingdino_exception,
     format_hf_groundingdino_error,
+    load_hf_component_with_cache_fallback,
     raise_hf_groundingdino_error,
 )
 
@@ -46,6 +47,35 @@ def test_formatted_error_includes_original_exception_text() -> None:
     assert "Probable cause:" in message
     assert "Suggested next action:" in message
     assert "importing Transformers GroundingDINO classes" in message
+
+
+def test_classifies_hf_network_or_cache_failure() -> None:
+    exc = RuntimeError("Cannot send a request, as the client has been closed.")
+
+    diagnosis = classify_hf_groundingdino_exception(exc)
+
+    assert diagnosis.probable_cause == "HF model download/cache access failed"
+    assert "cached" in diagnosis.suggested_action
+
+
+def test_hf_component_loader_retries_local_cache() -> None:
+    class FakeComponent:
+        calls: list[dict[str, object]] = []
+
+        @classmethod
+        def from_pretrained(cls, model_id: str, **kwargs):
+            cls.calls.append({"model_id": model_id, **kwargs})
+            if not kwargs.get("local_files_only"):
+                raise RuntimeError("Network is unreachable")
+            return {"model_id": model_id, "local_files_only": True}
+
+    loaded = load_hf_component_with_cache_fallback(FakeComponent, "fake/model")
+
+    assert loaded == {"model_id": "fake/model", "local_files_only": True}
+    assert FakeComponent.calls == [
+        {"model_id": "fake/model"},
+        {"model_id": "fake/model", "local_files_only": True},
+    ]
 
 
 def test_raise_helper_preserves_exception_chain() -> None:

@@ -42,13 +42,14 @@ DEFAULT_ARTIFACTS = (
     ArtifactSpec(
         label="corrected_multiview_clip_ablation",
         source_path=Path(
-            "outputs/h200_60071_tabletop3_cvfix_clip_ablation/"
-            "fusion_comparison_table_tabletop3_cvfix_clip_ablation.md"
+            "outputs/h200_60071_reobserve_policy_v2/outputs/"
+            "fusion_comparison_table_tabletop3_hf_reobserve_v2.md"
         ),
         category="tables",
         caption=(
             "Corrected single-view vs tabletop_3 fusion ablation. Shows the "
-            "no-CLIP/with-CLIP comparison after the camera convention fix."
+            "no-CLIP/with-CLIP comparison after the camera convention fix, "
+            "including re-observation policy metrics."
         ),
     ),
     ArtifactSpec(
@@ -72,7 +73,10 @@ DEFAULT_ARTIFACTS = (
     ),
     ArtifactSpec(
         label="corrected_memory_diagnostics",
-        source_path=Path("outputs/h200_60071_tabletop3_cvfix/memory_diagnostics.md"),
+        source_path=Path(
+            "outputs/h200_60071_reobserve_policy_v2/outputs/"
+            "multiview_fusion_tabletop3_hf_no_clip_reobserve_v2/memory_diagnostics.md"
+        ),
         category="diagnostics",
         caption=(
             "Post-fix memory diagnostics and merge-distance sweep. Shows compact "
@@ -100,7 +104,10 @@ DEFAULT_ARTIFACTS = (
     ),
     ArtifactSpec(
         label="reobserve_policy_report",
-        source_path=Path("outputs/h200_60071_tabletop3_cvfix/reobserve_policy_report.md"),
+        source_path=Path(
+            "outputs/h200_60071_reobserve_policy_v2/outputs/"
+            "reobserve_policy_report_tabletop3_hf_reobserve_v2.md"
+        ),
         category="policy",
         caption=(
             "Aggregate re-observation policy diagnostics. Summarizes trigger "

@@ -281,6 +281,26 @@ Artifact:
 
 - `outputs/h200_60071_reobserve_smoke/reobserve_decision.json`
 
+### Experiment 6: Re-Observation Policy Metrics
+
+Question:
+
+Does the open-loop rule-based policy request extra views in the corrected HF
+fusion benchmark?
+
+Current result:
+
+- HF tabletop_3 no-CLIP reobserve v2: `reobserve_trigger_rate = 0.0000`
+- HF tabletop_3 with-CLIP reobserve v2: `reobserve_trigger_rate = 0.0000`
+- Reason counts: `confident_enough: 6` for both conditions
+- CLIP raises selected-object confidence from `0.5282` to `0.7091`, but does not
+  change selected-object rate or policy trigger behavior.
+
+Artifacts:
+
+- `outputs/h200_60071_reobserve_policy_v2/outputs/reobserve_policy_report_tabletop3_hf_reobserve_v2.md`
+- `outputs/h200_60071_reobserve_policy_v2/outputs/fusion_comparison_table_tabletop3_hf_reobserve_v2.md`
+
 ## Figures and Tables
 
 Current pack:
@@ -296,7 +316,8 @@ Planned paper assets:
 4. Qualitative example: selection trace for `red cube`.
 5. Policy diagnostic: `reobserve_decision.json` example.
 6. Policy diagnostic table: re-observation trigger rates and reason counts.
-7. Limitation box: placeholder pick and low detector multiplicity.
+7. Limitation box: placeholder pick, low detector multiplicity, and no closed-loop
+   re-observation yet.
 
 ## Limitations
 
@@ -326,10 +347,10 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Surface re-observation metrics in the paper-facing reports:
+Create a compact paper architecture artifact and README refresh:
 
-1. Run `scripts/generate_reobserve_policy_report.py` on the corrected HF fusion
-   benchmarks.
-2. Add the generated policy report to the paper figure pack.
-3. Keep closed-loop camera movement as future work until the policy metrics are
-   interpretable.
+1. Add a small architecture diagram source matching the implemented pipeline.
+2. Refresh README quickstart around the current stable single-view, fusion,
+   policy-report, and figure-pack commands.
+3. Keep closed-loop camera movement as future work until ambiguity-policy stress
+   tests show useful trigger behavior.

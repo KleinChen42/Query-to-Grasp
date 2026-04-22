@@ -13,7 +13,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.perception.grounding_dino import classify_hf_groundingdino_exception  # noqa: E402
+from src.perception.grounding_dino import (  # noqa: E402
+    classify_hf_groundingdino_exception,
+    load_hf_component_with_cache_fallback,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -181,8 +184,8 @@ def _import_auto_model_for_zero_shot_object_detection() -> Any:
 
 
 def _load_model(model_id: str, auto_processor: Any, auto_model: Any) -> dict[str, str]:
-    processor = auto_processor.from_pretrained(model_id)
-    model = auto_model.from_pretrained(model_id)
+    processor = load_hf_component_with_cache_fallback(auto_processor, model_id)
+    model = load_hf_component_with_cache_fallback(auto_model, model_id)
     return {
         "processor": type(processor).__name__,
         "model": type(model).__name__,

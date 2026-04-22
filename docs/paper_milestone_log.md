@@ -421,11 +421,26 @@ Re-observation policy report:
 
 ```bash
 PYTHONPATH=$PWD python scripts/generate_reobserve_policy_report.py \
-  --benchmark "HF tabletop_3 fusion no CLIP cvfix=outputs/multiview_fusion_tabletop3_hf_no_clip_cvfix" \
-  --benchmark "HF tabletop_3 fusion with CLIP cvfix=outputs/multiview_fusion_tabletop3_hf_with_clip_cvfix" \
-  --output-md outputs/reobserve_policy_report_tabletop3_cvfix.md \
-  --output-json outputs/reobserve_policy_report_tabletop3_cvfix.json
+  --benchmark HF_no_CLIP_reobserve=outputs/multiview_fusion_tabletop3_hf_no_clip_reobserve_v2 \
+  --benchmark HF_with_CLIP_reobserve=outputs/multiview_fusion_tabletop3_hf_with_clip_reobserve_v2 \
+  --output-md outputs/reobserve_policy_report_tabletop3_hf_reobserve_v2.md \
+  --output-json outputs/reobserve_policy_report_tabletop3_hf_reobserve_v2.json
 ```
+
+Latest H200 policy-metric rerun:
+
+| benchmark | runs | selected_frac | mean_confidence | reobserve_trigger_rate | reason_counts |
+| --- | ---: | ---: | ---: | ---: | --- |
+| HF tabletop_3 fusion no CLIP reobserve v2 | 6 | 1.0000 | 0.5282 | 0.0000 | confident_enough: 6 |
+| HF tabletop_3 fusion with CLIP reobserve v2 | 6 | 1.0000 | 0.7091 | 0.0000 | confident_enough: 6 |
+
+Interpretation:
+
+- Corrected HF fusion remains stable after adding the policy artifact.
+- CLIP increases selected-object confidence in this small benchmark, but does
+  not change selected-object rate or re-observation decisions.
+- The current default policy does not trigger on the corrected exact-object HF
+  benchmark because fused selections are considered confident enough.
 
 Paper figure pack:
 
@@ -445,18 +460,22 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
    to be easier to inspect for paper figures.
 5. The RGB-D lifting camera convention bug is fixed for `cam2world_gl`, but
    future geometry diagnostics should continue to log the convention explicitly.
-6. Real robot control is still intentionally absent; placeholder pick success is
+6. The default re-observation policy does not trigger in the corrected
+   exact-object HF benchmark; ambiguity or stricter thresholds are needed to
+   exercise closed-loop behavior.
+7. Real robot control is still intentionally absent; placeholder pick success is
    not an end-to-end grasp metric.
 
 ## Next Recommended Milestone
 
-Surface re-observation policy metrics in paper-facing reports:
+Create a compact paper architecture artifact and README refresh:
 
-1. Run the re-observation policy report on the corrected HF fusion benchmarks.
-2. Include the aggregate report and one qualitative `reobserve_decision.json`
-   example in the paper pack.
-3. Keep closed-loop camera movement as future work until policy metrics are
-   interpretable.
+1. Add a small architecture diagram source (`docs/architecture_query_to_grasp.md`
+   or Mermaid) matching the actually implemented pipeline.
+2. Refresh README quickstart so it points to the current stable single-view,
+   fusion, policy-report, and figure-pack commands.
+3. Keep real closed-loop camera movement as future work until ambiguity-policy
+   stress tests show useful trigger behavior.
 
 Candidate paper framing:
 

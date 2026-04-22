@@ -239,8 +239,11 @@ class HuggingFaceGroundingDINOAdapter:
         self.torch = torch
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         try:
-            self.processor = AutoProcessor.from_pretrained(model_id)
-            self.model = AutoModelForZeroShotObjectDetection.from_pretrained(model_id).to(self.device)
+            self.processor = load_hf_component_with_cache_fallback(AutoProcessor, model_id)
+            self.model = load_hf_component_with_cache_fallback(
+                AutoModelForZeroShotObjectDetection,
+                model_id,
+            ).to(self.device)
         except Exception as exc:
             raise_hf_groundingdino_error(f"loading HF model {model_id!r}", exc)
         self.model.eval()
@@ -441,6 +444,27 @@ def classify_hf_groundingdino_exception(exc: BaseException) -> HFDependencyDiagn
                 "`AutoModelForZeroShotObjectDetection`."
             ),
         )
+    if any(
+        pattern in lowered
+        for pattern in [
+            "network is unreachable",
+            "cannot send a request",
+            "connection error",
+            "couldn't connect",
+            "could not connect",
+            "offline",
+            "local_files_only",
+            "etag",
+            "metadata",
+        ]
+    ):
+        return HFDependencyDiagnosis(
+            probable_cause="HF model download/cache access failed",
+            suggested_action=(
+                "Check network access or ensure the model is already cached. "
+                "If the cache exists, retry with the local-cache fallback path."
+            ),
+        )
     if "no module named 'transformers'" in lowered or "no module named transformers" in lowered:
         return HFDependencyDiagnosis(
             probable_cause="Transformers is not installed",
@@ -485,6 +509,36 @@ def raise_hf_groundingdino_error(stage: str, exc: BaseException) -> None:
     """Raise an actionable HF GroundingDINO RuntimeError while preserving context."""
 
     raise RuntimeError(format_hf_groundingdino_error(stage, exc)) from exc
+
+
+def load_hf_component_with_cache_fallback(component_cls: Any, model_id: str, **kwargs: Any) -> Any:
+    """Load a HF component, retrying local cache when network metadata fails."""
+
+    try:
+        return component_cls.from_pretrained(model_id, **kwargs)
+    except Exception as exc:
+        if not should_retry_hf_local_cache(exc):
+            raise
+        LOGGER.warning(
+            "HF model load for %s failed with %s; retrying local_files_only=True",
+            model_id,
+            type(exc).__name__,
+        )
+        try:
+            return component_cls.from_pretrained(model_id, local_files_only=True, **kwargs)
+        except Exception as fallback_exc:
+            raise RuntimeError(
+                "HF model load failed online and local cache fallback also failed. "
+                f"Original error: {type(exc).__name__}: {exc}. "
+                f"Local-cache error: {type(fallback_exc).__name__}: {fallback_exc}."
+            ) from fallback_exc
+
+
+def should_retry_hf_local_cache(exc: BaseException) -> bool:
+    """Return whether a failed HF load is likely recoverable from cache."""
+
+    diagnosis = classify_hf_groundingdino_exception(exc)
+    return diagnosis.probable_cause == "HF model download/cache access failed"
 
 
 def _exception_chain_text(exc: BaseException) -> str:
