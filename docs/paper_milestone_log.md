@@ -39,6 +39,7 @@ Current evidence supports the following narrower near-term claim:
 | CV-fixed CLIP ablation table | Single-view/fusion and no-CLIP/with-CLIP comparison after camera convention fix | `outputs/h200_60071_tabletop3_cvfix_clip_ablation/fusion_comparison_table_tabletop3_cvfix_clip_ablation.md` |
 | CV-fixed with-CLIP fusion diagnostics | Post-fix tabletop_3 fusion benchmark with CLIP enabled | `outputs/h200_60071_tabletop3_with_clip_cvfix/memory_diagnostics.md` |
 | Selection trace example | Paper-friendly explanation of corrected multi-view target selection | `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md` |
+| Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
 
 ## Milestone Timeline
@@ -60,6 +61,7 @@ Current evidence supports the following narrower near-term claim:
 | CV-fixed tabletop_3 fusion | Done | `h200_60071_tabletop3_cvfix` reports | Multi-view memory fragmentation drops from `3.3333` to `1.3333` objects/run. |
 | CV-fixed CLIP fusion ablation | Done | `fusion_comparison_table_tabletop3_cvfix_clip_ablation.md/csv` | CLIP increases selected confidence but not selection rate or cross-view geometry in this benchmark. |
 | Multi-view selection trace | Done | `selection_trace.json/md` per debug run | Target selection is now explainable through label pool, confidence terms, views, votes, and deterministic tie-breaks. |
+| Paper figure pack | Done | `build_paper_figure_pack.py` and `outputs/paper_figure_pack_latest` | Key tables, geometry reports, diagnostics, traces, and milestone notes can be gathered with one command. |
 
 ## Key Quantitative Results
 
@@ -395,6 +397,13 @@ PYTHONPATH=$PWD python scripts/run_multiview_fusion_debug.py \
   --output-dir outputs/selection_trace_tabletop3_red_cube_seed0_cvfix
 ```
 
+Paper figure pack:
+
+```bash
+PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
+  --output-dir outputs/paper_figure_pack_latest
+```
+
 ## Current Bottlenecks
 
 1. Detector candidate multiplicity is still low in most exact-object settings.
@@ -411,13 +420,11 @@ PYTHONPATH=$PWD python scripts/run_multiview_fusion_debug.py \
 
 ## Next Recommended Milestone
 
-Turn corrected multi-view outputs into a paper/demo figure pack:
+Start a compact paper draft scaffold around the current evidence:
 
-1. Add a lightweight figure-pack script that copies selected report tables,
-   selection traces, and key JSON summaries into one `outputs/paper_pack_*`
-   directory.
-2. Include README-style captions for the ablation table, geometry report, and
-   selection trace.
+1. Create `docs/paper_draft_outline.md` with title, abstract skeleton, method
+   sections, experiment table placeholders, and limitations.
+2. Reference the figure-pack artifacts by path so each claim points to a report.
 3. Keep real robot control out of scope until the perception/fusion claims are
    stable.
 
