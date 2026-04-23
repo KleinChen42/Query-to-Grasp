@@ -22,6 +22,9 @@ def test_build_policy_report_maps_aggregate_and_examples(tmp_path: Path) -> None
     assert benchmark["label"] == "HF fusion"
     assert benchmark["total_runs"] == 2
     assert benchmark["reobserve_trigger_rate"] == 0.5
+    assert benchmark["initial_reobserve_trigger_rate"] == 1.0
+    assert benchmark["final_reobserve_trigger_rate"] == 0.5
+    assert benchmark["closed_loop_execution_rate"] == 0.5
     assert benchmark["reobserve_reason_counts"] == {"ambiguous_top_candidates": 1, "confident_enough": 1}
     assert benchmark["per_query"][0]["query"] == "blue mug"
     assert benchmark["per_query"][1]["query"] == "red cube"
@@ -34,7 +37,7 @@ def test_build_policy_report_maps_aggregate_and_examples(tmp_path: Path) -> None
             "artifacts": "outputs/run_red",
         }
     ]
-    assert "ambiguous_top_candidates" in report["conclusion"]
+    assert "reduced the mean policy trigger rate" in report["conclusion"]
 
 
 def test_render_markdown_contains_policy_sections(tmp_path: Path) -> None:
@@ -49,7 +52,11 @@ def test_render_markdown_contains_policy_sections(tmp_path: Path) -> None:
     assert "## Per-Query Breakdown" in markdown
     assert "## Trigger Examples" in markdown
     assert "reobserve_trigger_rate" in markdown
+    assert "initial_trigger_rate" in markdown
+    assert "final_trigger_rate" in markdown
+    assert "closed_loop_execution_rate" in markdown
     assert "ambiguous_top_candidates: 1" in markdown
+    assert "reduced the mean policy trigger rate" in markdown
 
 
 def test_conclusion_ignores_confident_enough_as_trigger_reason(tmp_path: Path) -> None:
@@ -58,6 +65,7 @@ def test_conclusion_ignores_confident_enough_as_trigger_reason(tmp_path: Path) -
         benchmark_dir,
         reason_counts={"confident_enough": 7, "insufficient_view_support": 2, "low_overall_confidence": 1},
         trigger_rate=0.3,
+        closed_loop_execution_rate=0.0,
     )
 
     report = build_policy_report([f"HF fusion={benchmark_dir}"])
@@ -86,6 +94,7 @@ def _write_fusion_benchmark(
     benchmark_dir: Path,
     reason_counts: dict[str, int] | None = None,
     trigger_rate: float = 0.5,
+    closed_loop_execution_rate: float = 0.5,
 ) -> None:
     benchmark_dir.mkdir(parents=True, exist_ok=True)
     reason_counts = reason_counts or {
@@ -104,7 +113,12 @@ def _write_fusion_benchmark(
             "mean_num_views": 3.0,
             "mean_num_memory_objects": 2.0,
             "reobserve_trigger_rate": trigger_rate,
+            "initial_reobserve_trigger_rate": 1.0,
+            "final_reobserve_trigger_rate": trigger_rate,
+            "closed_loop_execution_rate": closed_loop_execution_rate,
             "reobserve_reason_counts": reason_counts,
+            "initial_reobserve_reason_counts": {"ambiguous_top_candidates": 2},
+            "final_reobserve_reason_counts": reason_counts,
         },
         "per_query_metrics": {
             "red cube": {
@@ -112,6 +126,9 @@ def _write_fusion_benchmark(
                 "fraction_with_selected_object": 1.0,
                 "mean_selected_overall_confidence": 0.62,
                 "reobserve_trigger_rate": 1.0,
+                "initial_reobserve_trigger_rate": 1.0,
+                "final_reobserve_trigger_rate": 1.0,
+                "closed_loop_execution_rate": 1.0,
                 "reobserve_reason_counts": {"ambiguous_top_candidates": 1},
             },
             "blue mug": {
@@ -119,6 +136,9 @@ def _write_fusion_benchmark(
                 "fraction_with_selected_object": 1.0,
                 "mean_selected_overall_confidence": 0.78,
                 "reobserve_trigger_rate": 0.0,
+                "initial_reobserve_trigger_rate": 1.0,
+                "final_reobserve_trigger_rate": 0.0,
+                "closed_loop_execution_rate": 0.0,
                 "reobserve_reason_counts": {"confident_enough": 1},
             },
         },

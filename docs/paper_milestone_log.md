@@ -44,6 +44,8 @@ Current evidence supports the following narrower near-term claim:
 | Ambiguity tabletop_3 fusion stress table | Corrected fusion no-CLIP/with-CLIP comparison on ambiguity queries, seeds 0-2 | `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md` |
 | Ambiguity tabletop_3 re-observation report | Per-query open-loop policy behavior on ambiguity queries, seeds 0-2 | `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md` |
 | Closed-loop re-observation smoke | Opt-in extra-view before/after diagnostics for one mock ambiguity run | H200: `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json` |
+| Closed-loop ambiguity HF comparison | HF no-CLIP/with-CLIP ambiguity benchmark with one suggested extra virtual view | `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md` |
+| Closed-loop ambiguity policy report | Initial vs final policy trigger rates and per-query reason counts | `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -74,6 +76,7 @@ Current evidence supports the following narrower near-term claim:
 | Architecture and README refresh | Done | `docs/architecture_query_to_grasp.md` and `README.md` | The repo now has a clean external quickstart and a paper-ready method diagram source matching implemented behavior. |
 | Ambiguity tabletop_3 fusion stress, seeds 0-2 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md` | Broader queries increase object-memory fragmentation and trigger policy uncertainty; CLIP raises selected confidence and lowers trigger rate without fixing geometry. |
 | Minimal closed-loop re-observation path | Done | `closed_loop_reobserve.json` H200 mock smoke | The debug and benchmark runners can now opt into one suggested extra virtual view and report before/after policy, confidence, memory, and selected-target metrics. |
+| Closed-loop ambiguity HF benchmark, seeds 0-2 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md` | The extra-view loop executes, but final policy trigger rate does not decrease; current suggested views do not resolve the dominant uncertainty. |
 
 ## Key Quantitative Results
 
@@ -365,6 +368,59 @@ smoke intentionally does not prove policy benefit; the reason remains
 `ambiguous_top_candidates`, so the next paper-relevant step is the HF ambiguity
 closed-loop benchmark.
 
+### Closed-Loop Ambiguity HF Benchmark, Seeds 0-2
+
+Source:
+`outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md`
+and
+`outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md`
+
+Queries:
+
+- `configs/ambiguity_queries.txt`
+- Seeds: `0 1 2`
+- View preset: corrected `tabletop_3`
+- Detector: HF GroundingDINO
+- Closed-loop budget: one suggested extra virtual view
+
+| setting | runs | views | memory objects | observations | same-label dist | selected confidence | initial trigger | final trigger | execution rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Ambiguity HF no CLIP closed-loop | 33 | 3.6667 | 2.1515 | 4.6061 | 0.1276 | 0.4985 | 0.6667 | 0.6667 | 0.6667 |
+| Ambiguity HF with CLIP closed-loop | 33 | 3.4242 | 2.1515 | 4.5152 | 0.1284 | 0.6806 | 0.4242 | 0.4242 | 0.4242 |
+
+Policy reason counts after closed loop:
+
+| setting | final reason counts |
+| --- | --- |
+| no CLIP | `confident_enough: 11; insufficient_view_support: 11; low_overall_confidence: 7; ambiguous_top_candidates: 4` |
+| with CLIP | `confident_enough: 19; insufficient_view_support: 11; ambiguous_top_candidates: 3` |
+
+Extra-view execution:
+
+| setting | executed runs | suggested views |
+| --- | ---: | --- |
+| no CLIP | 22 | `left: 8; front: 7; top_down: 4; right: 3` |
+| with CLIP | 14 | `front: 7; left: 6; right: 1` |
+
+Interpretation:
+
+The closed-loop infrastructure is now validated on the full ambiguity benchmark:
+all benchmark runs completed, extra views were captured when requested, and
+before/after policy metrics were written. However, the one-extra-view policy did
+not reduce trigger rate: no-CLIP remains `0.6667` before and after, while
+with-CLIP remains `0.4242` before and after. CLIP again raises selected-object
+confidence, but does not improve memory fragmentation, geometric spread, or
+closed-loop uncertainty resolution.
+
+Paper note:
+
+> A single rule-suggested extra virtual view is not sufficient to resolve the
+> dominant ambiguity in the current HF tabletop setting. This is a useful
+> negative result: the project now has a runnable closed-loop perception
+> baseline, and the next algorithmic improvement should target support-aware
+> view selection or memory update criteria rather than merely enabling another
+> observation pass.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -528,6 +584,33 @@ PYTHONPATH=$PWD python scripts/run_multiview_fusion_benchmark.py \
   --output-dir outputs/h200_smoke_closed_loop_reobserve_mock
 ```
 
+Closed-loop ambiguity HF benchmark:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_multiview_fusion_benchmark.py \
+  --queries-file configs/ambiguity_queries.txt \
+  --seeds 0 1 2 \
+  --detector-backend hf \
+  --skip-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --enable-closed-loop-reobserve \
+  --closed-loop-max-extra-views 1 \
+  --fail-on-child-error \
+  --output-dir outputs/ambiguity_tabletop3_hf_no_clip_closed_loop
+```
+
+Closed-loop ambiguity policy report:
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_reobserve_policy_report.py \
+  --benchmark Ambiguity_tabletop3_HF_no_CLIP_closed_loop=outputs/ambiguity_tabletop3_hf_no_clip_closed_loop \
+  --benchmark Ambiguity_tabletop3_HF_with_CLIP_closed_loop=outputs/ambiguity_tabletop3_hf_with_clip_closed_loop \
+  --output-md outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md \
+  --output-json outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.json
+```
+
 Latest H200 policy-metric rerun:
 
 | benchmark | runs | selected_frac | mean_confidence | reobserve_trigger_rate | reason_counts |
@@ -561,22 +644,22 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
    to be easier to inspect for paper figures.
 5. The RGB-D lifting camera convention bug is fixed for `cam2world_gl`, but
    future geometry diagnostics should continue to log the convention explicitly.
-6. The default re-observation policy does not trigger in the corrected
-   exact-object HF benchmark; ambiguity or stricter thresholds are needed to
-   exercise closed-loop behavior.
+6. The closed-loop re-observation path executes on ambiguity HF benchmarks, but
+   one suggested extra virtual view does not yet reduce final uncertainty.
 7. Real robot control is still intentionally absent; placeholder pick success is
    not an end-to-end grasp metric.
 
 ## Next Recommended Milestone
 
-Run the closed-loop re-observation benchmark:
+Diagnose and improve closed-loop re-observation effectiveness:
 
-1. Re-run the ambiguity tabletop_3 HF no-CLIP/with-CLIP benchmark with
-   `--enable-closed-loop-reobserve`.
-2. Compare initial vs final re-observation trigger rate, selected confidence,
-   memory-object count, and selected-object stability.
-3. Keep real robot control and web demo out of scope until the closed-loop
-   perception result is measurable.
+1. Add a compact closed-loop delta diagnostic that reports whether the extra
+   view changed selected object id, view support, memory-object count, and
+   policy reason per run.
+2. Use those diagnostics to choose between support-aware view selection and
+   memory update/merge improvements.
+3. Keep real robot control and web demo out of scope until closed-loop
+   perception improves a measurable policy or memory metric.
 
 Candidate paper framing:
 

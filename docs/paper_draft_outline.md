@@ -359,6 +359,34 @@ Artifact:
 
 - H200: `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json`
 
+### Experiment 9: Closed-Loop Ambiguity HF Benchmark
+
+Question:
+
+Does one rule-suggested extra virtual view reduce policy uncertainty in the
+harder ambiguity benchmark?
+
+Current result:
+
+| setting | runs | selected_frac | views | memory objects | selected confidence | initial trigger | final trigger | execution rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Ambiguity HF no CLIP closed-loop | 33 | 1.0000 | 3.6667 | 2.1515 | 0.4985 | 0.6667 | 0.6667 | 0.6667 |
+| Ambiguity HF with CLIP closed-loop | 33 | 1.0000 | 3.4242 | 2.1515 | 0.6806 | 0.4242 | 0.4242 | 0.4242 |
+
+Interpretation:
+
+The extra-view loop executes, but does not reduce final re-observation trigger
+rate. CLIP raises selected confidence and reduces the number of triggered runs,
+but the triggered cases remain triggered after one additional suggested virtual
+view. This is a useful negative result: the system has a runnable closed-loop
+baseline, but future improvement should target support-aware view selection or
+memory update criteria rather than only adding another observation pass.
+
+Artifacts:
+
+- `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md`
+- `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md`
+
 ## Figures and Tables
 
 Current pack:
@@ -376,7 +404,9 @@ Paper assets:
 7. Ambiguity fusion stress table: seeds 0-2 no-CLIP vs with-CLIP.
 8. Closed-loop re-observation smoke: before/after diagnostics for one suggested
    virtual view.
-9. Limitation box: placeholder pick, low detector multiplicity, and no real
+9. Closed-loop ambiguity benchmark: initial vs final trigger rate after one
+   suggested extra virtual view.
+10. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
 ## Limitations
@@ -386,6 +416,7 @@ Be explicit:
 - Real low-level ManiSkill robot control is not implemented.
 - Web demo is not implemented.
 - Re-observation is implemented only as a minimal opt-in virtual-view loop; it
+  does not yet reduce ambiguity-trigger rates in the HF ambiguity benchmark and
   is not learned view planning or physical camera motion.
 - Experiments are small and use `PickCube-v1` plus virtual camera poses.
 - CLIP did not change top-1 in current benchmarks.
@@ -402,6 +433,7 @@ Important for a stronger v1:
 - [x] `reobserve_decision.json` artifact in multi-view runs.
 - [x] Small re-observation policy report/table generator.
 - [x] Minimal opt-in closed-loop re-observation artifact path.
+- [x] Closed-loop HF ambiguity benchmark with initial/final policy metrics.
 - [x] Small paper/demo architecture diagram.
 - [x] README cleanup and current quickstart refresh.
 - [ ] Optional Gradio demo shell.
@@ -409,10 +441,11 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Run the HF ambiguity closed-loop benchmark before building demo UI:
+Diagnose why the closed-loop ambiguity benchmark does not reduce uncertainty:
 
-1. Re-run ambiguity tabletop_3 no-CLIP and with-CLIP with
-   `--enable-closed-loop-reobserve`.
-2. Compare initial vs final policy trigger rate, selected confidence, memory
-   fragmentation, and selected-object stability.
-3. Only build demo UI after the closed-loop perception result is measurable.
+1. Add a compact closed-loop delta diagnostic for selected object id, selected
+   view support, memory-object count, and policy reason changes.
+2. Use that diagnostic to decide whether the next code change should improve
+   suggested-view selection or memory update/merge behavior.
+3. Only build demo UI after the closed-loop perception result improves a
+   measurable policy or memory metric.

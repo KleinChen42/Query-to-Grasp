@@ -109,13 +109,14 @@ def benchmark_report(label: str, benchmark_dir: Path, max_examples: int) -> dict
     summary = load_json_dict(benchmark_summary_path(benchmark_dir))
     metrics = _metrics(summary)
     rows = load_optional_json_list(Path(benchmark_dir) / "benchmark_rows.json")
-    has_reobserve_metrics = "reobserve_trigger_rate" in metrics or "reobserve_reason_counts" in metrics
+    has_reobserve_metrics = has_policy_metrics(metrics)
     return {
         "label": label,
         "benchmark_dir": str(benchmark_dir),
         "detector_backend": _value(summary.get("detector_backend")),
         "skip_clip": _value(summary.get("skip_clip")),
         "view_preset": _value(summary.get("view_preset", "none")),
+        "closed_loop_reobserve_enabled": _as_bool(summary.get("closed_loop_reobserve_enabled")),
         "total_runs": _as_int(summary.get("total_runs", metrics.get("total_runs"))),
         "fraction_with_selected_object": _as_float(metrics.get("fraction_with_selected_object")),
         "mean_selected_overall_confidence": _as_float(metrics.get("mean_selected_overall_confidence")),
@@ -123,7 +124,12 @@ def benchmark_report(label: str, benchmark_dir: Path, max_examples: int) -> dict
         "mean_num_memory_objects": _as_float(metrics.get("mean_num_memory_objects")),
         "reobserve_metrics_available": has_reobserve_metrics,
         "reobserve_trigger_rate": _optional_float(metrics.get("reobserve_trigger_rate")),
+        "initial_reobserve_trigger_rate": _optional_float(metrics.get("initial_reobserve_trigger_rate")),
+        "final_reobserve_trigger_rate": _optional_float(metrics.get("final_reobserve_trigger_rate")),
+        "closed_loop_execution_rate": _optional_float(metrics.get("closed_loop_execution_rate")),
         "reobserve_reason_counts": _reason_counts(metrics.get("reobserve_reason_counts")),
+        "initial_reobserve_reason_counts": _reason_counts(metrics.get("initial_reobserve_reason_counts")),
+        "final_reobserve_reason_counts": _reason_counts(metrics.get("final_reobserve_reason_counts")),
         "per_query": per_query_report(summary.get("per_query_metrics")),
         "trigger_examples": trigger_examples(rows, max_examples=max_examples),
     }
@@ -143,15 +149,31 @@ def per_query_report(value: Any) -> list[dict[str, Any]]:
                 "query": str(query),
                 "total_runs": _as_int(metrics.get("total_runs")),
                 "fraction_with_selected_object": _as_float(metrics.get("fraction_with_selected_object")),
-                "reobserve_metrics_available": (
-                    "reobserve_trigger_rate" in metrics or "reobserve_reason_counts" in metrics
-                ),
+                "reobserve_metrics_available": has_policy_metrics(metrics),
                 "reobserve_trigger_rate": _optional_float(metrics.get("reobserve_trigger_rate")),
+                "initial_reobserve_trigger_rate": _optional_float(metrics.get("initial_reobserve_trigger_rate")),
+                "final_reobserve_trigger_rate": _optional_float(metrics.get("final_reobserve_trigger_rate")),
+                "closed_loop_execution_rate": _optional_float(metrics.get("closed_loop_execution_rate")),
                 "reobserve_reason_counts": _reason_counts(metrics.get("reobserve_reason_counts")),
                 "mean_selected_overall_confidence": _as_float(metrics.get("mean_selected_overall_confidence")),
             }
         )
     return rows
+
+
+def has_policy_metrics(metrics: dict[str, Any]) -> bool:
+    """Return whether a metrics dictionary contains re-observation policy fields."""
+
+    return any(
+        key in metrics
+        for key in (
+            "reobserve_trigger_rate",
+            "initial_reobserve_trigger_rate",
+            "final_reobserve_trigger_rate",
+            "closed_loop_execution_rate",
+            "reobserve_reason_counts",
+        )
+    )
 
 
 def trigger_examples(rows: list[dict[str, Any]], max_examples: int) -> list[dict[str, Any]]:
@@ -185,6 +207,35 @@ def build_conclusion(benchmark_reports: list[dict[str, Any]]) -> str:
             "Rerun the fusion benchmarks after the policy patch to measure trigger rates and reason counts."
         )
 
+    closed_loop_reports = [
+        report
+        for report in available_reports
+        if _as_float(report.get("closed_loop_execution_rate")) > 0.0
+        and report.get("initial_reobserve_trigger_rate") is not None
+        and report.get("final_reobserve_trigger_rate") is not None
+    ]
+    if closed_loop_reports:
+        initial_rate = _mean(_as_float(report.get("initial_reobserve_trigger_rate")) for report in closed_loop_reports)
+        final_rate = _mean(_as_float(report.get("final_reobserve_trigger_rate")) for report in closed_loop_reports)
+        execution_rate = _mean(_as_float(report.get("closed_loop_execution_rate")) for report in closed_loop_reports)
+        if final_rate < initial_rate:
+            return (
+                "Closed-loop re-observation produced measurable diagnostic signal and reduced the mean policy "
+                f"trigger rate from {initial_rate:.4f} to {final_rate:.4f} across included closed-loop benchmarks "
+                f"(execution rate {execution_rate:.4f})."
+            )
+        if final_rate == initial_rate:
+            return (
+                "Closed-loop re-observation executed in the included benchmarks, but did not reduce the mean policy "
+                f"trigger rate ({initial_rate:.4f} before and {final_rate:.4f} after; execution rate "
+                f"{execution_rate:.4f}). This suggests the added views did not resolve the dominant uncertainty."
+            )
+        return (
+            "Closed-loop re-observation executed in the included benchmarks, but the mean policy trigger rate "
+            f"increased from {initial_rate:.4f} to {final_rate:.4f} (execution rate {execution_rate:.4f}). "
+            "Inspect per-query artifacts before treating the extra-view policy as beneficial."
+        )
+
     max_rate = max((_as_float(report.get("reobserve_trigger_rate")) for report in available_reports), default=0.0)
     all_reasons: dict[str, int] = {}
     for report in available_reports:
@@ -213,12 +264,12 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "# Re-Observation Policy Diagnostics",
         "",
-        "This report summarizes the open-loop rule-based policy that decides whether another view would be useful.",
+        "This report summarizes the rule-based policy that decides whether another view would be useful.",
         "",
         "## Benchmarks",
         "",
-        "| label | runs | view_preset | selected_frac | mean_confidence | reobserve_metrics | reobserve_trigger_rate | reason_counts |",
-        "| --- | ---: | --- | ---: | ---: | --- | ---: | --- |",
+        "| label | runs | view_preset | selected_frac | mean_confidence | reobserve_metrics | reobserve_trigger_rate | initial_trigger_rate | final_trigger_rate | closed_loop_execution_rate | reason_counts |",
+        "| --- | ---: | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in report["benchmarks"]:
         lines.append(
@@ -232,6 +283,9 @@ def render_markdown(report: dict[str, Any]) -> str:
                     _format_float(row["mean_selected_overall_confidence"]),
                     "yes" if row["reobserve_metrics_available"] else "no",
                     _format_optional_float(row["reobserve_trigger_rate"]),
+                    _format_optional_float(row["initial_reobserve_trigger_rate"]),
+                    _format_optional_float(row["final_reobserve_trigger_rate"]),
+                    _format_optional_float(row["closed_loop_execution_rate"]),
                     _escape(format_reason_counts(row["reobserve_reason_counts"])),
                 ]
             )
@@ -244,12 +298,12 @@ def render_markdown(report: dict[str, Any]) -> str:
             [
                 f"### {benchmark['label']}",
                 "",
-                "| query | runs | selected_frac | mean_confidence | reobserve_metrics | reobserve_trigger_rate | reason_counts |",
-                "| --- | ---: | ---: | ---: | --- | ---: | --- |",
+                "| query | runs | selected_frac | mean_confidence | reobserve_metrics | reobserve_trigger_rate | initial_trigger_rate | final_trigger_rate | closed_loop_execution_rate | reason_counts |",
+                "| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | --- |",
             ]
         )
         if not benchmark["per_query"]:
-            lines.append("| n/a | 0 | 0.0000 | 0.0000 | no | n/a | n/a |")
+            lines.append("| n/a | 0 | 0.0000 | 0.0000 | no | n/a | n/a | n/a | n/a | n/a |")
         for row in benchmark["per_query"]:
             lines.append(
                 "| "
@@ -261,6 +315,9 @@ def render_markdown(report: dict[str, Any]) -> str:
                         _format_float(row["mean_selected_overall_confidence"]),
                         "yes" if row["reobserve_metrics_available"] else "no",
                         _format_optional_float(row["reobserve_trigger_rate"]),
+                        _format_optional_float(row["initial_reobserve_trigger_rate"]),
+                        _format_optional_float(row["final_reobserve_trigger_rate"]),
+                        _format_optional_float(row["closed_loop_execution_rate"]),
                         _escape(format_reason_counts(row["reobserve_reason_counts"])),
                     ]
                 )
@@ -396,6 +453,13 @@ def _format_optional_float(value: Any) -> str:
 
 def _escape(value: Any) -> str:
     return str(value).replace("|", "\\|")
+
+
+def _mean(values: Any) -> float:
+    values_list = list(values)
+    if not values_list:
+        return 0.0
+    return float(sum(values_list) / len(values_list))
 
 
 if __name__ == "__main__":
