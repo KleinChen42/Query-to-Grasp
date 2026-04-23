@@ -54,6 +54,18 @@ def test_build_child_command_forwards_closed_loop_reobserve(tmp_path: Path) -> N
     assert command[command.index("--closed-loop-max-extra-views") + 1] == "2"
 
 
+def test_build_child_command_forwards_selected_object_continuity(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+    args.enable_selected_object_continuity = True
+    args.selected_object_continuity_distance_scale = 1.5
+
+    command = benchmark.build_child_command(args=args, query="object", seed=0, output_dir=tmp_path / "child")
+
+    assert "--enable-selected-object-continuity" in command
+    assert "--selected-object-continuity-distance-scale" in command
+    assert command[command.index("--selected-object-continuity-distance-scale") + 1] == "1.5"
+
+
 def test_summarize_fusion_run_defaults_missing_fields() -> None:
     row = benchmark.summarize_fusion_run(
         {
@@ -83,6 +95,9 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["closed_loop_before_selected_delta_num_views"] == 0
     assert row["closed_loop_final_selected_absorbed_extra_view"] is False
     assert row["closed_loop_extra_view_absorber_count"] == 0
+    assert row["closed_loop_selected_object_continuity_enabled"] is False
+    assert row["closed_loop_preferred_merge_count"] == 0
+    assert row["closed_loop_preferred_merge_rate"] == 0.0
 
 
 def test_aggregate_rows_by_query() -> None:
@@ -114,6 +129,9 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_final_selected_absorbed_extra_view": True,
             "closed_loop_extra_view_third_object_involved": False,
             "closed_loop_extra_view_absorber_count": 1,
+            "closed_loop_selected_object_continuity_enabled": True,
+            "closed_loop_preferred_merge_count": 2,
+            "closed_loop_preferred_merge_rate": 1.0,
             "closed_loop_delta_num_views": 1,
             "closed_loop_delta_num_memory_objects": 0,
             "closed_loop_delta_num_observations_added": 1,
@@ -150,6 +168,9 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_final_selected_absorbed_extra_view": False,
             "closed_loop_extra_view_third_object_involved": False,
             "closed_loop_extra_view_absorber_count": 0,
+            "closed_loop_selected_object_continuity_enabled": False,
+            "closed_loop_preferred_merge_count": 0,
+            "closed_loop_preferred_merge_rate": 0.0,
             "closed_loop_delta_num_views": 0,
             "closed_loop_delta_num_memory_objects": 0,
             "closed_loop_delta_num_observations_added": 0,
@@ -186,6 +207,9 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_final_selected_absorbed_extra_view": False,
             "closed_loop_extra_view_third_object_involved": True,
             "closed_loop_extra_view_absorber_count": 2,
+            "closed_loop_selected_object_continuity_enabled": True,
+            "closed_loop_preferred_merge_count": 1,
+            "closed_loop_preferred_merge_rate": 0.5,
             "closed_loop_delta_num_views": 1,
             "closed_loop_delta_num_memory_objects": 1,
             "closed_loop_delta_num_observations_added": 2,
@@ -216,6 +240,8 @@ def test_aggregate_rows_by_query() -> None:
     assert aggregate["closed_loop_before_selected_gained_view_support_rate"] == 1 / 3
     assert aggregate["closed_loop_final_selected_absorbed_extra_view_rate"] == 1 / 3
     assert aggregate["closed_loop_extra_view_third_object_involved_rate"] == 1 / 3
+    assert aggregate["mean_closed_loop_preferred_merge_count"] == 1.0
+    assert aggregate["mean_closed_loop_preferred_merge_rate"] == 0.5
     assert aggregate["mean_closed_loop_delta_num_views"] == 2 / 3
     assert aggregate["mean_closed_loop_delta_num_memory_objects"] == 1 / 3
     assert aggregate["mean_closed_loop_delta_num_observations_added"] == 1.0
@@ -305,6 +331,9 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "closed_loop_final_selected_absorbed_extra_view": True,
             "closed_loop_extra_view_third_object_ids": [],
             "closed_loop_extra_view_third_object_involved": False,
+            "closed_loop_selected_object_continuity_enabled": True,
+            "closed_loop_preferred_merge_count": 1,
+            "closed_loop_preferred_merge_rate": 1.0,
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
@@ -336,6 +365,9 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "--depth-scale",
             "1000",
             "--enable-closed-loop-reobserve",
+            "--enable-selected-object-continuity",
+            "--selected-object-continuity-distance-scale",
+            "1.25",
             "--output-dir",
             str(output_dir),
         ],
@@ -352,6 +384,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert rows[0]["has_selected_object"] is True
     assert summary["total_runs"] == 4
     assert summary["skip_clip"] is True
+    assert summary["closed_loop_selected_object_continuity_enabled"] is True
+    assert summary["selected_object_continuity_distance_scale"] == 1.25
     assert summary["aggregate_metrics"]["fraction_with_selected_object"] == 1.0
     assert summary["aggregate_metrics"]["reobserve_trigger_rate"] == 0.0
     assert summary["aggregate_metrics"]["initial_reobserve_trigger_rate"] == 1.0
@@ -363,6 +397,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["aggregate_metrics"]["closed_loop_before_selected_gained_view_support_rate"] == 1.0
     assert summary["aggregate_metrics"]["closed_loop_final_selected_absorbed_extra_view_rate"] == 1.0
     assert summary["aggregate_metrics"]["closed_loop_extra_view_third_object_involved_rate"] == 0.0
+    assert summary["aggregate_metrics"]["mean_closed_loop_preferred_merge_count"] == 1.0
+    assert summary["aggregate_metrics"]["mean_closed_loop_preferred_merge_rate"] == 1.0
     assert summary["aggregate_metrics"]["mean_closed_loop_delta_selected_num_views"] == 1.0
     assert summary["aggregate_metrics"]["mean_closed_loop_delta_selected_overall_confidence"] == 0.1
     assert summary["aggregate_metrics"]["mean_closed_loop_before_selected_delta_num_views"] == 1.0
@@ -375,8 +411,12 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert "closed_loop_reobserve_resolved" in csv_header
     assert "closed_loop_before_selected_received_observation" in csv_header
     assert "closed_loop_final_selected_absorbed_extra_view" in csv_header
+    assert "closed_loop_selected_object_continuity_enabled" in csv_header
+    assert "closed_loop_preferred_merge_rate" in csv_header
     assert all("--skip-clip" in command for command in seen_commands)
     assert all("--enable-closed-loop-reobserve" in command for command in seen_commands)
+    assert all("--enable-selected-object-continuity" in command for command in seen_commands)
+    assert all("--selected-object-continuity-distance-scale" in command for command in seen_commands)
 
 
 def test_multiview_fusion_benchmark_can_fail_on_child_error(monkeypatch, tmp_path: Path) -> None:
@@ -443,5 +483,7 @@ def _args(
             "output_dir": output_dir,
             "enable_closed_loop_reobserve": False,
             "closed_loop_max_extra_views": 1,
+            "enable_selected_object_continuity": False,
+            "selected_object_continuity_distance_scale": 1.0,
         },
     )()

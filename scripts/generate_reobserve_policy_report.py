@@ -144,6 +144,9 @@ def benchmark_report(label: str, benchmark_dir: Path, max_examples: int) -> dict
         "closed_loop_extra_view_third_object_involved_rate": _optional_float(
             metrics.get("closed_loop_extra_view_third_object_involved_rate")
         ),
+        "mean_closed_loop_preferred_merge_rate": _optional_float(
+            metrics.get("mean_closed_loop_preferred_merge_rate")
+        ),
         "mean_closed_loop_delta_selected_overall_confidence": _optional_float(
             metrics.get("mean_closed_loop_delta_selected_overall_confidence")
         ),
@@ -205,6 +208,9 @@ def per_query_report(value: Any) -> list[dict[str, Any]]:
                 ),
                 "closed_loop_extra_view_third_object_involved_rate": _optional_float(
                     metrics.get("closed_loop_extra_view_third_object_involved_rate")
+                ),
+                "mean_closed_loop_preferred_merge_rate": _optional_float(
+                    metrics.get("mean_closed_loop_preferred_merge_rate")
                 ),
                 "mean_closed_loop_delta_selected_overall_confidence": _optional_float(
                     metrics.get("mean_closed_loop_delta_selected_overall_confidence")
@@ -301,6 +307,10 @@ def build_conclusion(benchmark_reports: list[dict[str, Any]]) -> str:
             _as_float(report.get("closed_loop_extra_view_third_object_involved_rate"))
             for report in closed_loop_reports
         )
+        preferred_merge_rate = _mean(
+            _as_float(report.get("mean_closed_loop_preferred_merge_rate"))
+            for report in closed_loop_reports
+        )
         selected_support_gain_rate = _mean(
             _as_float(report.get("closed_loop_before_selected_gained_view_support_rate"))
             for report in closed_loop_reports
@@ -319,6 +329,7 @@ def build_conclusion(benchmark_reports: list[dict[str, Any]]) -> str:
                 f"policy trigger rate ({initial_rate:.4f} before and {final_rate:.4f} after; execution rate "
                 f"{execution_rate:.4f}, resolution rate {resolution_rate:.4f}). The selected-object "
                 f"association rate stayed lower than execution ({selected_assoc_rate:.4f} vs {execution_rate:.4f}), "
+                f"preferred-merge rate was {preferred_merge_rate:.4f}, "
                 f"while final-selected absorber rate was {final_selected_absorber_rate:.4f} and third-object "
                 f"involvement reached {third_object_rate:.4f}. This suggests many extra views are not merging "
                 "back into the initially selected memory object."
@@ -328,7 +339,8 @@ def build_conclusion(benchmark_reports: list[dict[str, Any]]) -> str:
                 f"trigger rate ({initial_rate:.4f} before and {final_rate:.4f} after; execution rate "
                 f"{execution_rate:.4f}, resolution rate {resolution_rate:.4f}, selected-object association rate "
                 f"{selected_assoc_rate:.4f}, final-selected absorber rate {final_selected_absorber_rate:.4f}, "
-                f"third-object involvement {third_object_rate:.4f}, support-gain rate {selected_support_gain_rate:.4f}). "
+                f"third-object involvement {third_object_rate:.4f}, preferred-merge rate {preferred_merge_rate:.4f}, "
+                f"support-gain rate {selected_support_gain_rate:.4f}). "
                 "This suggests the added views merged, but still did not resolve the dominant uncertainty."
             )
         return (
@@ -370,8 +382,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Benchmarks",
         "",
-        "| label | runs | view_preset | selected_frac | mean_confidence | reobserve_metrics | reobserve_trigger_rate | initial_trigger_rate | final_trigger_rate | closed_loop_execution_rate | resolution_rate | still_needed_rate | selected_assoc_rate | final_selected_absorber_rate | third_object_rate | selected_support_gain_rate | delta_confidence | delta_selected_views | delta_memory_objects | absorber_count | reason_counts |",
-        "| --- | ---: | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+        "| label | runs | view_preset | selected_frac | mean_confidence | reobserve_metrics | reobserve_trigger_rate | initial_trigger_rate | final_trigger_rate | closed_loop_execution_rate | resolution_rate | still_needed_rate | selected_assoc_rate | final_selected_absorber_rate | third_object_rate | preferred_merge_rate | selected_support_gain_rate | delta_confidence | delta_selected_views | delta_memory_objects | absorber_count | reason_counts |",
+        "| --- | ---: | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in report["benchmarks"]:
         lines.append(
@@ -393,6 +405,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                     _format_optional_float(row["closed_loop_before_selected_received_observation_rate"]),
                     _format_optional_float(row["closed_loop_final_selected_absorbed_extra_view_rate"]),
                     _format_optional_float(row["closed_loop_extra_view_third_object_involved_rate"]),
+                    _format_optional_float(row["mean_closed_loop_preferred_merge_rate"]),
                     _format_optional_float(row["closed_loop_before_selected_gained_view_support_rate"]),
                     _format_optional_float(row["mean_closed_loop_delta_selected_overall_confidence"]),
                     _format_optional_float(row["mean_closed_loop_delta_selected_num_views"]),
@@ -410,8 +423,8 @@ def render_markdown(report: dict[str, Any]) -> str:
             [
                 f"### {benchmark['label']}",
                 "",
-                "| query | runs | selected_frac | mean_confidence | reobserve_metrics | reobserve_trigger_rate | initial_trigger_rate | final_trigger_rate | closed_loop_execution_rate | resolution_rate | still_needed_rate | selected_assoc_rate | final_selected_absorber_rate | third_object_rate | selected_support_gain_rate | delta_confidence | delta_selected_views | absorber_count | reason_counts |",
-                "| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+                "| query | runs | selected_frac | mean_confidence | reobserve_metrics | reobserve_trigger_rate | initial_trigger_rate | final_trigger_rate | closed_loop_execution_rate | resolution_rate | still_needed_rate | selected_assoc_rate | final_selected_absorber_rate | third_object_rate | preferred_merge_rate | selected_support_gain_rate | delta_confidence | delta_selected_views | absorber_count | reason_counts |",
+                "| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
             ]
         )
         if not benchmark["per_query"]:
@@ -435,6 +448,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                         _format_optional_float(row["closed_loop_before_selected_received_observation_rate"]),
                         _format_optional_float(row["closed_loop_final_selected_absorbed_extra_view_rate"]),
                         _format_optional_float(row["closed_loop_extra_view_third_object_involved_rate"]),
+                        _format_optional_float(row["mean_closed_loop_preferred_merge_rate"]),
                         _format_optional_float(row["closed_loop_before_selected_gained_view_support_rate"]),
                         _format_optional_float(row["mean_closed_loop_delta_selected_overall_confidence"]),
                         _format_optional_float(row["mean_closed_loop_delta_selected_num_views"]),

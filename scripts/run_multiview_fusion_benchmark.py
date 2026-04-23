@@ -64,6 +64,9 @@ CSV_COLUMNS = [
     "closed_loop_final_selected_absorbed_extra_view",
     "closed_loop_extra_view_third_object_ids",
     "closed_loop_extra_view_third_object_involved",
+    "closed_loop_selected_object_continuity_enabled",
+    "closed_loop_preferred_merge_count",
+    "closed_loop_preferred_merge_rate",
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
@@ -99,6 +102,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--merge-distance", type=float, default=0.08)
     parser.add_argument("--enable-closed-loop-reobserve", action="store_true")
     parser.add_argument("--closed-loop-max-extra-views", type=int, default=1)
+    parser.add_argument("--enable-selected-object-continuity", action="store_true")
+    parser.add_argument("--selected-object-continuity-distance-scale", type=float, default=1.0)
     parser.add_argument("--fail-on-child-error", action="store_true", help="Exit nonzero if any child debug run fails.")
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
@@ -147,6 +152,8 @@ def main() -> None:
         "merge_distance": float(args.merge_distance),
         "closed_loop_reobserve_enabled": bool(args.enable_closed_loop_reobserve),
         "closed_loop_max_extra_views": int(args.closed_loop_max_extra_views),
+        "closed_loop_selected_object_continuity_enabled": bool(args.enable_selected_object_continuity),
+        "selected_object_continuity_distance_scale": float(args.selected_object_continuity_distance_scale),
         "aggregate_metrics": aggregate_rows(rows),
         "per_query_metrics": aggregate_rows_by_query(rows),
     }
@@ -263,6 +270,14 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
     if args.enable_closed_loop_reobserve:
         command.append("--enable-closed-loop-reobserve")
         command.extend(["--closed-loop-max-extra-views", str(args.closed_loop_max_extra_views)])
+    if args.enable_selected_object_continuity:
+        command.append("--enable-selected-object-continuity")
+        command.extend(
+            [
+                "--selected-object-continuity-distance-scale",
+                str(args.selected_object_continuity_distance_scale),
+            ]
+        )
     return command
 
 
@@ -347,6 +362,17 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "closed_loop_extra_view_third_object_involved": _as_bool(
             summary.get("closed_loop_extra_view_third_object_involved")
         ),
+        "closed_loop_selected_object_continuity_enabled": _as_bool(
+            summary.get("closed_loop_selected_object_continuity_enabled")
+        ),
+        "closed_loop_preferred_merge_count": _as_int(
+            summary.get("closed_loop_preferred_merge_count"),
+            0,
+        ),
+        "closed_loop_preferred_merge_rate": _as_float(
+            summary.get("closed_loop_preferred_merge_rate"),
+            0.0,
+        ),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
@@ -382,6 +408,8 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "closed_loop_before_selected_gained_view_support_rate": 0.0,
             "closed_loop_final_selected_absorbed_extra_view_rate": 0.0,
             "closed_loop_extra_view_third_object_involved_rate": 0.0,
+            "mean_closed_loop_preferred_merge_count": 0.0,
+            "mean_closed_loop_preferred_merge_rate": 0.0,
             "mean_closed_loop_delta_num_views": 0.0,
             "mean_closed_loop_delta_num_memory_objects": 0.0,
             "mean_closed_loop_delta_num_observations_added": 0.0,
@@ -433,6 +461,12 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "closed_loop_extra_view_third_object_involved_rate": _mean(
             1 if _as_bool(row.get("closed_loop_extra_view_third_object_involved")) else 0 for row in rows
+        ),
+        "mean_closed_loop_preferred_merge_count": _mean(
+            _as_int(row.get("closed_loop_preferred_merge_count"), 0) for row in rows
+        ),
+        "mean_closed_loop_preferred_merge_rate": _mean(
+            _as_float(row.get("closed_loop_preferred_merge_rate"), 0.0) for row in rows
         ),
         "mean_closed_loop_delta_num_views": _mean(
             _as_int(row.get("closed_loop_delta_num_views"), 0) for row in rows
@@ -540,6 +574,9 @@ def failed_row(
         "closed_loop_final_selected_absorbed_extra_view": False,
         "closed_loop_extra_view_third_object_ids": "",
         "closed_loop_extra_view_third_object_involved": False,
+        "closed_loop_selected_object_continuity_enabled": False,
+        "closed_loop_preferred_merge_count": 0,
+        "closed_loop_preferred_merge_rate": 0.0,
         "runtime_seconds": 0.0,
         "detector_backend": "" if args is None else str(args.detector_backend),
         "skip_clip": False if args is None else bool(args.skip_clip),

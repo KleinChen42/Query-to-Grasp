@@ -63,6 +63,26 @@ def test_memory_keeps_distant_observations_separate() -> None:
     assert [obj.object_id for obj in memory.objects] == ["obj_0000", "obj_0001"]
 
 
+def test_memory_can_prefer_selected_object_when_geometry_is_compatible() -> None:
+    memory = ObjectMemory3D(ObjectMemoryConfig(merge_distance=0.08))
+
+    selected = memory.add_observation(_obs([0.0, 0.0, 0.0], label="cube", det_score=0.8, view_id="front"))
+    other = memory.add_observation(_obs([0.09, 0.0, 0.0], label="cube", det_score=0.8, view_id="left"))
+
+    matched, assignment = memory.add_observation_with_preferred_object(
+        _obs([0.07, 0.0, 0.0], label="cube", det_score=0.8, view_id="closer_left"),
+        preferred_object_id=selected.object_id,
+        preferred_merge_distance=0.08,
+    )
+
+    assert other.object_id != selected.object_id
+    assert matched.object_id == selected.object_id
+    assert assignment["used_preferred_object"] is True
+    assert assignment["preferred_object_compatible"] is True
+    assert assignment["created_new_object"] is False
+    assert len(memory.objects) == 2
+
+
 def test_select_best_is_deterministic_with_view_tie_break() -> None:
     memory = ObjectMemory3D(
         ObjectMemoryConfig(

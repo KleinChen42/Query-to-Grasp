@@ -155,6 +155,17 @@ def parse_args() -> argparse.Namespace:
         default=1,
         help="Maximum suggested virtual views to execute when closed-loop re-observation is enabled.",
     )
+    parser.add_argument(
+        "--enable-selected-object-continuity",
+        action="store_true",
+        help="Prefer merging extra-view observations back into the initially selected object when geometry is compatible.",
+    )
+    parser.add_argument(
+        "--selected-object-continuity-distance-scale",
+        type=float,
+        default=1.0,
+        help="Compatibility distance for selected-object continuity as a multiple of --merge-distance.",
+    )
     parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
@@ -248,6 +259,14 @@ def main() -> None:
         extra_view_results: list[dict[str, Any]] = []
         extra_view_ids: list[str] = []
         closed_loop_executed = False
+        continuity_target_object_id = (
+            initial_snapshot["selected_object_id"] if args.enable_selected_object_continuity else None
+        )
+        continuity_merge_distance = (
+            float(args.merge_distance) * float(args.selected_object_continuity_distance_scale)
+            if args.enable_selected_object_continuity
+            else None
+        )
         if args.enable_closed_loop_reobserve and initial_decision.should_reobserve:
             extra_frames = collect_reobserve_frames(
                 scene=scene,
@@ -265,6 +284,8 @@ def main() -> None:
                     clip_prompts=clip_prompts,
                     memory=memory,
                     run_dir=run_dir,
+                    preferred_object_id=continuity_target_object_id,
+                    preferred_merge_distance=continuity_merge_distance,
                 )
                 view_results.append(view_result)
                 extra_view_results.append(view_result)
@@ -301,6 +322,7 @@ def main() -> None:
             after=final_snapshot,
             extra_view_results=extra_view_results,
         )
+        preferred_merge_trace = build_closed_loop_preferred_merge_trace(extra_view_results)
         if args.enable_closed_loop_reobserve:
             write_closed_loop_reobserve_artifacts(
                 run_dir=run_dir,
@@ -407,6 +429,11 @@ def main() -> None:
         summary["closed_loop_extra_view_third_object_involved"] = absorber_trace[
             "third_object_involved"
         ]
+        summary["closed_loop_selected_object_continuity_enabled"] = bool(
+            args.enable_selected_object_continuity
+        )
+        summary["closed_loop_preferred_merge_count"] = preferred_merge_trace["preferred_merge_count"]
+        summary["closed_loop_preferred_merge_rate"] = preferred_merge_trace["preferred_merge_rate"]
         write_json(summary, run_dir / "summary.json")
         print_summary(summary)
     finally:
@@ -547,6 +574,8 @@ def process_view(
     clip_prompts: list[str],
     memory: ObjectMemory3D,
     run_dir: Path,
+    preferred_object_id: str | None = None,
+    preferred_merge_distance: float | None = None,
 ) -> dict[str, Any]:
     """Run detection/ranking/lifting for one view and update object memory."""
 
@@ -586,6 +615,8 @@ def process_view(
         reranked=reranked,
         memory=memory,
         view_dir=view_dir,
+        preferred_object_id=preferred_object_id,
+        preferred_merge_distance=preferred_merge_distance,
     )
 
     result = {
@@ -638,6 +669,8 @@ def lift_and_add_candidates(
     reranked: list[RankedCandidate],
     memory: ObjectMemory3D,
     view_dir: Path,
+    preferred_object_id: str | None = None,
+    preferred_merge_distance: float | None = None,
 ) -> tuple[list[Candidate3D], int, list[dict[str, Any]]]:
     """Lift all ranked candidates into 3D and add valid world targets to memory."""
 
@@ -670,8 +703,7 @@ def lift_and_add_candidates(
         candidates_3d.append(candidate_3d)
         if candidate_3d.world_xyz is None:
             continue
-        existing_object_ids = {obj.object_id for obj in memory.objects}
-        matched_object = memory.add_observation(
+        matched_object, assignment = memory.add_observation_with_preferred_object(
             ObjectObservation3D(
                 world_xyz=candidate_3d.world_xyz,
                 label=ranked.phrase,
@@ -687,7 +719,9 @@ def lift_and_add_candidates(
                     "box_xyxy": ranked.box_xyxy,
                     "source": ranked.source,
                 },
-            )
+            ),
+            preferred_object_id=preferred_object_id,
+            preferred_merge_distance=preferred_merge_distance,
         )
         observations_added += 1
         observation_assignments.append(
@@ -696,8 +730,8 @@ def lift_and_add_candidates(
                 "phrase": ranked.phrase,
                 "view_id": view_id,
                 "object_id": matched_object.object_id,
-                "created_new_object": matched_object.object_id not in existing_object_ids,
                 "num_points": int(candidate_3d.num_points),
+                **assignment,
             }
         )
     return candidates_3d, observations_added, observation_assignments
@@ -871,12 +905,36 @@ def build_closed_loop_absorber_trace(
     }
 
 
+def build_closed_loop_preferred_merge_trace(extra_view_results: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize whether selected-object continuity was actually used."""
+
+    assignments = [
+        assignment
+        for result in extra_view_results
+        for assignment in result.get("observation_assignments", [])
+        if isinstance(assignment, dict)
+    ]
+    preferred_merge_count = sum(
+        1 for assignment in assignments if bool(assignment.get("used_preferred_object"))
+    )
+    return {
+        "observation_assignment_count": len(assignments),
+        "preferred_merge_count": preferred_merge_count,
+        "preferred_merge_rate": (
+            0.0
+            if not assignments
+            else float(preferred_merge_count) / float(len(assignments))
+        ),
+    }
+
+
 def build_closed_loop_reobserve_report(
     before: dict[str, Any],
     after: dict[str, Any],
     extra_view_results: list[dict[str, Any]],
     selected_object_followup: dict[str, Any],
     absorber_trace: dict[str, Any],
+    preferred_merge_trace: dict[str, Any],
 ) -> dict[str, Any]:
     """Build the before/after artifact for closed-loop re-observation."""
 
@@ -899,6 +957,7 @@ def build_closed_loop_reobserve_report(
         "delta": build_closed_loop_delta(before, after),
         "initial_selected_object_followup": selected_object_followup,
         "extra_view_absorber_trace": absorber_trace,
+        "preferred_merge_trace": preferred_merge_trace,
     }
 
 
@@ -928,12 +987,14 @@ def write_closed_loop_reobserve_artifacts(
         after=final_snapshot,
         extra_view_results=extra_view_results,
     )
+    preferred_merge_trace = build_closed_loop_preferred_merge_trace(extra_view_results)
     report = build_closed_loop_reobserve_report(
         before=initial_snapshot,
         after=final_snapshot,
         extra_view_results=extra_view_results,
         selected_object_followup=selected_object_followup,
         absorber_trace=absorber_trace,
+        preferred_merge_trace=preferred_merge_trace,
     )
     report["final_selection_trace"] = build_selection_trace(
         memory=memory,

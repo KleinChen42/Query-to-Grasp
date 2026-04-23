@@ -130,14 +130,52 @@ class ObjectMemory3D:
     def add_observation(self, observation: ObjectObservation3D) -> MemoryObject3D:
         """Add one observation, merging it with the nearest compatible object."""
 
-        match = self._find_match(observation)
-        if match is None:
-            match = self._create_object(observation)
-            self._objects.append(match)
-        else:
-            self._merge_into(match, observation)
-        self._refresh_confidences(match)
+        match, _ = self.add_observation_with_preferred_object(observation)
         return match
+
+    def add_observation_with_preferred_object(
+        self,
+        observation: ObjectObservation3D,
+        preferred_object_id: str | None = None,
+        preferred_merge_distance: float | None = None,
+    ) -> tuple[MemoryObject3D, dict[str, Any]]:
+        """Add one observation with an optional preferred compatible object."""
+
+        preferred_object = self.get_object_by_id(preferred_object_id)
+        max_distance = self.config.merge_distance if preferred_merge_distance is None else float(preferred_merge_distance)
+        preferred_distance = (
+            None
+            if preferred_object is None
+            else float(np.linalg.norm(preferred_object.world_xyz - observation.world_xyz))
+        )
+        preferred_object_compatible = (
+            preferred_object is not None
+            and np.isfinite(max_distance)
+            and max_distance >= 0.0
+            and preferred_distance is not None
+            and preferred_distance <= max_distance
+        )
+        existing_object_ids = {obj.object_id for obj in self._objects}
+        if preferred_object_compatible:
+            match = preferred_object
+            self._merge_into(match, observation)
+        else:
+            match = self._find_match(observation)
+            if match is None:
+                match = self._create_object(observation)
+                self._objects.append(match)
+            else:
+                self._merge_into(match, observation)
+        self._refresh_confidences(match)
+        assignment = {
+            "object_id": match.object_id,
+            "preferred_object_id": preferred_object_id,
+            "preferred_distance": preferred_distance,
+            "preferred_object_compatible": preferred_object_compatible,
+            "used_preferred_object": preferred_object_compatible and match.object_id == preferred_object_id,
+            "created_new_object": match.object_id not in existing_object_ids,
+        }
+        return match, assignment
 
     def extend(self, observations: Iterable[ObjectObservation3D]) -> list[MemoryObject3D]:
         """Add several observations and return the updated hypotheses."""
@@ -180,6 +218,16 @@ class ObjectMemory3D:
             "num_objects": len(self._objects),
             "objects": [obj.to_json_dict() for obj in self._objects],
         }
+
+    def get_object_by_id(self, object_id: str | None) -> MemoryObject3D | None:
+        """Return one object by id."""
+
+        if object_id is None:
+            return None
+        for obj in self._objects:
+            if obj.object_id == object_id:
+                return obj
+        return None
 
     def _find_match(self, observation: ObjectObservation3D) -> MemoryObject3D | None:
         matches: list[tuple[float, str, MemoryObject3D]] = []

@@ -306,6 +306,11 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
             "third_object_involved": False,
             "observation_assignments": [{"object_id": "obj_0000"}],
         },
+        preferred_merge_trace={
+            "observation_assignment_count": 1,
+            "preferred_merge_count": 1,
+            "preferred_merge_rate": 1.0,
+        },
     )
 
     assert report["executed"] is True
@@ -323,6 +328,7 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
     assert report["initial_selected_object_followup"]["received_observation"] is True
     assert report["initial_selected_object_followup"]["merged_extra_view_ids"] == ["top_down"]
     assert report["extra_view_absorber_trace"]["final_selected_absorbed_extra_view"] is True
+    assert report["preferred_merge_trace"]["preferred_merge_rate"] == 1.0
 
 
 def test_build_initial_selected_object_followup_tracks_merge_into_before_selected() -> None:
@@ -393,3 +399,21 @@ def test_build_closed_loop_absorber_trace_distinguishes_final_and_third_objects(
     assert trace["final_selected_absorbed_extra_view"] is True
     assert trace["third_object_ids"] == ["obj_0002"]
     assert trace["third_object_involved"] is True
+
+
+def test_build_closed_loop_preferred_merge_trace_counts_used_merges() -> None:
+    trace = multiview.build_closed_loop_preferred_merge_trace(
+        [
+            {
+                "observation_assignments": [
+                    {"used_preferred_object": True},
+                    {"used_preferred_object": False},
+                    {"used_preferred_object": True},
+                ]
+            }
+        ]
+    )
+
+    assert trace["observation_assignment_count"] == 3
+    assert trace["preferred_merge_count"] == 2
+    assert trace["preferred_merge_rate"] == 2 / 3
