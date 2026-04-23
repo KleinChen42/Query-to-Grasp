@@ -250,7 +250,12 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
         "num_observations_added": 5,
         "selected_object_id": "obj_0000",
         "selected_overall_confidence": 0.4,
+        "selected_geometry_confidence": 0.3,
+        "selected_semantic_confidence": 0.8,
+        "selected_num_views": 1,
+        "selected_num_observations": 2,
         "should_reobserve": True,
+        "reobserve_reason": "low_overall_confidence",
     }
     after = {
         "num_views": 4,
@@ -258,7 +263,12 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
         "num_observations_added": 7,
         "selected_object_id": "obj_0000",
         "selected_overall_confidence": 0.6,
+        "selected_geometry_confidence": 0.5,
+        "selected_semantic_confidence": 0.8,
+        "selected_num_views": 2,
+        "selected_num_observations": 3,
         "should_reobserve": False,
+        "reobserve_reason": "confident_enough",
     }
     report = multiview.build_closed_loop_reobserve_report(
         before=before,
@@ -280,4 +290,10 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
     assert report["delta"]["num_views"] == 1
     assert report["delta"]["num_observations_added"] == 2
     assert report["delta"]["selected_overall_confidence"] == 0.19999999999999996
+    assert report["delta"]["selected_geometry_confidence"] == 0.2
+    assert report["delta"]["selected_num_views"] == 1
+    assert report["delta"]["selected_num_observations"] == 1
     assert report["delta"]["should_reobserve_changed"] is True
+    assert report["delta"]["reobserve_reason_changed"] is True
+    assert report["delta"]["reobserve_resolved"] is True
+    assert report["delta"]["reobserve_still_needed"] is False

@@ -274,6 +274,7 @@ def main() -> None:
             view_ids=final_view_ids,
             total_observations_added=total_observations_added,
         )
+        closed_loop_delta = build_closed_loop_delta(initial_snapshot, final_snapshot)
         if args.enable_closed_loop_reobserve:
             write_closed_loop_reobserve_artifacts(
                 run_dir=run_dir,
@@ -329,12 +330,31 @@ def main() -> None:
         summary["initial_reobserve_reason"] = initial_decision.reason
         summary["initial_selected_object_id"] = initial_snapshot["selected_object_id"]
         summary["initial_selected_overall_confidence"] = initial_snapshot["selected_overall_confidence"]
+        summary["initial_selected_num_views"] = initial_snapshot["selected_num_views"]
+        summary["initial_selected_num_observations"] = initial_snapshot["selected_num_observations"]
         summary["initial_num_memory_objects"] = initial_snapshot["num_memory_objects"]
         summary["final_should_reobserve"] = bool(final_decision.should_reobserve)
         summary["final_reobserve_reason"] = final_decision.reason
+        summary["final_selected_num_views"] = final_snapshot["selected_num_views"]
+        summary["final_selected_num_observations"] = final_snapshot["selected_num_observations"]
         summary["closed_loop_reobserve_enabled"] = bool(args.enable_closed_loop_reobserve)
         summary["closed_loop_reobserve_executed"] = bool(closed_loop_executed)
         summary["closed_loop_reobserve_view_ids"] = extra_view_ids
+        summary["closed_loop_delta"] = closed_loop_delta
+        summary["closed_loop_delta_num_views"] = closed_loop_delta["num_views"]
+        summary["closed_loop_delta_num_memory_objects"] = closed_loop_delta["num_memory_objects"]
+        summary["closed_loop_delta_num_observations_added"] = closed_loop_delta["num_observations_added"]
+        summary["closed_loop_delta_selected_overall_confidence"] = closed_loop_delta[
+            "selected_overall_confidence"
+        ]
+        summary["closed_loop_delta_selected_num_views"] = closed_loop_delta["selected_num_views"]
+        summary["closed_loop_delta_selected_num_observations"] = closed_loop_delta[
+            "selected_num_observations"
+        ]
+        summary["closed_loop_selected_object_changed"] = closed_loop_delta["selected_object_changed"]
+        summary["closed_loop_reobserve_reason_changed"] = closed_loop_delta["reobserve_reason_changed"]
+        summary["closed_loop_reobserve_resolved"] = closed_loop_delta["reobserve_resolved"]
+        summary["closed_loop_reobserve_still_needed"] = closed_loop_delta["reobserve_still_needed"]
         write_json(summary, run_dir / "summary.json")
         print_summary(summary)
     finally:
@@ -657,10 +677,43 @@ def build_reobserve_stage_snapshot(
         "selection_label": selection_label,
         "selected_top_label": None if selected is None else selected.top_label,
         "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
+        "selected_semantic_confidence": 0.0 if selected is None else float(selected.semantic_confidence),
+        "selected_geometry_confidence": 0.0 if selected is None else float(selected.geometry_confidence),
+        "selected_num_views": 0 if selected is None else len(selected.view_ids),
+        "selected_num_observations": 0 if selected is None else int(selected.num_observations),
         "should_reobserve": bool(decision.should_reobserve),
         "reobserve_reason": decision.reason,
         "suggested_view_ids": list(decision.suggested_view_ids),
         "decision": decision.to_json_dict(),
+    }
+
+
+def build_closed_loop_delta(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
+    """Build compact before/after deltas for closed-loop diagnostics."""
+
+    before_should_reobserve = bool(before.get("should_reobserve"))
+    after_should_reobserve = bool(after.get("should_reobserve"))
+    return {
+        "num_views": _snapshot_int(after, "num_views") - _snapshot_int(before, "num_views"),
+        "num_memory_objects": _snapshot_int(after, "num_memory_objects")
+        - _snapshot_int(before, "num_memory_objects"),
+        "num_observations_added": _snapshot_int(after, "num_observations_added")
+        - _snapshot_int(before, "num_observations_added"),
+        "selected_overall_confidence": _snapshot_float(after, "selected_overall_confidence")
+        - _snapshot_float(before, "selected_overall_confidence"),
+        "selected_semantic_confidence": _snapshot_float(after, "selected_semantic_confidence")
+        - _snapshot_float(before, "selected_semantic_confidence"),
+        "selected_geometry_confidence": _snapshot_float(after, "selected_geometry_confidence")
+        - _snapshot_float(before, "selected_geometry_confidence"),
+        "selected_num_views": _snapshot_int(after, "selected_num_views")
+        - _snapshot_int(before, "selected_num_views"),
+        "selected_num_observations": _snapshot_int(after, "selected_num_observations")
+        - _snapshot_int(before, "selected_num_observations"),
+        "should_reobserve_changed": before_should_reobserve != after_should_reobserve,
+        "reobserve_reason_changed": before.get("reobserve_reason") != after.get("reobserve_reason"),
+        "selected_object_changed": before.get("selected_object_id") != after.get("selected_object_id"),
+        "reobserve_resolved": before_should_reobserve and not after_should_reobserve,
+        "reobserve_still_needed": before_should_reobserve and after_should_reobserve,
     }
 
 
@@ -687,15 +740,7 @@ def build_closed_loop_reobserve_report(
         ],
         "before": before,
         "after": after,
-        "delta": {
-            "num_views": int(after["num_views"]) - int(before["num_views"]),
-            "num_memory_objects": int(after["num_memory_objects"]) - int(before["num_memory_objects"]),
-            "num_observations_added": int(after["num_observations_added"]) - int(before["num_observations_added"]),
-            "selected_overall_confidence": float(after["selected_overall_confidence"])
-            - float(before["selected_overall_confidence"]),
-            "should_reobserve_changed": bool(before["should_reobserve"]) != bool(after["should_reobserve"]),
-            "selected_object_changed": before["selected_object_id"] != after["selected_object_id"],
-        },
+        "delta": build_closed_loop_delta(before, after),
     }
 
 
@@ -782,6 +827,20 @@ def print_summary(summary: dict[str, Any]) -> None:
 def _slug(value: str) -> str:
     slug = "".join(char.lower() if char.isalnum() else "_" for char in value).strip("_")
     return slug[:40] or "view"
+
+
+def _snapshot_int(snapshot: dict[str, Any], key: str) -> int:
+    try:
+        return int(snapshot.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _snapshot_float(snapshot: dict[str, Any], key: str) -> float:
+    try:
+        return float(snapshot.get(key) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 if __name__ == "__main__":

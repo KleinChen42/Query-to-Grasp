@@ -43,6 +43,11 @@ TABLE_COLUMNS = [
     "initial_reobserve_trigger_rate",
     "final_reobserve_trigger_rate",
     "closed_loop_execution_rate",
+    "closed_loop_resolution_rate",
+    "closed_loop_still_needed_rate",
+    "mean_closed_loop_delta_selected_overall_confidence",
+    "mean_closed_loop_delta_selected_num_views",
+    "mean_closed_loop_delta_num_memory_objects",
     "reobserve_reason_counts",
     "pick_success_rate",
 ]
@@ -152,6 +157,11 @@ def single_view_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "initial_reobserve_trigger_rate": NA,
         "final_reobserve_trigger_rate": NA,
         "closed_loop_execution_rate": NA,
+        "closed_loop_resolution_rate": NA,
+        "closed_loop_still_needed_rate": NA,
+        "mean_closed_loop_delta_selected_overall_confidence": NA,
+        "mean_closed_loop_delta_selected_num_views": NA,
+        "mean_closed_loop_delta_num_memory_objects": NA,
         "reobserve_reason_counts": NA,
         "pick_success_rate": _as_float(metrics.get("pick_success_rate")),
     }
@@ -186,6 +196,17 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
         "initial_reobserve_trigger_rate": _optional_float(metrics.get("initial_reobserve_trigger_rate")),
         "final_reobserve_trigger_rate": _optional_float(metrics.get("final_reobserve_trigger_rate")),
         "closed_loop_execution_rate": _optional_float(metrics.get("closed_loop_execution_rate")),
+        "closed_loop_resolution_rate": _optional_float(metrics.get("closed_loop_resolution_rate")),
+        "closed_loop_still_needed_rate": _optional_float(metrics.get("closed_loop_still_needed_rate")),
+        "mean_closed_loop_delta_selected_overall_confidence": _optional_float(
+            metrics.get("mean_closed_loop_delta_selected_overall_confidence")
+        ),
+        "mean_closed_loop_delta_selected_num_views": _optional_float(
+            metrics.get("mean_closed_loop_delta_selected_num_views")
+        ),
+        "mean_closed_loop_delta_num_memory_objects": _optional_float(
+            metrics.get("mean_closed_loop_delta_num_memory_objects")
+        ),
         "reobserve_reason_counts": format_reason_counts(metrics.get("reobserve_reason_counts")),
         "pick_success_rate": NA,
     }

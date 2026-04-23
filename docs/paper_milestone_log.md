@@ -77,6 +77,7 @@ Current evidence supports the following narrower near-term claim:
 | Ambiguity tabletop_3 fusion stress, seeds 0-2 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md` | Broader queries increase object-memory fragmentation and trigger policy uncertainty; CLIP raises selected confidence and lowers trigger rate without fixing geometry. |
 | Minimal closed-loop re-observation path | Done | `closed_loop_reobserve.json` H200 mock smoke | The debug and benchmark runners can now opt into one suggested extra virtual view and report before/after policy, confidence, memory, and selected-target metrics. |
 | Closed-loop ambiguity HF benchmark, seeds 0-2 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md` | The extra-view loop executes, but final policy trigger rate does not decrease; current suggested views do not resolve the dominant uncertainty. |
+| Closed-loop delta diagnostics | Done | H200 mock smoke with `closed_loop_resolution_rate`, `closed_loop_still_needed_rate`, and selected-support deltas | Future closed-loop runs now expose whether an extra view changed selected object, confidence, selected view support, memory size, policy reason, or resolved re-observation. |
 
 ## Key Quantitative Results
 
@@ -421,6 +422,38 @@ Paper note:
 > view selection or memory update criteria rather than merely enabling another
 > observation pass.
 
+### Closed-Loop Delta Diagnostics
+
+Current implementation:
+
+- `closed_loop_reobserve.json` now includes deltas for selected confidence,
+  selected view support, selected observation count, memory-object count, policy
+  reason changes, selected-object changes, and whether re-observation was
+  resolved.
+- `benchmark_rows.json/csv` expose compact per-run delta fields.
+- `benchmark_summary.json` aggregates resolution rate, still-needed rate,
+  selected-object-change rate, reason-change rate, and mean selected-support
+  deltas.
+- `generate_reobserve_policy_report.py` and
+  `generate_fusion_comparison_table.py` surface the new aggregate fields.
+
+H200 mock smoke:
+
+| metric | value |
+| --- | ---: |
+| closed_loop_execution_rate | 1.0000 |
+| closed_loop_resolution_rate | 0.0000 |
+| closed_loop_still_needed_rate | 1.0000 |
+| mean_closed_loop_delta_selected_num_views | 0.0000 |
+| mean_closed_loop_delta_selected_overall_confidence | 0.0000 |
+
+Interpretation:
+
+The diagnostic layer is now in place. The mock smoke still remains unresolved,
+which is expected, but future HF closed-loop reruns can directly show whether an
+extra view increased selected support or changed policy outcomes. This is the
+measurement layer needed before changing the re-observation algorithm itself.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -651,13 +684,12 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Diagnose and improve closed-loop re-observation effectiveness:
+Improve closed-loop re-observation effectiveness:
 
-1. Add a compact closed-loop delta diagnostic that reports whether the extra
-   view changed selected object id, view support, memory-object count, and
-   policy reason per run.
-2. Use those diagnostics to choose between support-aware view selection and
-   memory update/merge improvements.
+1. Implement support-aware suggested-view selection: prefer candidate views not
+   already supporting the selected object and record why each view was chosen.
+2. Re-run a small mock and then HF ambiguity closed-loop smoke to confirm
+   selected view support can increase.
 3. Keep real robot control and web demo out of scope until closed-loop
    perception improves a measurable policy or memory metric.
 

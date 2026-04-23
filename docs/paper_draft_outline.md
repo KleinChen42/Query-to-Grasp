@@ -382,6 +382,13 @@ view. This is a useful negative result: the system has a runnable closed-loop
 baseline, but future improvement should target support-aware view selection or
 memory update criteria rather than only adding another observation pass.
 
+Follow-up implementation:
+
+Closed-loop runs now emit compact delta diagnostics for selected-object changes,
+selected view-support changes, selected confidence changes, memory-object
+changes, policy reason changes, and resolution/still-needed rates. This gives
+the next support-aware view selection milestone a measurable success criterion.
+
 Artifacts:
 
 - `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md`
@@ -434,6 +441,7 @@ Important for a stronger v1:
 - [x] Small re-observation policy report/table generator.
 - [x] Minimal opt-in closed-loop re-observation artifact path.
 - [x] Closed-loop HF ambiguity benchmark with initial/final policy metrics.
+- [x] Compact closed-loop delta diagnostics for benchmark summaries and reports.
 - [x] Small paper/demo architecture diagram.
 - [x] README cleanup and current quickstart refresh.
 - [ ] Optional Gradio demo shell.
@@ -441,11 +449,12 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Diagnose why the closed-loop ambiguity benchmark does not reduce uncertainty:
+Improve closed-loop re-observation effectiveness:
 
-1. Add a compact closed-loop delta diagnostic for selected object id, selected
-   view support, memory-object count, and policy reason changes.
-2. Use that diagnostic to decide whether the next code change should improve
-   suggested-view selection or memory update/merge behavior.
+1. Implement support-aware suggested-view selection so the extra view is chosen
+   to increase support for the selected object instead of only following a fixed
+   suggestion list.
+2. Rerun a small closed-loop smoke and check that selected support or policy
+   resolution improves in the new delta fields.
 3. Only build demo UI after the closed-loop perception result improves a
    measurable policy or memory metric.
