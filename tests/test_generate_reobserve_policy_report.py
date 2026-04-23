@@ -52,6 +52,20 @@ def test_render_markdown_contains_policy_sections(tmp_path: Path) -> None:
     assert "ambiguous_top_candidates: 1" in markdown
 
 
+def test_conclusion_ignores_confident_enough_as_trigger_reason(tmp_path: Path) -> None:
+    benchmark_dir = tmp_path / "fusion"
+    _write_fusion_benchmark(
+        benchmark_dir,
+        reason_counts={"confident_enough": 7, "insufficient_view_support": 2, "low_overall_confidence": 1},
+        trigger_rate=0.3,
+    )
+
+    report = build_policy_report([f"HF fusion={benchmark_dir}"])
+
+    assert "insufficient_view_support" in report["conclusion"]
+    assert "triggered reason was `confident_enough`" not in report["conclusion"]
+
+
 def test_build_policy_report_missing_behavior(tmp_path: Path) -> None:
     missing = tmp_path / "missing"
 
@@ -68,8 +82,16 @@ def test_format_reason_counts_is_stable() -> None:
     assert text == "ambiguous_top_candidates: 3; none: 1"
 
 
-def _write_fusion_benchmark(benchmark_dir: Path) -> None:
+def _write_fusion_benchmark(
+    benchmark_dir: Path,
+    reason_counts: dict[str, int] | None = None,
+    trigger_rate: float = 0.5,
+) -> None:
     benchmark_dir.mkdir(parents=True, exist_ok=True)
+    reason_counts = reason_counts or {
+        "ambiguous_top_candidates": 1,
+        "confident_enough": 1,
+    }
     summary = {
         "total_runs": 2,
         "detector_backend": "hf",
@@ -81,11 +103,8 @@ def _write_fusion_benchmark(benchmark_dir: Path) -> None:
             "mean_selected_overall_confidence": 0.7,
             "mean_num_views": 3.0,
             "mean_num_memory_objects": 2.0,
-            "reobserve_trigger_rate": 0.5,
-            "reobserve_reason_counts": {
-                "ambiguous_top_candidates": 1,
-                "confident_enough": 1,
-            },
+            "reobserve_trigger_rate": trigger_rate,
+            "reobserve_reason_counts": reason_counts,
         },
         "per_query_metrics": {
             "red cube": {

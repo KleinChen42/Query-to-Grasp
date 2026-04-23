@@ -22,6 +22,9 @@ except ModuleNotFoundError:  # pragma: no cover - supports direct script executi
     )
 
 
+NON_TRIGGER_REASONS = {"confident_enough", "none"}
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build a paper-facing Markdown/JSON report for re-observation policy decisions."
@@ -186,7 +189,7 @@ def build_conclusion(benchmark_reports: list[dict[str, Any]]) -> str:
     all_reasons: dict[str, int] = {}
     for report in available_reports:
         for reason, count in report["reobserve_reason_counts"].items():
-            if reason == "none":
+            if reason in NON_TRIGGER_REASONS:
                 continue
             all_reasons[reason] = all_reasons.get(reason, 0) + int(count)
 

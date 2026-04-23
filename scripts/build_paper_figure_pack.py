@@ -125,6 +125,31 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="ambiguity_fusion_stress_seed0",
+        source_path=Path(
+            "outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/"
+            "fusion_comparison_table_ambiguity_tabletop3_hf_seed0.md"
+        ),
+        category="tables",
+        caption=(
+            "Ambiguity-query corrected tabletop_3 fusion stress test for seed 0. "
+            "Shows that broader queries increase memory fragmentation and that "
+            "CLIP raises selected confidence while reducing policy trigger rate."
+        ),
+    ),
+    ArtifactSpec(
+        label="ambiguity_reobserve_policy_seed0",
+        source_path=Path(
+            "outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/"
+            "reobserve_policy_report_ambiguity_tabletop3_hf_seed0.md"
+        ),
+        category="policy",
+        caption=(
+            "Per-query re-observation policy report for the ambiguity fusion "
+            "stress test, including trigger reasons and examples."
+        ),
+    ),
+    ArtifactSpec(
         label="paper_milestone_log",
         source_path=Path("docs/paper_milestone_log.md"),
         category="notes",

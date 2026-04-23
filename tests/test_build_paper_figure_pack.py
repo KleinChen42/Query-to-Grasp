@@ -38,6 +38,8 @@ def test_default_artifacts_include_architecture_note() -> None:
     labels = {spec.label for spec in DEFAULT_ARTIFACTS}
 
     assert "implemented_architecture" in labels
+    assert "ambiguity_fusion_stress_seed0" in labels
+    assert "ambiguity_reobserve_policy_seed0" in labels
 
 
 def test_build_paper_figure_pack_copies_artifacts_and_writes_readme(tmp_path: Path) -> None:

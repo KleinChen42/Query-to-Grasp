@@ -301,6 +301,33 @@ Artifacts:
 - `outputs/h200_60071_reobserve_policy_v2/outputs/reobserve_policy_report_tabletop3_hf_reobserve_v2.md`
 - `outputs/h200_60071_reobserve_policy_v2/outputs/fusion_comparison_table_tabletop3_hf_reobserve_v2.md`
 
+### Experiment 7: Ambiguity Multi-View Fusion Stress
+
+Question:
+
+Do ambiguity-focused queries create a setting where memory fragmentation and
+re-observation policy decisions become more informative?
+
+Current seed-0 result:
+
+| setting | runs | selected_frac | memory objects | same-label distance | selected confidence | reobserve trigger |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Ambiguity tabletop_3 HF no CLIP | 11 | 1.0000 | 2.1818 | 0.1505 | 0.4982 | 0.7273 |
+| Ambiguity tabletop_3 HF with CLIP | 11 | 1.0000 | 2.1818 | 0.1505 | 0.6795 | 0.4545 |
+
+Interpretation:
+
+Ambiguity queries make the corrected fusion setting harder: object-memory
+fragmentation rises relative to exact-object tabletop_3 runs. CLIP raises
+selected-object confidence and reduces re-observation triggers, but does not
+reduce geometric spread or memory fragmentation. The most common triggered
+reason after fixing report logic is `insufficient_view_support`.
+
+Artifacts:
+
+- `outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed0.md`
+- `outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_seed0.md`
+
 ## Figures and Tables
 
 Current pack:
@@ -315,7 +342,8 @@ Paper assets:
 4. Qualitative example: selection trace for `red cube`.
 5. Policy diagnostic: `reobserve_decision.json` example.
 6. Policy diagnostic table: re-observation trigger rates and reason counts.
-7. Limitation box: placeholder pick, low detector multiplicity, and no closed-loop
+7. Ambiguity fusion stress table: seed-0 no-CLIP vs with-CLIP.
+8. Limitation box: placeholder pick, low detector multiplicity, and no closed-loop
    re-observation yet.
 
 ## Limitations
@@ -346,10 +374,9 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Run a slightly broader corrected fusion stress test before building demo UI:
+Scale ambiguity fusion stress before building demo UI:
 
-1. Use the ambiguity query file with corrected `tabletop_3` fusion.
-2. Compare no-CLIP vs with-CLIP on selected-object confidence, memory
-   fragmentation, and re-observation trigger rate.
-3. Only promote closed-loop camera movement if the policy triggers on meaningful
-   ambiguity instead of synthetic thresholds alone.
+1. Extend the seed-0 ambiguity result to seeds `0 1 2`.
+2. If `insufficient_view_support` remains common, implement the smallest
+   closed-loop re-observation milestone.
+3. Only build demo UI after the closed-loop perception result is measurable.
