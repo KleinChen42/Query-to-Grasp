@@ -79,57 +79,21 @@ def decide_reobserve(
         ranked_pool=ranked_pool,
         config=config,
     )
-    suggested_view_ids = suggest_reobserve_views(
-        selected=selected,
-        candidate_view_ids=candidate_view_ids,
-        config=config,
-    )
-
-    if selected is None:
-        return ReobserveDecision(
-            should_reobserve=True,
-            reason="no_selected_object",
-            suggested_view_ids=suggested_view_ids,
-            diagnostics=diagnostics,
+    reason = decide_reobserve_reason(selected=selected, diagnostics=diagnostics, config=config)
+    if reason is not None:
+        suggested_view_ids, suggestion_plan = suggest_reobserve_views(
+            selected=selected,
+            candidate_view_ids=candidate_view_ids,
+            config=config,
+            reason=reason,
         )
-
-    if diagnostics["selected_num_views"] < config.min_views:
+        diagnostics = {
+            **diagnostics,
+            "suggested_view_plan": suggestion_plan,
+        }
         return ReobserveDecision(
             should_reobserve=True,
-            reason="insufficient_view_support",
-            suggested_view_ids=suggested_view_ids,
-            diagnostics=diagnostics,
-        )
-
-    confidence_gap = diagnostics.get("confidence_gap")
-    if confidence_gap is not None and confidence_gap < config.min_confidence_gap:
-        return ReobserveDecision(
-            should_reobserve=True,
-            reason="ambiguous_top_candidates",
-            suggested_view_ids=suggested_view_ids,
-            diagnostics=diagnostics,
-        )
-
-    if diagnostics["selected_overall_confidence"] < config.min_overall_confidence:
-        return ReobserveDecision(
-            should_reobserve=True,
-            reason="low_overall_confidence",
-            suggested_view_ids=suggested_view_ids,
-            diagnostics=diagnostics,
-        )
-
-    if diagnostics["selected_geometry_confidence"] < config.min_geometry_confidence:
-        return ReobserveDecision(
-            should_reobserve=True,
-            reason="low_geometry_confidence",
-            suggested_view_ids=suggested_view_ids,
-            diagnostics=diagnostics,
-        )
-
-    if diagnostics["selected_mean_num_points"] < config.min_mean_num_points:
-        return ReobserveDecision(
-            should_reobserve=True,
-            reason="too_few_3d_points",
+            reason=reason,
             suggested_view_ids=suggested_view_ids,
             diagnostics=diagnostics,
         )
@@ -140,6 +104,35 @@ def decide_reobserve(
         suggested_view_ids=[],
         diagnostics=diagnostics,
     )
+
+
+def decide_reobserve_reason(
+    selected: MemoryObject3D | None,
+    diagnostics: dict[str, Any],
+    config: ReobservePolicyConfig,
+) -> str | None:
+    """Return the first triggered re-observation reason, or ``None``."""
+
+    if selected is None:
+        return "no_selected_object"
+
+    if diagnostics["selected_num_views"] < config.min_views:
+        return "insufficient_view_support"
+
+    confidence_gap = diagnostics.get("confidence_gap")
+    if confidence_gap is not None and confidence_gap < config.min_confidence_gap:
+        return "ambiguous_top_candidates"
+
+    if diagnostics["selected_overall_confidence"] < config.min_overall_confidence:
+        return "low_overall_confidence"
+
+    if diagnostics["selected_geometry_confidence"] < config.min_geometry_confidence:
+        return "low_geometry_confidence"
+
+    if diagnostics["selected_mean_num_points"] < config.min_mean_num_points:
+        return "too_few_3d_points"
+
+    return None
 
 
 def selection_pool_for_label(
@@ -193,19 +186,54 @@ def suggest_reobserve_views(
     selected: MemoryObject3D | None,
     candidate_view_ids: Sequence[str] | None,
     config: ReobservePolicyConfig,
-) -> list[str]:
-    """Suggest missing known views, falling back to abstract extra view labels."""
+    reason: str | None = None,
+) -> tuple[list[str], list[dict[str, str]]]:
+    """Suggest support-aware views and explain why each one was chosen."""
 
     used_views = set(selected.view_ids if selected is not None else [])
     cleaned_candidates = dedupe_view_ids(view_id for view_id in candidate_view_ids or [] if view_id)
-    suggestions = [view_id for view_id in cleaned_candidates if view_id not in used_views]
-    if not suggestions:
-        suggestions = [
-            view_id
-            for view_id in dedupe_view_ids(config.default_suggested_view_ids)
-            if view_id not in used_views
+    default_candidates = dedupe_view_ids(config.default_suggested_view_ids)
+    missing_candidate_support = [view_id for view_id in cleaned_candidates if view_id not in used_views]
+    missing_default_support = [
+        view_id
+        for view_id in default_candidates
+        if view_id not in used_views and view_id not in missing_candidate_support
+    ]
+
+    if reason in {"low_geometry_confidence", "too_few_3d_points"}:
+        prioritized = [
+            *(("default_missing_support", view_id) for view_id in missing_default_support),
+            *(("candidate_missing_support", view_id) for view_id in missing_candidate_support),
         ]
-    return suggestions[: max(0, int(config.max_suggested_views))]
+    else:
+        prioritized = [("candidate_missing_support", view_id) for view_id in missing_candidate_support]
+        if not prioritized:
+            prioritized = [("default_missing_support", view_id) for view_id in missing_default_support]
+
+    plan: list[dict[str, str]] = []
+    suggestions: list[str] = []
+    for source, view_id in prioritized:
+        if len(suggestions) >= max(0, int(config.max_suggested_views)):
+            break
+        suggestions.append(view_id)
+        plan.append(
+            {
+                "view_id": view_id,
+                "source": source,
+                "priority_reason": priority_reason_for_suggestion(reason, source),
+            }
+        )
+    return suggestions, plan
+
+
+def priority_reason_for_suggestion(reason: str | None, source: str) -> str:
+    """Explain why one suggested view was prioritized."""
+
+    if source == "candidate_missing_support":
+        return "increase_selected_view_support"
+    if reason in {"low_geometry_confidence", "too_few_3d_points"}:
+        return "improve_geometry_evidence"
+    return "expand_reobservation_coverage"
 
 
 def dedupe_view_ids(view_ids: Sequence[Any]) -> list[str]:

@@ -14,6 +14,7 @@ def test_decide_reobserve_requests_view_when_no_object_is_selected() -> None:
     assert decision.should_reobserve is True
     assert decision.reason == "no_selected_object"
     assert decision.suggested_view_ids == ["front", "left"]
+    assert decision.diagnostics["suggested_view_plan"][0]["priority_reason"] == "increase_selected_view_support"
     assert decision.diagnostics["selected_object_id"] is None
 
 
@@ -57,6 +58,7 @@ def test_decide_reobserve_flags_close_top_candidates() -> None:
     assert decision.reason == "ambiguous_top_candidates"
     assert decision.diagnostics["confidence_gap"] < 0.2
     assert decision.suggested_view_ids == ["right"]
+    assert decision.diagnostics["suggested_view_plan"][0]["source"] == "candidate_missing_support"
 
 
 def test_decide_reobserve_flags_insufficient_view_support_before_confidence() -> None:
@@ -74,6 +76,7 @@ def test_decide_reobserve_flags_insufficient_view_support_before_confidence() ->
     assert decision.should_reobserve is True
     assert decision.reason == "insufficient_view_support"
     assert decision.suggested_view_ids == ["left", "right"]
+    assert decision.diagnostics["suggested_view_plan"][0]["priority_reason"] == "increase_selected_view_support"
 
 
 def test_decide_reobserve_deduplicates_suggested_views() -> None:
@@ -108,6 +111,8 @@ def test_decide_reobserve_flags_low_point_support() -> None:
     assert decision.should_reobserve is True
     assert decision.reason == "too_few_3d_points"
     assert decision.diagnostics["selected_mean_num_points"] == 10.0
+    assert decision.suggested_view_ids == ["top_down", "closer_oblique"]
+    assert decision.diagnostics["suggested_view_plan"][0]["priority_reason"] == "improve_geometry_evidence"
 
 
 def _add_object(

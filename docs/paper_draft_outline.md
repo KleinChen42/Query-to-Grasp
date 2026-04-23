@@ -389,6 +389,13 @@ selected view-support changes, selected confidence changes, memory-object
 changes, policy reason changes, and resolution/still-needed rates. This gives
 the next support-aware view selection milestone a measurable success criterion.
 
+Current functional improvement:
+
+The re-observation policy now chooses suggested views based on the triggered
+failure mode. Ambiguity and insufficient-support cases prefer missing selected
+support views, while geometry-driven cases prefer `top_down`-style views and
+record the rationale in `suggested_view_plan`.
+
 Artifacts:
 
 - `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md`
@@ -442,6 +449,7 @@ Important for a stronger v1:
 - [x] Minimal opt-in closed-loop re-observation artifact path.
 - [x] Closed-loop HF ambiguity benchmark with initial/final policy metrics.
 - [x] Compact closed-loop delta diagnostics for benchmark summaries and reports.
+- [x] Support-aware suggested-view policy with reason-specific priorities.
 - [x] Small paper/demo architecture diagram.
 - [x] README cleanup and current quickstart refresh.
 - [ ] Optional Gradio demo shell.
@@ -449,12 +457,11 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Improve closed-loop re-observation effectiveness:
+Measure whether support-aware view selection improves closed-loop outcomes:
 
-1. Implement support-aware suggested-view selection so the extra view is chosen
-   to increase support for the selected object instead of only following a fixed
-   suggestion list.
-2. Rerun a small closed-loop smoke and check that selected support or policy
-   resolution improves in the new delta fields.
+1. Rerun a compact ambiguity closed-loop benchmark with the new reason-aware
+   suggestion policy.
+2. Check whether selected support, policy resolution, or reason-change deltas
+   improve relative to the current closed-loop baseline.
 3. Only build demo UI after the closed-loop perception result improves a
    measurable policy or memory metric.

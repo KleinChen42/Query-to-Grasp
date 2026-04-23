@@ -78,6 +78,7 @@ Current evidence supports the following narrower near-term claim:
 | Minimal closed-loop re-observation path | Done | `closed_loop_reobserve.json` H200 mock smoke | The debug and benchmark runners can now opt into one suggested extra virtual view and report before/after policy, confidence, memory, and selected-target metrics. |
 | Closed-loop ambiguity HF benchmark, seeds 0-2 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md` | The extra-view loop executes, but final policy trigger rate does not decrease; current suggested views do not resolve the dominant uncertainty. |
 | Closed-loop delta diagnostics | Done | H200 mock smoke with `closed_loop_resolution_rate`, `closed_loop_still_needed_rate`, and selected-support deltas | Future closed-loop runs now expose whether an extra view changed selected object, confidence, selected view support, memory size, policy reason, or resolved re-observation. |
+| Support-aware reobserve suggestion policy | Done | H200 mock smokes for ambiguity-driven and geometry-driven reasons | Re-observation suggestions now depend on the failure mode: missing support views are preferred for ambiguity/support issues, while `top_down`-style views are preferred for geometry issues. |
 
 ## Key Quantitative Results
 
@@ -454,6 +455,33 @@ which is expected, but future HF closed-loop reruns can directly show whether an
 extra view increased selected support or changed policy outcomes. This is the
 measurement layer needed before changing the re-observation algorithm itself.
 
+### Support-Aware Reobserve Suggestion Policy
+
+Current implementation:
+
+- `insufficient_view_support` and `ambiguous_top_candidates` now prioritize
+  missing views that do not yet support the selected object.
+- `low_geometry_confidence` and `too_few_3d_points` now prioritize geometry
+  views such as `top_down` and `closer_oblique`.
+- `reobserve_decision.json` now records `suggested_view_plan` with a
+  `priority_reason` for each suggested view.
+
+H200 mock validation:
+
+| scenario | triggered reason | suggested views | priority reasons |
+| --- | --- | --- | --- |
+| default ambiguity smoke | `ambiguous_top_candidates` | `left` | `increase_selected_view_support` |
+| forced geometry smoke | `low_geometry_confidence` | `top_down`, `closer_oblique` | `improve_geometry_evidence` |
+
+Interpretation:
+
+The policy has moved from static fallback suggestions to reason-aware view
+selection. This is the first direct functionality improvement after the
+closed-loop negative result: the system can now distinguish between "look from
+an unused support view" and "look from a geometry-friendly view." The next step
+is to rerun a compact closed-loop benchmark and see whether selected-support
+deltas or resolution rate improve.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -684,12 +712,13 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Improve closed-loop re-observation effectiveness:
+Measure whether support-aware view selection improves closed-loop outcomes:
 
-1. Implement support-aware suggested-view selection: prefer candidate views not
-   already supporting the selected object and record why each view was chosen.
-2. Re-run a small mock and then HF ambiguity closed-loop smoke to confirm
-   selected view support can increase.
+1. Re-run a compact ambiguity closed-loop benchmark with the new
+   support-aware suggestion policy.
+2. Check whether `closed_loop_resolution_rate`,
+   `mean_closed_loop_delta_selected_num_views`, or
+   `closed_loop_reobserve_reason_change_rate` improve.
 3. Keep real robot control and web demo out of scope until closed-loop
    perception improves a measurable policy or memory metric.
 
