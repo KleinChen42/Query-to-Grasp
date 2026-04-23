@@ -176,6 +176,18 @@ Evidence:
 
 - `outputs/h200_60071_reobserve_smoke/reobserve_decision.json`
 - H200: `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json`
+- H200: `outputs/h200_60071_selected_continuity_ambiguity_compact_seed0/reobserve_policy_report_selected_continuity.md`
+
+Current closed-loop diagnostic:
+
+- A selected-object continuity rule now prefers merging extra-view observations
+  back into the initially selected memory object when geometry is compatible.
+- In compact HF ambiguity reruns, this improves selected-object association from
+  `0.2500` to `0.5000` in the no-CLIP setting and from `0.0000` to `0.2500` in
+  the with-CLIP setting.
+- However, closed-loop resolution remains `0.0`, so the current next bottleneck
+  is not merely executing extra views but making those extra observations reduce
+  policy uncertainty.
 
 ### 7. Placeholder Pick Execution
 
@@ -258,6 +270,31 @@ Current result:
 - Query: `red cube`
 - Selected: `obj_0000`
 - Selection pool label: `red cube`
+
+### Experiment 5: Closed-Loop Re-Observation Continuity
+
+Question:
+
+When the policy triggers an extra view, does continuity-aware memory updating
+help the new observation merge back into the initially selected object?
+
+Current result:
+
+| setting | selected_assoc_rate | final_selected_absorber_rate | third_object_rate | preferred_merge_rate | resolution_rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| compact ambiguity no CLIP | 0.5000 | 0.5000 | 0.2500 | 0.5000 | 0.0000 |
+| compact ambiguity with CLIP | 0.2500 | 0.2500 | 0.2500 | 0.2500 | 0.0000 |
+
+Artifact:
+
+- H200: `outputs/h200_60071_selected_continuity_ambiguity_compact_seed0/reobserve_policy_report_selected_continuity.md`
+
+Interpretation:
+
+The continuity rule improves selected-object association and reduces third-object
+involvement relative to the earlier compact closed-loop baseline, but it still
+does not reduce the final trigger rate. This is evidence that memory association
+is part of the bottleneck, not the whole bottleneck.
 - Pool size: `2`
 - Selected object has stronger view support and confidence.
 

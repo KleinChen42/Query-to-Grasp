@@ -46,6 +46,7 @@ Current evidence supports the following narrower near-term claim:
 | Closed-loop re-observation smoke | Opt-in extra-view before/after diagnostics for one mock ambiguity run | H200: `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json` |
 | Closed-loop ambiguity HF comparison | HF no-CLIP/with-CLIP ambiguity benchmark with one suggested extra virtual view | `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md` |
 | Closed-loop ambiguity policy report | Initial vs final policy trigger rates and per-query reason counts | `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md` |
+| Selected-object continuity policy report | Compact ambiguity closed-loop rerun after preferred-merge continuity rule | H200: `outputs/h200_60071_selected_continuity_ambiguity_compact_seed0/reobserve_policy_report_selected_continuity.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -79,6 +80,7 @@ Current evidence supports the following narrower near-term claim:
 | Closed-loop ambiguity HF benchmark, seeds 0-2 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md` | The extra-view loop executes, but final policy trigger rate does not decrease; current suggested views do not resolve the dominant uncertainty. |
 | Closed-loop delta diagnostics | Done | H200 mock smoke with `closed_loop_resolution_rate`, `closed_loop_still_needed_rate`, and selected-support deltas | Future closed-loop runs now expose whether an extra view changed selected object, confidence, selected view support, memory size, policy reason, or resolved re-observation. |
 | Support-aware reobserve suggestion policy | Done | H200 mock smokes for ambiguity-driven and geometry-driven reasons | Re-observation suggestions now depend on the failure mode: missing support views are preferred for ambiguity/support issues, while `top_down`-style views are preferred for geometry issues. |
+| Selected-object continuity rule | Done | H200 compact ambiguity rerun with `--enable-selected-object-continuity` | Preferred-merge continuity improves selected-object association in compact ambiguity stress tests, but closed-loop resolution remains `0.0` and extra views still sometimes attach to third objects. |
 
 ## Key Quantitative Results
 
@@ -258,6 +260,43 @@ In this small HF tabletop benchmark, CLIP improves the selected memory object's
 confidence (`0.5282` to `0.7091`) but does not change the selected-object rate,
 memory fragmentation, or cross-view same-label distance. Runtime increases by
 about `2.41x` relative to no-CLIP fusion.
+
+### Closed-Loop Continuity Diagnostic
+
+Source:
+
+H200: `outputs/h200_60071_selected_continuity_ambiguity_compact_seed0/reobserve_policy_report_selected_continuity.md`
+
+Previous compact ambiguity closed-loop baseline (before the continuity rule):
+
+| setting | selected_assoc_rate | final_selected_absorber_rate | third_object_rate |
+| --- | ---: | ---: | ---: |
+| no CLIP | 0.2500 | 0.5000 | 0.5000 |
+| with CLIP | 0.0000 | 0.2500 | 0.5000 |
+
+After enabling `--enable-selected-object-continuity`:
+
+| setting | selected_assoc_rate | final_selected_absorber_rate | third_object_rate | preferred_merge_rate | resolution_rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| no CLIP | 0.5000 | 0.5000 | 0.2500 | 0.5000 | 0.0000 |
+| with CLIP | 0.2500 | 0.2500 | 0.2500 | 0.2500 | 0.0000 |
+
+Interpretation:
+
+The preferred-merge continuity rule measurably improves whether extra-view
+observations return to the initially selected object, especially in the no-CLIP
+setting. However, the final policy trigger rate still does not decrease and the
+resolution rate remains `0.0`. This means continuity helps memory association,
+but is not yet sufficient to resolve the dominant uncertainty that drives
+re-observation.
+
+Paper note:
+
+> Closed-loop ambiguity results suggest that continuity-aware memory updates are
+> useful but incomplete. The next coding step should target the remaining gap
+> between association and resolution, likely by improving the selected-object
+> continuity rule under CLIP or tightening how extra views compete with third
+> objects in memory.
 
 Paper note:
 
