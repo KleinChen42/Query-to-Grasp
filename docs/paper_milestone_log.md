@@ -1,6 +1,6 @@
 # Query-to-Grasp Paper Milestone Log
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 Purpose: keep a concise, paper-oriented record of key implementation milestones,
 experiment reports, quantitative findings, and next decisions. This file is
@@ -40,6 +40,7 @@ Current evidence supports the following narrower near-term claim:
 | CV-fixed with-CLIP fusion diagnostics | Post-fix tabletop_3 fusion benchmark with CLIP enabled | `outputs/h200_60071_tabletop3_with_clip_cvfix/memory_diagnostics.md` |
 | Selection trace example | Paper-friendly explanation of corrected multi-view target selection | `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md` |
 | Re-observation decision example | Rule-based confidence-aware re-observation decision smoke | `outputs/h200_60071_reobserve_smoke/reobserve_decision.json` |
+| Implemented architecture note | Method diagram and artifact map for the current implemented pipeline | `docs/architecture_query_to_grasp.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -67,6 +68,7 @@ Current evidence supports the following narrower near-term claim:
 | Formal target selector module | Done | `src/policy/target_selector.py` | Selection and trace rendering are now reusable policy code, not debug-script-only helpers. |
 | Paper draft outline | Done | `docs/paper_draft_outline.md` | Current claims, experiments, limitations, and next coding milestone are explicitly scoped. |
 | Rule-based re-observation policy | Done | `src/policy/reobserve_policy.py` and `reobserve_decision.json` smoke | Multi-view runs now emit confidence-aware re-observation decisions without automatically moving cameras. |
+| Architecture and README refresh | Done | `docs/architecture_query_to_grasp.md` and `README.md` | The repo now has a clean external quickstart and a paper-ready method diagram source matching implemented behavior. |
 
 ## Key Quantitative Results
 
@@ -468,14 +470,13 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Create a compact paper architecture artifact and README refresh:
+Run a broader corrected fusion ambiguity stress test:
 
-1. Add a small architecture diagram source (`docs/architecture_query_to_grasp.md`
-   or Mermaid) matching the actually implemented pipeline.
-2. Refresh README quickstart so it points to the current stable single-view,
-   fusion, policy-report, and figure-pack commands.
+1. Reuse `configs/ambiguity_queries.txt` with corrected `tabletop_3` fusion.
+2. Compare no-CLIP vs with-CLIP on selected-object confidence, memory
+   fragmentation, and re-observation trigger rate.
 3. Keep real closed-loop camera movement as future work until ambiguity-policy
-   stress tests show useful trigger behavior.
+   stress tests show meaningful trigger behavior.
 
 Candidate paper framing:
 

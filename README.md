@@ -1,59 +1,261 @@
 # Query-to-Grasp
 
-Research prototype for language-queryable 3D semantic target retrieval and grasping in simulation.
+Language-queryable 3D semantic target retrieval and placeholder grasp execution
+in ManiSkill.
 
-Current implemented stages:
+The current project is a research prototype for a paper/demo baseline. It does
+not train new models. Instead, it connects open-vocabulary 2D perception, RGB-D
+geometry, confidence-aware 3D object memory, deterministic target selection, and
+structured benchmark/report artifacts.
 
-- Phase 1: ManiSkill observation export and Open3D point cloud generation.
-- Phase 2A: single-view semantic retrieval baseline with query parsing, detector adapter, CLIP reranking, and 2D-to-3D lifting.
-- Minimal pick stage: safe placeholder pick executor integrated with the single-view pipeline.
+## Current Scope
 
-Lightweight smoke run:
+Implemented:
 
-```powershell
-python scripts/run_single_view_pick.py --query "red cube" --detector-backend mock --mock-box-position center --skip-clip --output-dir outputs/colab_pick_smoke
+- ManiSkill RGB-D observation wrapper and export utilities.
+- Query parser with deterministic fallback rules.
+- GroundingDINO detector wrapper with HF, original-adapter, and mock backends.
+- Optional OpenCLIP reranking.
+- RGB-D 2D-to-3D lifting with corrected ManiSkill `cam2world_gl` convention.
+- Safe placeholder pick executor that validates targets without claiming real
+  robot-control success.
+- Single-view benchmark/report pipeline.
+- Ambiguity benchmark helper for reranking headroom diagnostics.
+- Multi-view object memory and confidence-aware fusion debug path.
+- Target selection traces and open-loop re-observation policy diagnostics.
+- Paper-ready table/report/figure-pack helpers.
+
+Not implemented yet:
+
+- Real low-level robot grasp control.
+- Closed-loop camera movement after re-observation decisions.
+- Web demo.
+- Training code.
+- Large-scale cluttered-scene evaluation.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Q["query"] --> P["query parser"]
+    P --> D["GroundingDINO proposals"]
+    O["ManiSkill RGB-D"] --> D
+    D --> R{"CLIP?"}
+    R -->|skip| S["detector ranking"]
+    R -->|use| C["CLIP reranking"]
+    S --> L["RGB-D 2D-to-3D lifting"]
+    C --> L
+    L --> M["3D object memory + fusion"]
+    M --> T["target selector + trace"]
+    T --> U["re-observation decision"]
+    T --> X["placeholder pick"]
+    U --> A["JSON / CSV / Markdown artifacts"]
+    X --> A
 ```
 
-## 🤖 进阶应用：结合 OpenMythos 进行具身智能闭环测试
+See `docs/architecture_query_to_grasp.md` for the implemented architecture and
+paper artifact map.
 
-本项目不仅可以作为独立的 3D 目标检索与抓取系统，还是评估底层大语言模型（LLM）推理能力的绝佳下游执行终端（Downstream Executor）。
+## Install
 
-如果你正在研究或训练像 OpenMythos（一个具有强大深层推理能力的 Recurrent-Depth Transformer 开源架构）这样的大模型，你可以将本项目作为它的物理仿真测试沙盒。
-
-## 🧠 系统角色分配：“大脑”与“手眼”
-
-在面对复杂的现实场景时，简单的直接查询（如 "red cube"）往往不够用。我们可以将两个项目结合，构建一个完整的具身智能（Embodied AI）流水线：
-
-OpenMythos（大脑）：负责高级语意理解和逻辑推理。它接收用户模糊的、多步骤的自然语言指令，通过其深层循环架构推理出具体的执行目标。
-
-Query-to-Grasp（手眼）：负责具体的 3D 视觉感知与动作执行。它接收来自大模型精炼后的 Query，在 ManiSkill 仿真环境中完成目标检测（Detector + CLIP）与机械臂抓取（Pick Executor）。
-
-## ⚙️ 联动工作流示例 (Pipeline)
-
-复杂指令输入：用户给出模糊指令，如 "桌子上洒了水，帮我找个东西清理一下。"
-
-OpenMythos 深度推理：模型理解语境，推理出需要吸水物品（海绵），并输出规范化的精确词汇：`{"target": "blue sponge"}`。
-
-Query-to-Grasp 抓取执行：将提取出的 "blue sponge" 传入本项目的执行管线。
-
-测试脚本伪代码：
+Python 3.10+ is recommended. The mock path is dependency-light; HF and ManiSkill
+runs require the relevant simulation and model packages.
 
 ```bash
-# 1. 调用 OpenMythos 进行逻辑推理，提取具体的抓取目标
-TARGET_QUERY=$(python run_openmythos_inference.py --prompt "桌子上洒了水，帮我找个东西清理一下" | grep -oP '(?<="target": ")[^"]*')
-# 假设输出为 "blue sponge"
-
-echo "OpenMythos 决策抓取目标: $TARGET_QUERY"
-
-# 2. 将目标传递给 Query-to-Grasp 进行 3D 检测与抓取测试
-python scripts/run_single_view_pick.py \
-    --query "$TARGET_QUERY" \
-    --detector-backend mock \
-    --mock-box-position center \
-    --skip-clip \
-    --output-dir outputs/openmythos_eval_run
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install pytest
 ```
 
-## 📊 为什么使用 Query-to-Grasp 测试 OpenMythos？
+On Windows PowerShell:
 
-将 LLM 接入机器人仿真环境是评估其真实世界泛化能力的最佳方式。通过观察 Query-to-Grasp 是否成功抓取了正确的物体，你可以直观且自动化地量化评估 OpenMythos 模型在“复杂指令遵循”、“常识推理”以及“具身决策”方面的能力表现。
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pip install pytest
+```
+
+For HF GroundingDINO diagnostics:
+
+```bash
+PYTHONPATH=$PWD python scripts/check_hf_groundingdino_env.py --try-model-load
+```
+
+## Quickstart
+
+Stable dependency-light smoke run:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_single_view_pick.py \
+  --query "red cube" \
+  --detector-backend mock \
+  --mock-box-position center \
+  --skip-clip \
+  --depth-scale 1000 \
+  --output-dir outputs/colab_pick_smoke
+```
+
+Expected result: a structured run folder containing JSON summaries, parsed
+query output, 3D target data, and a placeholder pick result. `pick_success=false`
+is expected because the executor intentionally does not send low-level robot
+actions.
+
+## HF Single-View Baseline
+
+No CLIP:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_single_view_pick_benchmark.py \
+  --queries "red cube" "blue mug" \
+  --seeds 0 1 2 \
+  --detector-backend hf \
+  --skip-clip \
+  --depth-scale 1000 \
+  --output-dir outputs/benchmark_hf_no_clip
+```
+
+With CLIP:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_single_view_pick_benchmark.py \
+  --queries "red cube" "blue mug" \
+  --seeds 0 1 2 \
+  --detector-backend hf \
+  --use-clip \
+  --depth-scale 1000 \
+  --output-dir outputs/benchmark_hf_with_clip
+```
+
+Generate the report:
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_benchmark_report.py \
+  --benchmark-dir outputs/benchmark_hf_no_clip \
+  --compare-benchmark-dir outputs/benchmark_hf_with_clip
+```
+
+## Ambiguity Benchmark
+
+The ambiguity helper reuses the single-view benchmark pipeline and loads
+curated queries from `configs/ambiguity_queries.txt`.
+
+```bash
+PYTHONPATH=$PWD python scripts/run_ambiguity_benchmark.py \
+  --queries-file configs/ambiguity_queries.txt \
+  --seeds 0 1 2 \
+  --detector-backend hf \
+  --skip-clip \
+  --depth-scale 1000 \
+  --output-dir outputs/ambiguity_hf_no_clip \
+  --generate-report
+```
+
+Run again with `--use-clip` to test whether reranking changes top-1 under
+broader prompts.
+
+## Multi-View Fusion Debug
+
+Corrected virtual `tabletop_3` multi-view run:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_multiview_fusion_debug.py \
+  --query "red cube" \
+  --seed 0 \
+  --detector-backend hf \
+  --skip-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --output-dir outputs/multiview_debug_red_cube
+```
+
+Fusion benchmark:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_multiview_fusion_benchmark.py \
+  --queries "red cube" "blue mug" \
+  --seeds 0 1 2 \
+  --detector-backend hf \
+  --skip-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --output-dir outputs/multiview_fusion_tabletop3_hf_no_clip
+```
+
+Comparison table:
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_fusion_comparison_table.py \
+  --single-view "HF single no CLIP=outputs/benchmark_hf_no_clip" \
+  --fusion "HF tabletop_3 fusion no CLIP=outputs/multiview_fusion_tabletop3_hf_no_clip" \
+  --output-md outputs/fusion_comparison_table.md \
+  --output-csv outputs/fusion_comparison_table.csv
+```
+
+## Re-Observation Diagnostics
+
+The policy currently produces a decision artifact; it does not automatically
+move cameras and rerun perception.
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_reobserve_policy_report.py \
+  --benchmark HF_no_CLIP=outputs/multiview_fusion_tabletop3_hf_no_clip \
+  --benchmark HF_with_CLIP=outputs/multiview_fusion_tabletop3_hf_with_clip \
+  --output-md outputs/reobserve_policy_report.md \
+  --output-json outputs/reobserve_policy_report.json
+```
+
+## Paper Figure Pack
+
+Collect the current paper/demo artifacts into one captioned folder:
+
+```bash
+PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
+  --output-dir outputs/paper_figure_pack_latest
+```
+
+The pack includes the architecture note, ablation tables, geometry reports,
+memory diagnostics, selection trace, re-observation report, and milestone log
+when those source artifacts are present.
+
+## Current Evidence Summary
+
+Current H200 benchmark evidence supports these conservative conclusions:
+
+- HF GroundingDINO is runnable for the small single-view baseline.
+- CLIP does not currently change top-1 because detector candidate multiplicity
+  remains low.
+- Ambiguity prompts raise candidate count only modestly in the tested setting.
+- Correcting the RGB-D/camera-pose convention reduces same-label cross-view
+  spread from `1.0693 m` to `0.0518 m`.
+- Corrected `tabletop_3` fusion reduces mean memory fragmentation from `3.3333`
+  to `1.3333` objects per run in the current small benchmark.
+- CLIP increases selected-object confidence in corrected fusion, but does not
+  change selected-object rate or re-observation decisions in the current runs.
+
+See `docs/paper_milestone_log.md` and `docs/paper_draft_outline.md` for the
+running paper-oriented record.
+
+## Testing
+
+Run the lightweight suite:
+
+```bash
+PYTHONPATH=$PWD pytest -q tests
+```
+
+Model-download and ManiSkill-heavy commands should be treated as environment
+smoke/integration runs rather than unit tests.
+
+## Known Limitations
+
+- Placeholder pick is intentionally not real grasp control.
+- Re-observation is open-loop diagnostics only.
+- The web demo is not implemented yet.
+- Experiments are still small and centered on `PickCube-v1` plus virtual camera
+  presets.
+- CLIP is currently a confidence/diagnostic term, not a proven performance
+  improvement.

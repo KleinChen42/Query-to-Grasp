@@ -307,10 +307,9 @@ Current pack:
 
 - `outputs/paper_figure_pack_latest/README.md`
 
-Planned paper assets:
+Paper assets:
 
-1. Architecture diagram: query -> detector -> CLIP optional -> RGB-D lifting ->
-   object memory -> selector -> placeholder pick.
+1. Architecture diagram: `docs/architecture_query_to_grasp.md`.
 2. Main ablation table: corrected multi-view CLIP ablation.
 3. Geometry validation table: extrinsic convention comparison.
 4. Qualitative example: selection trace for `red cube`.
@@ -340,17 +339,17 @@ Important for a stronger v1:
 - [x] Minimal rule-based re-observation policy module.
 - [x] `reobserve_decision.json` artifact in multi-view runs.
 - [x] Small re-observation policy report/table generator.
-- [ ] Small paper/demo architecture diagram.
-- [ ] README cleanup and current quickstart refresh.
+- [x] Small paper/demo architecture diagram.
+- [x] README cleanup and current quickstart refresh.
 - [ ] Optional Gradio demo shell.
 - [ ] Optional real ManiSkill scripted pick only after control API is verified.
 
 ## Next Coding Milestone
 
-Create a compact paper architecture artifact and README refresh:
+Run a slightly broader corrected fusion stress test before building demo UI:
 
-1. Add a small architecture diagram source matching the implemented pipeline.
-2. Refresh README quickstart around the current stable single-view, fusion,
-   policy-report, and figure-pack commands.
-3. Keep closed-loop camera movement as future work until ambiguity-policy stress
-   tests show useful trigger behavior.
+1. Use the ambiguity query file with corrected `tabletop_3` fusion.
+2. Compare no-CLIP vs with-CLIP on selected-object confidence, memory
+   fragmentation, and re-observation trigger rate.
+3. Only promote closed-loop camera movement if the policy triggers on meaningful
+   ambiguity instead of synthetic thresholds alone.

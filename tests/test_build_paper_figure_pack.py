@@ -7,6 +7,7 @@ import pytest
 
 from scripts.build_paper_figure_pack import (
     ArtifactSpec,
+    DEFAULT_ARTIFACTS,
     build_artifact_specs,
     build_paper_figure_pack,
     parse_artifact_spec,
@@ -31,6 +32,12 @@ def test_build_artifact_specs_can_skip_defaults() -> None:
 
     assert len(specs) == 1
     assert specs[0].label == "trace"
+
+
+def test_default_artifacts_include_architecture_note() -> None:
+    labels = {spec.label for spec in DEFAULT_ARTIFACTS}
+
+    assert "implemented_architecture" in labels
 
 
 def test_build_paper_figure_pack_copies_artifacts_and_writes_readme(tmp_path: Path) -> None:

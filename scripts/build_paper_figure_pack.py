@@ -30,6 +30,16 @@ class ArtifactSpec:
 
 DEFAULT_ARTIFACTS = (
     ArtifactSpec(
+        label="implemented_architecture",
+        source_path=Path("docs/architecture_query_to_grasp.md"),
+        category="notes",
+        caption=(
+            "Implemented architecture diagram and artifact map for the current "
+            "single-view, multi-view fusion, target-selection, and policy "
+            "diagnostic pipeline."
+        ),
+    ),
+    ArtifactSpec(
         label="single_view_and_ambiguity_ablation",
         source_path=Path("outputs/h200_60071_paper_baseline/outputs/paper_ablation_table.md"),
         category="tables",
@@ -288,6 +298,7 @@ def render_pack_readme(manifest: dict[str, Any]) -> str:
             "",
             "## Suggested Paper Use",
             "",
+            "- Use the implemented architecture note as the method/pipeline diagram source.",
             "- Use the corrected multi-view CLIP ablation table as the main quantitative table.",
             "- Use the extrinsic convention and cross-view geometry reports as system validation evidence.",
             "- Use the selection trace as a qualitative example for explainable target selection.",
