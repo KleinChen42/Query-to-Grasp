@@ -41,8 +41,8 @@ Current evidence supports the following narrower near-term claim:
 | Selection trace example | Paper-friendly explanation of corrected multi-view target selection | `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md` |
 | Re-observation decision example | Rule-based confidence-aware re-observation decision smoke | `outputs/h200_60071_reobserve_smoke/reobserve_decision.json` |
 | Implemented architecture note | Method diagram and artifact map for the current implemented pipeline | `docs/architecture_query_to_grasp.md` |
-| Ambiguity tabletop_3 fusion stress table | Corrected fusion no-CLIP/with-CLIP comparison on ambiguity queries, seed 0 | `outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed0.md` |
-| Ambiguity tabletop_3 re-observation report | Per-query open-loop policy behavior on ambiguity queries, seed 0 | `outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_seed0.md` |
+| Ambiguity tabletop_3 fusion stress table | Corrected fusion no-CLIP/with-CLIP comparison on ambiguity queries, seeds 0-2 | `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md` |
+| Ambiguity tabletop_3 re-observation report | Per-query open-loop policy behavior on ambiguity queries, seeds 0-2 | `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -71,7 +71,7 @@ Current evidence supports the following narrower near-term claim:
 | Paper draft outline | Done | `docs/paper_draft_outline.md` | Current claims, experiments, limitations, and next coding milestone are explicitly scoped. |
 | Rule-based re-observation policy | Done | `src/policy/reobserve_policy.py` and `reobserve_decision.json` smoke | Multi-view runs now emit confidence-aware re-observation decisions without automatically moving cameras. |
 | Architecture and README refresh | Done | `docs/architecture_query_to_grasp.md` and `README.md` | The repo now has a clean external quickstart and a paper-ready method diagram source matching implemented behavior. |
-| Ambiguity tabletop_3 fusion stress, seed 0 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_seed0.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_seed0.md` | Broader queries increase object-memory fragmentation and trigger policy uncertainty; CLIP raises selected confidence and lowers trigger rate without fixing geometry. |
+| Ambiguity tabletop_3 fusion stress, seeds 0-2 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md` | Broader queries increase object-memory fragmentation and trigger policy uncertainty; CLIP raises selected confidence and lowers trigger rate without fixing geometry. |
 
 ## Key Quantitative Results
 
@@ -259,38 +259,38 @@ Paper note:
 > but should not be claimed as the main source of retrieval improvement until
 > candidate multiplicity and top-1 changes are observed.
 
-### Ambiguity tabletop_3 Fusion Stress, Seed 0
+### Ambiguity tabletop_3 Fusion Stress, Seeds 0-2
 
 Source:
-`outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed0.md`
+`outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md`
 
 Queries:
 
 - `configs/ambiguity_queries.txt`
-- Seed: `0`
+- Seeds: `0 1 2`
 - View preset: corrected `tabletop_3`
 - Detector: HF GroundingDINO
 
 | setting | runs | selected_frac | runtime_s | views | memory_objects | observations | same_label_dist | selected_confidence | reobserve_trigger_rate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Ambiguity tabletop_3 HF no CLIP seed0 | 11 | 1.0000 | 112.6703 | 3.0000 | 2.1818 | 3.6364 | 0.1505 | 0.4982 | 0.7273 |
-| Ambiguity tabletop_3 HF with CLIP seed0 | 11 | 1.0000 | 110.9143 | 3.0000 | 2.1818 | 3.6364 | 0.1505 | 0.6795 | 0.4545 |
+| Ambiguity tabletop_3 HF no CLIP seeds0-2 | 33 | 1.0000 | 86.0037 | 3.0000 | 2.1515 | 3.7576 | 0.1353 | 0.4985 | 0.6667 |
+| Ambiguity tabletop_3 HF with CLIP seeds0-2 | 33 | 1.0000 | 89.6845 | 3.0000 | 2.1515 | 3.7576 | 0.1353 | 0.6806 | 0.4242 |
 
 Policy reason counts:
 
 | setting | reason_counts |
 | --- | --- |
-| no CLIP | `insufficient_view_support: 4; confident_enough: 3; low_overall_confidence: 3; ambiguous_top_candidates: 1` |
-| with CLIP | `confident_enough: 6; insufficient_view_support: 4; ambiguous_top_candidates: 1` |
+| no CLIP | `confident_enough: 11; insufficient_view_support: 11; low_overall_confidence: 8; ambiguous_top_candidates: 3` |
+| with CLIP | `confident_enough: 19; insufficient_view_support: 11; ambiguous_top_candidates: 3` |
 
 Interpretation:
 
 Broader ambiguity queries produce a more difficult fusion setting than the
 exact-object benchmark: mean memory objects increase from `1.3333` in the
 corrected exact-query tabletop_3 benchmark to `2.1818`, and same-label spread
-increases to `0.1505 m`. CLIP does not reduce memory fragmentation or geometric
-spread, but it raises selected-object confidence from `0.4982` to `0.6795` and
-reduces the policy trigger rate from `0.7273` to `0.4545`.
+increases to `0.1353 m`. CLIP does not reduce memory fragmentation or geometric
+spread, but it raises selected-object confidence from `0.4985` to `0.6806` and
+reduces the policy trigger rate from `0.6667` to `0.4242`.
 
 Paper note:
 
@@ -514,13 +514,11 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Scale the ambiguity fusion stress test and then decide on closed-loop code:
+Implement the minimal closed-loop re-observation milestone:
 
-1. Extend the ambiguity tabletop_3 fusion stress from seed `0` to seeds
-   `0 1 2`, if H200 time allows.
-2. If `insufficient_view_support` remains a common triggered reason, implement
-   the smallest closed-loop re-observation milestone: run one additional
-   suggested virtual view, update memory, and write before/after policy metrics.
+1. Run one additional suggested virtual view when `should_reobserve=True`.
+2. Update object memory with the added view and write before/after policy,
+   confidence, memory-object, and selected-target metrics.
 3. Keep real robot control and web demo out of scope until the closed-loop
    perception result is measurable.
 

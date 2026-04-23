@@ -308,12 +308,12 @@ Question:
 Do ambiguity-focused queries create a setting where memory fragmentation and
 re-observation policy decisions become more informative?
 
-Current seed-0 result:
+Current seeds 0-2 result:
 
 | setting | runs | selected_frac | memory objects | same-label distance | selected confidence | reobserve trigger |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Ambiguity tabletop_3 HF no CLIP | 11 | 1.0000 | 2.1818 | 0.1505 | 0.4982 | 0.7273 |
-| Ambiguity tabletop_3 HF with CLIP | 11 | 1.0000 | 2.1818 | 0.1505 | 0.6795 | 0.4545 |
+| Ambiguity tabletop_3 HF no CLIP | 33 | 1.0000 | 2.1515 | 0.1353 | 0.4985 | 0.6667 |
+| Ambiguity tabletop_3 HF with CLIP | 33 | 1.0000 | 2.1515 | 0.1353 | 0.6806 | 0.4242 |
 
 Interpretation:
 
@@ -325,8 +325,8 @@ reason after fixing report logic is `insufficient_view_support`.
 
 Artifacts:
 
-- `outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed0.md`
-- `outputs/h200_60071_ambiguity_tabletop3_seed0/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_seed0.md`
+- `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md`
+- `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md`
 
 ## Figures and Tables
 
@@ -342,7 +342,7 @@ Paper assets:
 4. Qualitative example: selection trace for `red cube`.
 5. Policy diagnostic: `reobserve_decision.json` example.
 6. Policy diagnostic table: re-observation trigger rates and reason counts.
-7. Ambiguity fusion stress table: seed-0 no-CLIP vs with-CLIP.
+7. Ambiguity fusion stress table: seeds 0-2 no-CLIP vs with-CLIP.
 8. Limitation box: placeholder pick, low detector multiplicity, and no closed-loop
    re-observation yet.
 
@@ -374,9 +374,9 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Scale ambiguity fusion stress before building demo UI:
+Implement minimal closed-loop re-observation before building demo UI:
 
-1. Extend the seed-0 ambiguity result to seeds `0 1 2`.
-2. If `insufficient_view_support` remains common, implement the smallest
-   closed-loop re-observation milestone.
+1. Add one suggested virtual view when `should_reobserve=True`.
+2. Report before/after selected confidence, memory fragmentation, and policy
+   trigger rate.
 3. Only build demo UI after the closed-loop perception result is measurable.
