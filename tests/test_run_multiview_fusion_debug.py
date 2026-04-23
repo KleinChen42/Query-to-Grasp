@@ -41,6 +41,30 @@ def test_collect_frames_with_tabletop_preset_recaptures_base_camera() -> None:
     assert scene.calls[0][1] == (0.35, 0.0, 0.55)
 
 
+def test_collect_reobserve_frames_uses_supported_virtual_views() -> None:
+    class FakeScene:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def capture_observation_from_camera_pose(self, camera_name, eye, target, up):
+            self.calls.append((camera_name, eye, target, up))
+            return SimpleNamespace(label=f"frame_{len(self.calls)}")
+
+    scene = FakeScene()
+
+    frames = multiview.collect_reobserve_frames(
+        scene=scene,
+        suggested_view_ids=["unsupported", "top_down", "left"],
+        camera_name="base_camera",
+        max_views=2,
+    )
+
+    assert [view_id for view_id, _ in frames] == ["top_down", "left"]
+    assert scene.calls[0][0] == "base_camera"
+    assert scene.calls[0][1] == (0.0, 0.0, 0.75)
+    assert scene.calls[1][1] == (0.0, 0.35, 0.55)
+
+
 def test_build_memory_config_uses_cli_weights() -> None:
     config = multiview.build_memory_config(
         argparse.Namespace(
@@ -217,3 +241,43 @@ def test_lift_and_add_candidates_updates_memory(monkeypatch, tmp_path) -> None:
     assert len(memory.objects) == 1
     assert memory.objects[0].top_label == "red cube"
     np.testing.assert_allclose(memory.objects[0].world_xyz, np.array([1.0, 2.0, 3.0], dtype=np.float32))
+
+
+def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
+    before = {
+        "num_views": 3,
+        "num_memory_objects": 2,
+        "num_observations_added": 5,
+        "selected_object_id": "obj_0000",
+        "selected_overall_confidence": 0.4,
+        "should_reobserve": True,
+    }
+    after = {
+        "num_views": 4,
+        "num_memory_objects": 2,
+        "num_observations_added": 7,
+        "selected_object_id": "obj_0000",
+        "selected_overall_confidence": 0.6,
+        "should_reobserve": False,
+    }
+    report = multiview.build_closed_loop_reobserve_report(
+        before=before,
+        after=after,
+        extra_view_results=[
+            {
+                "view_id": "top_down",
+                "num_detections": 1,
+                "num_ranked_candidates": 1,
+                "num_3d_candidates": 1,
+                "num_observations_added": 2,
+                "artifacts": "outputs/view",
+            }
+        ],
+    )
+
+    assert report["executed"] is True
+    assert report["extra_views"][0]["view_id"] == "top_down"
+    assert report["delta"]["num_views"] == 1
+    assert report["delta"]["num_observations_added"] == 2
+    assert report["delta"]["selected_overall_confidence"] == 0.19999999999999996
+    assert report["delta"]["should_reobserve_changed"] is True

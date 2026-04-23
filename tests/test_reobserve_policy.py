@@ -76,6 +76,22 @@ def test_decide_reobserve_flags_insufficient_view_support_before_confidence() ->
     assert decision.suggested_view_ids == ["left", "right"]
 
 
+def test_decide_reobserve_deduplicates_suggested_views() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_object(memory, [0.0, 0.0, 0.0], "object", det=0.95, view_id="front", points=1000)
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="object",
+        config=ReobservePolicyConfig(min_views=2, max_suggested_views=3),
+        candidate_view_ids=["front", "left", "left", "right"],
+    )
+
+    assert decision.should_reobserve is True
+    assert decision.suggested_view_ids == ["left", "right"]
+
+
 def test_decide_reobserve_flags_low_point_support() -> None:
     memory = ObjectMemory3D()
     selected = _add_object(memory, [0.0, 0.0, 0.0], "red cube", det=0.9, view_id="front", points=10)

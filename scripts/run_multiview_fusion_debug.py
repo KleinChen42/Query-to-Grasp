@@ -26,7 +26,7 @@ from src.memory.object_memory_3d import (  # noqa: E402
     ObjectMemoryConfig,
     ObjectObservation3D,
 )
-from src.policy.reobserve_policy import ReobservePolicyConfig, decide_reobserve  # noqa: E402
+from src.policy.reobserve_policy import ReobserveDecision, ReobservePolicyConfig, decide_reobserve  # noqa: E402
 from src.policy.target_selector import (  # noqa: E402
     build_selection_trace,
     render_selection_trace_markdown,
@@ -56,6 +56,20 @@ VIEW_PRESETS: dict[str, tuple[VirtualCameraView, ...]] = {
         VirtualCameraView(label="left", eye=(0.0, 0.35, 0.55), target=(0.0, 0.0, 0.05)),
         VirtualCameraView(label="right", eye=(0.0, -0.35, 0.55), target=(0.0, 0.0, 0.05)),
     )
+}
+
+REOBSERVE_VIEW_POSES: dict[str, VirtualCameraView] = {
+    "top_down": VirtualCameraView(
+        label="top_down",
+        eye=(0.0, 0.0, 0.75),
+        target=(0.0, 0.0, 0.05),
+        up=(1.0, 0.0, 0.0),
+    ),
+    "closer_oblique": VirtualCameraView(
+        label="closer_oblique",
+        eye=(0.22, -0.22, 0.38),
+        target=(0.0, 0.0, 0.05),
+    ),
 }
 
 
@@ -114,6 +128,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reobserve-min-geometry-confidence", type=float, default=0.50)
     parser.add_argument("--reobserve-min-mean-points", type=float, default=100.0)
     parser.add_argument("--reobserve-suggested-view-ids", nargs="*", default=["top_down", "closer_oblique"])
+    parser.add_argument("--reobserve-max-suggested-views", type=int, default=2)
+    parser.add_argument(
+        "--enable-closed-loop-reobserve",
+        action="store_true",
+        help="If the policy requests another view, capture one suggested virtual view and update memory.",
+    )
+    parser.add_argument(
+        "--closed-loop-max-extra-views",
+        type=int,
+        default=1,
+        help="Maximum suggested virtual views to execute when closed-loop re-observation is enabled.",
+    )
     parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
@@ -163,7 +189,105 @@ def main() -> None:
             view_results.append(view_result)
             total_observations_added += int(view_result["num_observations_added"])
 
+        initial_view_ids = [view_id for view_id, _ in frames]
         selected, selection_label = select_memory_target(memory, parsed_query)
+        initial_decision = decide_reobserve(
+            memory=memory,
+            selected=selected,
+            selection_label=selection_label,
+            config=build_reobserve_config(args),
+            candidate_view_ids=initial_view_ids,
+        )
+        initial_snapshot = build_reobserve_stage_snapshot(
+            stage="before",
+            memory=memory,
+            selected=selected,
+            selection_label=selection_label,
+            decision=initial_decision,
+            view_ids=initial_view_ids,
+            total_observations_added=total_observations_added,
+        )
+        if args.enable_closed_loop_reobserve:
+            write_json(
+                build_memory_state(
+                    memory=memory,
+                    selected=selected,
+                    selection_label=selection_label,
+                    parsed_query=parsed_query,
+                    view_results=view_results,
+                ),
+                run_dir / "memory_state_before_reobserve.json",
+            )
+            initial_selection_trace = build_selection_trace(
+                memory=memory,
+                selected=selected,
+                selection_label=selection_label,
+                parsed_query=parsed_query,
+            )
+            write_json(initial_selection_trace, run_dir / "selection_trace_before_reobserve.json")
+            (run_dir / "selection_trace_before_reobserve.md").write_text(
+                render_selection_trace_markdown(initial_selection_trace),
+                encoding="utf-8",
+            )
+            write_json(initial_decision.to_json_dict(), run_dir / "reobserve_decision_before.json")
+        extra_view_results: list[dict[str, Any]] = []
+        extra_view_ids: list[str] = []
+        closed_loop_executed = False
+        if args.enable_closed_loop_reobserve and initial_decision.should_reobserve:
+            extra_frames = collect_reobserve_frames(
+                scene=scene,
+                suggested_view_ids=initial_decision.suggested_view_ids,
+                camera_name=args.camera_name or "base_camera",
+                max_views=args.closed_loop_max_extra_views,
+            )
+            for view_id, frame in extra_frames:
+                closed_loop_executed = True
+                view_result = process_view(
+                    args=args,
+                    frame=frame,
+                    view_id=view_id,
+                    parsed_query=parsed_query,
+                    clip_prompts=clip_prompts,
+                    memory=memory,
+                    run_dir=run_dir,
+                )
+                view_results.append(view_result)
+                extra_view_results.append(view_result)
+                extra_view_ids.append(view_id)
+                total_observations_added += int(view_result["num_observations_added"])
+
+        final_view_ids = [*initial_view_ids, *extra_view_ids]
+        selected, selection_label = select_memory_target(memory, parsed_query)
+        final_decision = decide_reobserve(
+            memory=memory,
+            selected=selected,
+            selection_label=selection_label,
+            config=build_reobserve_config(args),
+            candidate_view_ids=final_view_ids,
+        )
+        final_snapshot = build_reobserve_stage_snapshot(
+            stage="after",
+            memory=memory,
+            selected=selected,
+            selection_label=selection_label,
+            decision=final_decision,
+            view_ids=final_view_ids,
+            total_observations_added=total_observations_added,
+        )
+        if args.enable_closed_loop_reobserve:
+            write_closed_loop_reobserve_artifacts(
+                run_dir=run_dir,
+                memory=memory,
+                parsed_query=parsed_query,
+                view_results=view_results,
+                initial_snapshot=initial_snapshot,
+                final_snapshot=final_snapshot,
+                extra_view_results=extra_view_results,
+                final_selected=selected,
+                final_selection_label=selection_label,
+                final_decision=final_decision,
+            )
+
         memory_state = build_memory_state(
             memory=memory,
             selected=selected,
@@ -182,20 +306,13 @@ def main() -> None:
         selection_trace_md = run_dir / "selection_trace.md"
         write_json(selection_trace, selection_trace_json)
         selection_trace_md.write_text(render_selection_trace_markdown(selection_trace), encoding="utf-8")
-        reobserve_decision = decide_reobserve(
-            memory=memory,
-            selected=selected,
-            selection_label=selection_label,
-            config=build_reobserve_config(args),
-            candidate_view_ids=[view_id for view_id, _ in frames],
-        )
         reobserve_decision_path = run_dir / "reobserve_decision.json"
-        write_json(reobserve_decision.to_json_dict(), reobserve_decision_path)
+        write_json(final_decision.to_json_dict(), reobserve_decision_path)
 
         summary = build_summary(
             args=args,
             parsed_query=parsed_query,
-            view_ids=[view_id for view_id, _ in frames],
+            view_ids=final_view_ids,
             memory=memory,
             selected=selected,
             selection_label=selection_label,
@@ -206,8 +323,18 @@ def main() -> None:
         summary["selection_trace_json"] = str(selection_trace_json)
         summary["selection_trace_md"] = str(selection_trace_md)
         summary["reobserve_decision_json"] = str(reobserve_decision_path)
-        summary["should_reobserve"] = bool(reobserve_decision.should_reobserve)
-        summary["reobserve_reason"] = reobserve_decision.reason
+        summary["should_reobserve"] = bool(final_decision.should_reobserve)
+        summary["reobserve_reason"] = final_decision.reason
+        summary["initial_should_reobserve"] = bool(initial_decision.should_reobserve)
+        summary["initial_reobserve_reason"] = initial_decision.reason
+        summary["initial_selected_object_id"] = initial_snapshot["selected_object_id"]
+        summary["initial_selected_overall_confidence"] = initial_snapshot["selected_overall_confidence"]
+        summary["initial_num_memory_objects"] = initial_snapshot["num_memory_objects"]
+        summary["final_should_reobserve"] = bool(final_decision.should_reobserve)
+        summary["final_reobserve_reason"] = final_decision.reason
+        summary["closed_loop_reobserve_enabled"] = bool(args.enable_closed_loop_reobserve)
+        summary["closed_loop_reobserve_executed"] = bool(closed_loop_executed)
+        summary["closed_loop_reobserve_view_ids"] = extra_view_ids
         write_json(summary, run_dir / "summary.json")
         print_summary(summary)
     finally:
@@ -241,6 +368,7 @@ def build_reobserve_config(args: argparse.Namespace) -> ReobservePolicyConfig:
         min_geometry_confidence=float(args.reobserve_min_geometry_confidence),
         min_mean_num_points=float(args.reobserve_min_mean_points),
         default_suggested_view_ids=tuple(str(item) for item in args.reobserve_suggested_view_ids),
+        max_suggested_views=int(getattr(args, "reobserve_max_suggested_views", 2)),
     )
 
 
@@ -290,6 +418,45 @@ def collect_preset_frames(
 
     frames: list[tuple[str, ObservationFrame]] = []
     for view in preset:
+        frame = scene.capture_observation_from_camera_pose(
+            camera_name=camera_name,
+            eye=view.eye,
+            target=view.target,
+            up=view.up,
+        )
+        frames.append((view.label, frame))
+    return frames
+
+
+def lookup_virtual_camera_view(view_id: str) -> VirtualCameraView | None:
+    """Return a configured virtual camera pose by label."""
+
+    cleaned = str(view_id or "").strip()
+    if cleaned in REOBSERVE_VIEW_POSES:
+        return REOBSERVE_VIEW_POSES[cleaned]
+    for preset in VIEW_PRESETS.values():
+        for view in preset:
+            if view.label == cleaned:
+                return view
+    return None
+
+
+def collect_reobserve_frames(
+    scene: ManiSkillScene,
+    suggested_view_ids: Sequence[str],
+    camera_name: str,
+    max_views: int = 1,
+) -> list[tuple[str, ObservationFrame]]:
+    """Collect extra virtual frames requested by the policy."""
+
+    frames: list[tuple[str, ObservationFrame]] = []
+    for suggested_view_id in suggested_view_ids:
+        if len(frames) >= max(0, int(max_views)):
+            break
+        view = lookup_virtual_camera_view(suggested_view_id)
+        if view is None:
+            LOGGER.warning("Skipping unsupported re-observation view id %r", suggested_view_id)
+            continue
         frame = scene.capture_observation_from_camera_pose(
             camera_name=camera_name,
             eye=view.eye,
@@ -467,6 +634,99 @@ def build_memory_state(
         "memory": memory.to_json_dict(),
         "views": view_results,
     }
+
+
+def build_reobserve_stage_snapshot(
+    stage: str,
+    memory: ObjectMemory3D,
+    selected: MemoryObject3D | None,
+    selection_label: str | None,
+    decision: ReobserveDecision,
+    view_ids: Sequence[str],
+    total_observations_added: int,
+) -> dict[str, Any]:
+    """Build a compact before/after closed-loop policy snapshot."""
+
+    return {
+        "stage": stage,
+        "view_ids": list(view_ids),
+        "num_views": len(view_ids),
+        "num_memory_objects": len(memory.objects),
+        "num_observations_added": int(total_observations_added),
+        "selected_object_id": None if selected is None else selected.object_id,
+        "selection_label": selection_label,
+        "selected_top_label": None if selected is None else selected.top_label,
+        "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
+        "should_reobserve": bool(decision.should_reobserve),
+        "reobserve_reason": decision.reason,
+        "suggested_view_ids": list(decision.suggested_view_ids),
+        "decision": decision.to_json_dict(),
+    }
+
+
+def build_closed_loop_reobserve_report(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    extra_view_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build the before/after artifact for closed-loop re-observation."""
+
+    return {
+        "enabled": True,
+        "executed": bool(extra_view_results),
+        "extra_views": [
+            {
+                "view_id": result.get("view_id"),
+                "num_detections": int(result.get("num_detections", 0)),
+                "num_ranked_candidates": int(result.get("num_ranked_candidates", 0)),
+                "num_3d_candidates": int(result.get("num_3d_candidates", 0)),
+                "num_observations_added": int(result.get("num_observations_added", 0)),
+                "artifacts": result.get("artifacts"),
+            }
+            for result in extra_view_results
+        ],
+        "before": before,
+        "after": after,
+        "delta": {
+            "num_views": int(after["num_views"]) - int(before["num_views"]),
+            "num_memory_objects": int(after["num_memory_objects"]) - int(before["num_memory_objects"]),
+            "num_observations_added": int(after["num_observations_added"]) - int(before["num_observations_added"]),
+            "selected_overall_confidence": float(after["selected_overall_confidence"])
+            - float(before["selected_overall_confidence"]),
+            "should_reobserve_changed": bool(before["should_reobserve"]) != bool(after["should_reobserve"]),
+            "selected_object_changed": before["selected_object_id"] != after["selected_object_id"],
+        },
+    }
+
+
+def write_closed_loop_reobserve_artifacts(
+    run_dir: Path,
+    memory: ObjectMemory3D,
+    parsed_query: dict[str, Any],
+    view_results: list[dict[str, Any]],
+    initial_snapshot: dict[str, Any],
+    final_snapshot: dict[str, Any],
+    extra_view_results: list[dict[str, Any]],
+    final_selected: MemoryObject3D | None,
+    final_selection_label: str | None,
+    final_decision: ReobserveDecision,
+) -> None:
+    """Write opt-in closed-loop before/after artifacts."""
+
+    write_json(final_decision.to_json_dict(), run_dir / "reobserve_decision_after.json")
+    report = build_closed_loop_reobserve_report(
+        before=initial_snapshot,
+        after=final_snapshot,
+        extra_view_results=extra_view_results,
+    )
+    report["final_selection_trace"] = build_selection_trace(
+        memory=memory,
+        selected=final_selected,
+        selection_label=final_selection_label,
+        parsed_query=parsed_query,
+    )
+    report["num_total_view_results"] = len(view_results)
+    write_json(report, run_dir / "closed_loop_reobserve.json")
 
 
 def build_summary(

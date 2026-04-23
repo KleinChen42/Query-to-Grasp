@@ -166,11 +166,16 @@ Current behavior:
 - Uses selected confidence, top-1/top-2 confidence gap, view count, geometry
   confidence, and mean valid 3D point count.
 - Writes `reobserve_decision.json` in multi-view debug runs.
-- Does not yet automatically move cameras or rerun perception.
+- Supports an opt-in minimal closed-loop path that captures one or more
+  suggested virtual views, reruns perception, and writes before/after
+  diagnostics.
+- This is still a virtual-camera perception loop, not learned view planning or
+  low-level robot motion.
 
 Evidence:
 
 - `outputs/h200_60071_reobserve_smoke/reobserve_decision.json`
+- H200: `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json`
 
 ### 7. Placeholder Pick Execution
 
@@ -328,6 +333,32 @@ Artifacts:
 - `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md`
 - `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md`
 
+### Experiment 8: Minimal Closed-Loop Re-Observation Smoke
+
+Question:
+
+Can the system take a policy-triggered suggested view, rerun perception, and
+report before/after target and uncertainty diagnostics?
+
+Current H200 mock result:
+
+| setting | initial trigger | final trigger | extra views | views before | views after | confidence before | confidence after |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| mock `object`, seed 0, tabletop_3 | 1 | 1 | `left` | 3 | 4 | 0.6015 | 0.6015 |
+
+Interpretation:
+
+The opt-in closed-loop path executes and records the expected artifacts:
+`memory_state_before_reobserve.json`, `reobserve_decision_before.json`, final
+`reobserve_decision.json`, and `closed_loop_reobserve.json`. In this mock smoke,
+one extra virtual view did not resolve the ambiguity; the reason remained
+`ambiguous_top_candidates`. This is useful as an infrastructure milestone, but
+the paper-relevant test is the HF ambiguity benchmark with closed-loop enabled.
+
+Artifact:
+
+- H200: `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json`
+
 ## Figures and Tables
 
 Current pack:
@@ -343,8 +374,10 @@ Paper assets:
 5. Policy diagnostic: `reobserve_decision.json` example.
 6. Policy diagnostic table: re-observation trigger rates and reason counts.
 7. Ambiguity fusion stress table: seeds 0-2 no-CLIP vs with-CLIP.
-8. Limitation box: placeholder pick, low detector multiplicity, and no closed-loop
-   re-observation yet.
+8. Closed-loop re-observation smoke: before/after diagnostics for one suggested
+   virtual view.
+9. Limitation box: placeholder pick, low detector multiplicity, and no real
+   camera-planning or robot-control loop yet.
 
 ## Limitations
 
@@ -352,7 +385,8 @@ Be explicit:
 
 - Real low-level ManiSkill robot control is not implemented.
 - Web demo is not implemented.
-- Re-observation policy is not implemented as a closed loop.
+- Re-observation is implemented only as a minimal opt-in virtual-view loop; it
+  is not learned view planning or physical camera motion.
 - Experiments are small and use `PickCube-v1` plus virtual camera poses.
 - CLIP did not change top-1 in current benchmarks.
 - Query parser supports simple attributes and conservative relations, not full
@@ -367,6 +401,7 @@ Important for a stronger v1:
 - [x] Minimal rule-based re-observation policy module.
 - [x] `reobserve_decision.json` artifact in multi-view runs.
 - [x] Small re-observation policy report/table generator.
+- [x] Minimal opt-in closed-loop re-observation artifact path.
 - [x] Small paper/demo architecture diagram.
 - [x] README cleanup and current quickstart refresh.
 - [ ] Optional Gradio demo shell.
@@ -374,9 +409,10 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Implement minimal closed-loop re-observation before building demo UI:
+Run the HF ambiguity closed-loop benchmark before building demo UI:
 
-1. Add one suggested virtual view when `should_reobserve=True`.
-2. Report before/after selected confidence, memory fragmentation, and policy
-   trigger rate.
+1. Re-run ambiguity tabletop_3 no-CLIP and with-CLIP with
+   `--enable-closed-loop-reobserve`.
+2. Compare initial vs final policy trigger rate, selected confidence, memory
+   fragmentation, and selected-object stability.
 3. Only build demo UI after the closed-loop perception result is measurable.

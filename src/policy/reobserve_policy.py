@@ -197,11 +197,28 @@ def suggest_reobserve_views(
     """Suggest missing known views, falling back to abstract extra view labels."""
 
     used_views = set(selected.view_ids if selected is not None else [])
-    cleaned_candidates = [view_id for view_id in candidate_view_ids or [] if view_id]
+    cleaned_candidates = dedupe_view_ids(view_id for view_id in candidate_view_ids or [] if view_id)
     suggestions = [view_id for view_id in cleaned_candidates if view_id not in used_views]
     if not suggestions:
-        suggestions = [view_id for view_id in config.default_suggested_view_ids if view_id not in used_views]
+        suggestions = [
+            view_id
+            for view_id in dedupe_view_ids(config.default_suggested_view_ids)
+            if view_id not in used_views
+        ]
     return suggestions[: max(0, int(config.max_suggested_views))]
+
+
+def dedupe_view_ids(view_ids: Sequence[Any]) -> list[str]:
+    """Return non-empty view ids with stable de-duplication."""
+
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for view_id in view_ids:
+        text = str(view_id or "").strip()
+        if text and text not in seen:
+            seen.add(text)
+            deduped.append(text)
+    return deduped
 
 
 def mean_float(values: Sequence[Any]) -> float:

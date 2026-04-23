@@ -42,6 +42,18 @@ def test_build_child_command_forwards_view_preset(tmp_path: Path) -> None:
     assert command[command.index("--view-preset") + 1] == "tabletop_3"
 
 
+def test_build_child_command_forwards_closed_loop_reobserve(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+    args.enable_closed_loop_reobserve = True
+    args.closed_loop_max_extra_views = 2
+
+    command = benchmark.build_child_command(args=args, query="object", seed=0, output_dir=tmp_path / "child")
+
+    assert "--enable-closed-loop-reobserve" in command
+    assert "--closed-loop-max-extra-views" in command
+    assert command[command.index("--closed-loop-max-extra-views") + 1] == "2"
+
+
 def test_summarize_fusion_run_defaults_missing_fields() -> None:
     row = benchmark.summarize_fusion_run(
         {
@@ -78,6 +90,11 @@ def test_aggregate_rows_by_query() -> None:
             "selected_overall_confidence": 0.6,
             "should_reobserve": True,
             "reobserve_reason": "low_overall_confidence",
+            "initial_should_reobserve": True,
+            "initial_reobserve_reason": "low_overall_confidence",
+            "final_should_reobserve": False,
+            "final_reobserve_reason": "confident_enough",
+            "closed_loop_reobserve_executed": True,
             "runtime_seconds": 10.0,
             "run_failed": False,
         },
@@ -90,6 +107,11 @@ def test_aggregate_rows_by_query() -> None:
             "selected_overall_confidence": 0.0,
             "should_reobserve": False,
             "reobserve_reason": None,
+            "initial_should_reobserve": False,
+            "initial_reobserve_reason": "confident_enough",
+            "final_should_reobserve": False,
+            "final_reobserve_reason": "confident_enough",
+            "closed_loop_reobserve_executed": False,
             "runtime_seconds": 4.0,
             "run_failed": True,
         },
@@ -102,6 +124,11 @@ def test_aggregate_rows_by_query() -> None:
             "selected_overall_confidence": 0.8,
             "should_reobserve": True,
             "reobserve_reason": "ambiguous_top_candidates",
+            "initial_should_reobserve": True,
+            "initial_reobserve_reason": "ambiguous_top_candidates",
+            "final_should_reobserve": True,
+            "final_reobserve_reason": "ambiguous_top_candidates",
+            "closed_loop_reobserve_executed": True,
             "runtime_seconds": 12.0,
             "run_failed": False,
         },
@@ -114,6 +141,9 @@ def test_aggregate_rows_by_query() -> None:
     assert aggregate["failed_runs"] == 1
     assert aggregate["fraction_with_selected_object"] == 2 / 3
     assert aggregate["reobserve_trigger_rate"] == 2 / 3
+    assert aggregate["initial_reobserve_trigger_rate"] == 2 / 3
+    assert aggregate["final_reobserve_trigger_rate"] == 1 / 3
+    assert aggregate["closed_loop_execution_rate"] == 2 / 3
     assert aggregate["reobserve_reason_counts"] == {
         "ambiguous_top_candidates": 1,
         "low_overall_confidence": 1,
@@ -164,8 +194,15 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "selected_top_label": query,
             "selection_label": query,
             "selected_overall_confidence": 0.7,
-            "should_reobserve": True,
-            "reobserve_reason": "ambiguous_top_candidates",
+            "should_reobserve": False,
+            "reobserve_reason": "confident_enough",
+            "initial_should_reobserve": True,
+            "initial_reobserve_reason": "ambiguous_top_candidates",
+            "final_should_reobserve": False,
+            "final_reobserve_reason": "confident_enough",
+            "closed_loop_reobserve_enabled": True,
+            "closed_loop_reobserve_executed": True,
+            "closed_loop_reobserve_view_ids": ["top_down"],
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
@@ -196,6 +233,7 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "--skip-clip",
             "--depth-scale",
             "1000",
+            "--enable-closed-loop-reobserve",
             "--output-dir",
             str(output_dir),
         ],
@@ -213,12 +251,16 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["total_runs"] == 4
     assert summary["skip_clip"] is True
     assert summary["aggregate_metrics"]["fraction_with_selected_object"] == 1.0
-    assert summary["aggregate_metrics"]["reobserve_trigger_rate"] == 1.0
-    assert summary["aggregate_metrics"]["reobserve_reason_counts"] == {"ambiguous_top_candidates": 4}
+    assert summary["aggregate_metrics"]["reobserve_trigger_rate"] == 0.0
+    assert summary["aggregate_metrics"]["initial_reobserve_trigger_rate"] == 1.0
+    assert summary["aggregate_metrics"]["final_reobserve_trigger_rate"] == 0.0
+    assert summary["aggregate_metrics"]["closed_loop_execution_rate"] == 1.0
+    assert summary["aggregate_metrics"]["reobserve_reason_counts"] == {"confident_enough": 4}
     assert summary["aggregate_metrics"]["mean_num_memory_objects"] == 2.0
     assert "selected_overall_confidence" in csv_header
     assert "should_reobserve" in csv_header
     assert all("--skip-clip" in command for command in seen_commands)
+    assert all("--enable-closed-loop-reobserve" in command for command in seen_commands)
 
 
 def test_multiview_fusion_benchmark_can_fail_on_child_error(monkeypatch, tmp_path: Path) -> None:
@@ -283,5 +325,7 @@ def _args(
             "view_ids": view_ids or [],
             "skip_clip": skip_clip,
             "output_dir": output_dir,
+            "enable_closed_loop_reobserve": False,
+            "closed_loop_max_extra_views": 1,
         },
     )()

@@ -35,6 +35,13 @@ CSV_COLUMNS = [
     "selection_label",
     "should_reobserve",
     "reobserve_reason",
+    "initial_should_reobserve",
+    "initial_reobserve_reason",
+    "final_should_reobserve",
+    "final_reobserve_reason",
+    "closed_loop_reobserve_enabled",
+    "closed_loop_reobserve_executed",
+    "closed_loop_reobserve_view_ids",
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
@@ -68,6 +75,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--env-id", default="PickCube-v1")
     parser.add_argument("--obs-mode", default="rgbd")
     parser.add_argument("--merge-distance", type=float, default=0.08)
+    parser.add_argument("--enable-closed-loop-reobserve", action="store_true")
+    parser.add_argument("--closed-loop-max-extra-views", type=int, default=1)
     parser.add_argument("--fail-on-child-error", action="store_true", help="Exit nonzero if any child debug run fails.")
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
@@ -114,6 +123,8 @@ def main() -> None:
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),
         "merge_distance": float(args.merge_distance),
+        "closed_loop_reobserve_enabled": bool(args.enable_closed_loop_reobserve),
+        "closed_loop_max_extra_views": int(args.closed_loop_max_extra_views),
         "aggregate_metrics": aggregate_rows(rows),
         "per_query_metrics": aggregate_rows_by_query(rows),
     }
@@ -227,6 +238,9 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         command.append("--skip-clip")
     else:
         command.append("--use-clip")
+    if args.enable_closed_loop_reobserve:
+        command.append("--enable-closed-loop-reobserve")
+        command.extend(["--closed-loop-max-extra-views", str(args.closed_loop_max_extra_views)])
     return command
 
 
@@ -246,6 +260,13 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "selection_label": _optional_str(summary.get("selection_label")),
         "should_reobserve": _as_bool(summary.get("should_reobserve")),
         "reobserve_reason": _optional_str(summary.get("reobserve_reason")),
+        "initial_should_reobserve": _as_bool(summary.get("initial_should_reobserve", summary.get("should_reobserve"))),
+        "initial_reobserve_reason": _optional_str(summary.get("initial_reobserve_reason", summary.get("reobserve_reason"))),
+        "final_should_reobserve": _as_bool(summary.get("final_should_reobserve", summary.get("should_reobserve"))),
+        "final_reobserve_reason": _optional_str(summary.get("final_reobserve_reason", summary.get("reobserve_reason"))),
+        "closed_loop_reobserve_enabled": _as_bool(summary.get("closed_loop_reobserve_enabled")),
+        "closed_loop_reobserve_executed": _as_bool(summary.get("closed_loop_reobserve_executed")),
+        "closed_loop_reobserve_view_ids": " ".join(str(item) for item in summary.get("closed_loop_reobserve_view_ids", [])),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
@@ -269,7 +290,12 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_num_observations_added": 0.0,
             "fraction_with_selected_object": 0.0,
             "reobserve_trigger_rate": 0.0,
+            "initial_reobserve_trigger_rate": 0.0,
+            "final_reobserve_trigger_rate": 0.0,
+            "closed_loop_execution_rate": 0.0,
             "reobserve_reason_counts": {},
+            "initial_reobserve_reason_counts": {},
+            "final_reobserve_reason_counts": {},
             "mean_selected_overall_confidence": 0.0,
             "mean_runtime_seconds": 0.0,
         }
@@ -284,8 +310,19 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_num_observations_added": _mean(_as_int(row.get("num_observations_added"), 0) for row in rows),
         "fraction_with_selected_object": _mean(1 if _as_bool(row.get("has_selected_object")) else 0 for row in rows),
         "reobserve_trigger_rate": _mean(1 if _as_bool(row.get("should_reobserve")) else 0 for row in rows),
+        "initial_reobserve_trigger_rate": _mean(1 if _as_bool(row.get("initial_should_reobserve", row.get("should_reobserve"))) else 0 for row in rows),
+        "final_reobserve_trigger_rate": _mean(1 if _as_bool(row.get("final_should_reobserve", row.get("should_reobserve"))) else 0 for row in rows),
+        "closed_loop_execution_rate": _mean(1 if _as_bool(row.get("closed_loop_reobserve_executed")) else 0 for row in rows),
         "reobserve_reason_counts": count_values(
             row.get("reobserve_reason") or "none"
+            for row in rows
+        ),
+        "initial_reobserve_reason_counts": count_values(
+            row.get("initial_reobserve_reason") or row.get("reobserve_reason") or "none"
+            for row in rows
+        ),
+        "final_reobserve_reason_counts": count_values(
+            row.get("final_reobserve_reason") or row.get("reobserve_reason") or "none"
             for row in rows
         ),
         "mean_selected_overall_confidence": _mean(_as_float(row.get("selected_overall_confidence"), 0.0) for row in rows),
@@ -326,6 +363,13 @@ def failed_row(
         "selection_label": None,
         "should_reobserve": False,
         "reobserve_reason": None,
+        "initial_should_reobserve": False,
+        "initial_reobserve_reason": None,
+        "final_should_reobserve": False,
+        "final_reobserve_reason": None,
+        "closed_loop_reobserve_enabled": False if args is None else bool(getattr(args, "enable_closed_loop_reobserve", False)),
+        "closed_loop_reobserve_executed": False,
+        "closed_loop_reobserve_view_ids": "",
         "runtime_seconds": 0.0,
         "detector_backend": "" if args is None else str(args.detector_backend),
         "skip_clip": False if args is None else bool(args.skip_clip),

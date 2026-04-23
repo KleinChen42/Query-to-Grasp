@@ -40,6 +40,9 @@ TABLE_COLUMNS = [
     "mean_same_label_pairwise_distance",
     "mean_selected_overall_confidence",
     "reobserve_trigger_rate",
+    "initial_reobserve_trigger_rate",
+    "final_reobserve_trigger_rate",
+    "closed_loop_execution_rate",
     "reobserve_reason_counts",
     "pick_success_rate",
 ]
@@ -146,6 +149,9 @@ def single_view_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "mean_same_label_pairwise_distance": NA,
         "mean_selected_overall_confidence": NA,
         "reobserve_trigger_rate": NA,
+        "initial_reobserve_trigger_rate": NA,
+        "final_reobserve_trigger_rate": NA,
+        "closed_loop_execution_rate": NA,
         "reobserve_reason_counts": NA,
         "pick_success_rate": _as_float(metrics.get("pick_success_rate")),
     }
@@ -177,6 +183,9 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
         ),
         "mean_selected_overall_confidence": _as_float(metrics.get("mean_selected_overall_confidence")),
         "reobserve_trigger_rate": _optional_float(metrics.get("reobserve_trigger_rate")),
+        "initial_reobserve_trigger_rate": _optional_float(metrics.get("initial_reobserve_trigger_rate")),
+        "final_reobserve_trigger_rate": _optional_float(metrics.get("final_reobserve_trigger_rate")),
+        "closed_loop_execution_rate": _optional_float(metrics.get("closed_loop_execution_rate")),
         "reobserve_reason_counts": format_reason_counts(metrics.get("reobserve_reason_counts")),
         "pick_success_rate": NA,
     }

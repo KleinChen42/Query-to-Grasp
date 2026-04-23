@@ -61,6 +61,9 @@ def test_fusion_row_maps_memory_metrics(tmp_path: Path) -> None:
     assert row["mean_same_label_pairwise_distance"] == 0.12
     assert row["mean_selected_overall_confidence"] == 0.75
     assert row["reobserve_trigger_rate"] == 0.5
+    assert row["initial_reobserve_trigger_rate"] == 0.75
+    assert row["final_reobserve_trigger_rate"] == 0.25
+    assert row["closed_loop_execution_rate"] == 0.5
     assert row["reobserve_reason_counts"] == "ambiguous_top_candidates: 1; confident_enough: 1"
     assert row["pick_success_rate"] == "n/a"
 
@@ -106,6 +109,9 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
             "mean_same_label_pairwise_distance": 0.12,
             "mean_selected_overall_confidence": 0.5,
             "reobserve_trigger_rate": 0.25,
+            "initial_reobserve_trigger_rate": 0.5,
+            "final_reobserve_trigger_rate": 0.25,
+            "closed_loop_execution_rate": 0.25,
             "reobserve_reason_counts": "ambiguous_top_candidates: 1; none: 3",
             "pick_success_rate": "n/a",
         }
@@ -120,6 +126,8 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
     assert "0.5000" in markdown
     assert "mean_same_label_pairwise_distance" in markdown
     assert "reobserve_trigger_rate" in markdown
+    assert "initial_reobserve_trigger_rate" in markdown
+    assert "closed_loop_execution_rate" in markdown
     assert "ambiguous_top_candidates: 1" in markdown
     csv_rows = list(csv.DictReader(csv_path.open("r", encoding="utf-8")))
     assert csv_rows[0]["label"] == "HF fusion"
@@ -160,6 +168,9 @@ def _write_fusion_summary(benchmark_dir: Path) -> None:
             "fraction_with_selected_object": 0.5,
             "mean_selected_overall_confidence": 0.75,
             "reobserve_trigger_rate": 0.5,
+            "initial_reobserve_trigger_rate": 0.75,
+            "final_reobserve_trigger_rate": 0.25,
+            "closed_loop_execution_rate": 0.5,
             "reobserve_reason_counts": {
                 "ambiguous_top_candidates": 1,
                 "confident_enough": 1,

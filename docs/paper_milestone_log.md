@@ -43,6 +43,7 @@ Current evidence supports the following narrower near-term claim:
 | Implemented architecture note | Method diagram and artifact map for the current implemented pipeline | `docs/architecture_query_to_grasp.md` |
 | Ambiguity tabletop_3 fusion stress table | Corrected fusion no-CLIP/with-CLIP comparison on ambiguity queries, seeds 0-2 | `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md` |
 | Ambiguity tabletop_3 re-observation report | Per-query open-loop policy behavior on ambiguity queries, seeds 0-2 | `outputs/h200_60071_ambiguity_tabletop3_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md` |
+| Closed-loop re-observation smoke | Opt-in extra-view before/after diagnostics for one mock ambiguity run | H200: `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -72,6 +73,7 @@ Current evidence supports the following narrower near-term claim:
 | Rule-based re-observation policy | Done | `src/policy/reobserve_policy.py` and `reobserve_decision.json` smoke | Multi-view runs now emit confidence-aware re-observation decisions without automatically moving cameras. |
 | Architecture and README refresh | Done | `docs/architecture_query_to_grasp.md` and `README.md` | The repo now has a clean external quickstart and a paper-ready method diagram source matching implemented behavior. |
 | Ambiguity tabletop_3 fusion stress, seeds 0-2 | Done | `fusion_comparison_table_ambiguity_tabletop3_hf_seed012.md` and `reobserve_policy_report_ambiguity_tabletop3_hf_seed012.md` | Broader queries increase object-memory fragmentation and trigger policy uncertainty; CLIP raises selected confidence and lowers trigger rate without fixing geometry. |
+| Minimal closed-loop re-observation path | Done | `closed_loop_reobserve.json` H200 mock smoke | The debug and benchmark runners can now opt into one suggested extra virtual view and report before/after policy, confidence, memory, and selected-target metrics. |
 
 ## Key Quantitative Results
 
@@ -328,6 +330,41 @@ The selector first used the query-derived label pool (`red cube`, `cube`,
 debug panel because it exposes both the semantic filter and deterministic
 tie-break order.
 
+### Minimal Closed-Loop Re-Observation Smoke
+
+Source: H200 `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json`
+
+Scenario:
+
+- Query: `object`
+- Seed: `0`
+- Detector: mock
+- View preset: `tabletop_3`
+- CLIP: skipped
+- Closed-loop extra-view budget: `1`
+
+| metric | before | after |
+| --- | ---: | ---: |
+| should_reobserve | 1 | 1 |
+| selected_overall_confidence | 0.6015 | 0.6015 |
+| num_memory_objects | 2 | 2 |
+| num_view_results | 3 | 4 |
+
+Extra view:
+
+| view_id | detections | ranked | 3d candidates | observations added |
+| --- | ---: | ---: | ---: | ---: |
+| `left` | 1 | 1 | 1 | 1 |
+
+Interpretation:
+
+The minimal closed-loop infrastructure works: when the policy requests another
+view, the debug and benchmark runners can capture one suggested virtual view,
+rerun perception, update memory, and write before/after diagnostics. This mock
+smoke intentionally does not prove policy benefit; the reason remains
+`ambiguous_top_candidates`, so the next paper-relevant step is the HF ambiguity
+closed-loop benchmark.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -473,6 +510,24 @@ PYTHONPATH=$PWD python scripts/generate_reobserve_policy_report.py \
   --output-json outputs/reobserve_policy_report_tabletop3_hf_reobserve_v2.json
 ```
 
+Closed-loop re-observation smoke:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_multiview_fusion_benchmark.py \
+  --queries object \
+  --seeds 0 \
+  --detector-backend mock \
+  --mock-box-position center \
+  --skip-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --enable-closed-loop-reobserve \
+  --closed-loop-max-extra-views 1 \
+  --fail-on-child-error \
+  --output-dir outputs/h200_smoke_closed_loop_reobserve_mock
+```
+
 Latest H200 policy-metric rerun:
 
 | benchmark | runs | selected_frac | mean_confidence | reobserve_trigger_rate | reason_counts |
@@ -514,11 +569,12 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Implement the minimal closed-loop re-observation milestone:
+Run the closed-loop re-observation benchmark:
 
-1. Run one additional suggested virtual view when `should_reobserve=True`.
-2. Update object memory with the added view and write before/after policy,
-   confidence, memory-object, and selected-target metrics.
+1. Re-run the ambiguity tabletop_3 HF no-CLIP/with-CLIP benchmark with
+   `--enable-closed-loop-reobserve`.
+2. Compare initial vs final re-observation trigger rate, selected confidence,
+   memory-object count, and selected-object stability.
 3. Keep real robot control and web demo out of scope until the closed-loop
    perception result is measurable.
 
