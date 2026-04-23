@@ -227,7 +227,7 @@ def test_lift_and_add_candidates_updates_memory(monkeypatch, tmp_path) -> None:
         fallback_fov_degrees=60.0,
     )
 
-    candidates_3d, observations_added = multiview.lift_and_add_candidates(
+    candidates_3d, observations_added, observation_assignments = multiview.lift_and_add_candidates(
         args=args,
         frame=frame,
         view_id="front",
@@ -238,6 +238,8 @@ def test_lift_and_add_candidates_updates_memory(monkeypatch, tmp_path) -> None:
 
     assert candidates_3d == [lifted]
     assert observations_added == 1
+    assert observation_assignments[0]["object_id"] == memory.objects[0].object_id
+    assert observation_assignments[0]["created_new_object"] is True
     assert len(memory.objects) == 1
     assert memory.objects[0].top_label == "red cube"
     np.testing.assert_allclose(memory.objects[0].world_xyz, np.array([1.0, 2.0, 3.0], dtype=np.float32))
@@ -293,6 +295,17 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
             "gained_view_support": True,
             "merged_extra_view_ids": ["top_down"],
         },
+        absorber_trace={
+            "initial_selected_object_id": "obj_0000",
+            "final_selected_object_id": "obj_0000",
+            "absorber_object_ids": ["obj_0000"],
+            "absorber_count": 1,
+            "initial_selected_absorbed_extra_view": True,
+            "final_selected_absorbed_extra_view": True,
+            "third_object_ids": [],
+            "third_object_involved": False,
+            "observation_assignments": [{"object_id": "obj_0000"}],
+        },
     )
 
     assert report["executed"] is True
@@ -309,6 +322,7 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
     assert report["delta"]["reobserve_still_needed"] is False
     assert report["initial_selected_object_followup"]["received_observation"] is True
     assert report["initial_selected_object_followup"]["merged_extra_view_ids"] == ["top_down"]
+    assert report["extra_view_absorber_trace"]["final_selected_absorbed_extra_view"] is True
 
 
 def test_build_initial_selected_object_followup_tracks_merge_into_before_selected() -> None:
@@ -357,3 +371,25 @@ def test_build_initial_selected_object_followup_tracks_merge_into_before_selecte
     assert followup["received_observation"] is True
     assert followup["gained_view_support"] is True
     assert followup["merged_extra_view_ids"] == ["closer_left"]
+
+
+def test_build_closed_loop_absorber_trace_distinguishes_final_and_third_objects() -> None:
+    trace = multiview.build_closed_loop_absorber_trace(
+        before={"selected_object_id": "obj_0000"},
+        after={"selected_object_id": "obj_0001"},
+        extra_view_results=[
+            {
+                "observation_assignments": [
+                    {"object_id": "obj_0001"},
+                    {"object_id": "obj_0002"},
+                    {"object_id": "obj_0001"},
+                ]
+            }
+        ],
+    )
+
+    assert trace["absorber_object_ids"] == ["obj_0001", "obj_0002"]
+    assert trace["initial_selected_absorbed_extra_view"] is False
+    assert trace["final_selected_absorbed_extra_view"] is True
+    assert trace["third_object_ids"] == ["obj_0002"]
+    assert trace["third_object_involved"] is True

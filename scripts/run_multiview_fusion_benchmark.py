@@ -59,6 +59,11 @@ CSV_COLUMNS = [
     "closed_loop_before_selected_merged_extra_view_ids",
     "closed_loop_before_selected_delta_num_observations",
     "closed_loop_before_selected_delta_num_views",
+    "closed_loop_extra_view_absorber_object_ids",
+    "closed_loop_extra_view_absorber_count",
+    "closed_loop_final_selected_absorbed_extra_view",
+    "closed_loop_extra_view_third_object_ids",
+    "closed_loop_extra_view_third_object_involved",
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
@@ -326,6 +331,22 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
             summary.get("closed_loop_before_selected_delta_num_views"),
             0,
         ),
+        "closed_loop_extra_view_absorber_object_ids": " ".join(
+            str(item) for item in summary.get("closed_loop_extra_view_absorber_object_ids", [])
+        ),
+        "closed_loop_extra_view_absorber_count": _as_int(
+            summary.get("closed_loop_extra_view_absorber_count"),
+            0,
+        ),
+        "closed_loop_final_selected_absorbed_extra_view": _as_bool(
+            summary.get("closed_loop_final_selected_absorbed_extra_view")
+        ),
+        "closed_loop_extra_view_third_object_ids": " ".join(
+            str(item) for item in summary.get("closed_loop_extra_view_third_object_ids", [])
+        ),
+        "closed_loop_extra_view_third_object_involved": _as_bool(
+            summary.get("closed_loop_extra_view_third_object_involved")
+        ),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
@@ -359,6 +380,8 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "closed_loop_before_selected_still_selected_rate": 0.0,
             "closed_loop_before_selected_received_observation_rate": 0.0,
             "closed_loop_before_selected_gained_view_support_rate": 0.0,
+            "closed_loop_final_selected_absorbed_extra_view_rate": 0.0,
+            "closed_loop_extra_view_third_object_involved_rate": 0.0,
             "mean_closed_loop_delta_num_views": 0.0,
             "mean_closed_loop_delta_num_memory_objects": 0.0,
             "mean_closed_loop_delta_num_observations_added": 0.0,
@@ -367,6 +390,7 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_closed_loop_delta_selected_num_observations": 0.0,
             "mean_closed_loop_before_selected_delta_num_observations": 0.0,
             "mean_closed_loop_before_selected_delta_num_views": 0.0,
+            "mean_closed_loop_extra_view_absorber_count": 0.0,
             "reobserve_reason_counts": {},
             "initial_reobserve_reason_counts": {},
             "final_reobserve_reason_counts": {},
@@ -404,6 +428,12 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "closed_loop_before_selected_gained_view_support_rate": _mean(
             1 if _as_bool(row.get("closed_loop_before_selected_gained_view_support")) else 0 for row in rows
         ),
+        "closed_loop_final_selected_absorbed_extra_view_rate": _mean(
+            1 if _as_bool(row.get("closed_loop_final_selected_absorbed_extra_view")) else 0 for row in rows
+        ),
+        "closed_loop_extra_view_third_object_involved_rate": _mean(
+            1 if _as_bool(row.get("closed_loop_extra_view_third_object_involved")) else 0 for row in rows
+        ),
         "mean_closed_loop_delta_num_views": _mean(
             _as_int(row.get("closed_loop_delta_num_views"), 0) for row in rows
         ),
@@ -427,6 +457,9 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "mean_closed_loop_before_selected_delta_num_views": _mean(
             _as_int(row.get("closed_loop_before_selected_delta_num_views"), 0) for row in rows
+        ),
+        "mean_closed_loop_extra_view_absorber_count": _mean(
+            _as_int(row.get("closed_loop_extra_view_absorber_count"), 0) for row in rows
         ),
         "reobserve_reason_counts": count_values(
             row.get("reobserve_reason") or "none"
@@ -502,6 +535,11 @@ def failed_row(
         "closed_loop_before_selected_merged_extra_view_ids": "",
         "closed_loop_before_selected_delta_num_observations": 0,
         "closed_loop_before_selected_delta_num_views": 0,
+        "closed_loop_extra_view_absorber_object_ids": "",
+        "closed_loop_extra_view_absorber_count": 0,
+        "closed_loop_final_selected_absorbed_extra_view": False,
+        "closed_loop_extra_view_third_object_ids": "",
+        "closed_loop_extra_view_third_object_involved": False,
         "runtime_seconds": 0.0,
         "detector_backend": "" if args is None else str(args.detector_backend),
         "skip_clip": False if args is None else bool(args.skip_clip),

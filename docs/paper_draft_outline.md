@@ -413,6 +413,23 @@ not: association stays at `0.0` while selected-object change rate remains
 `0.25`. That points the next implementation step toward memory association and
 selection continuity under CLIP-weighted fusion, not toward adding more views.
 
+Follow-up absorber trace rerun:
+
+| setting | initial trigger | final trigger | resolution rate | initial selected absorber rate | final selected absorber rate | third-object rate | mean absorber count |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Ambiguity compact HF no CLIP closed-loop absorber trace | 1.0000 | 1.0000 | 0.0000 | 0.2500 | 0.5000 | 0.5000 | 1.2500 |
+| Ambiguity compact HF with CLIP closed-loop absorber trace | 0.7500 | 0.7500 | 0.0000 | 0.0000 | 0.2500 | 0.5000 | 1.0000 |
+
+Interpretation:
+
+The new absorber trace sharpens the diagnosis. In the no-CLIP compact rerun,
+extra views sometimes merge into the final selected object even when they do
+not preserve the initial selection. In the with-CLIP compact rerun, half of
+the executed runs involve a third object altogether, and only one quarter land
+in the final selected object. The next implementation step should therefore
+focus on CLIP-aware memory association or selected-object continuity, not on
+adding more re-observation views.
+
 Artifacts:
 
 - `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md`
@@ -475,11 +492,12 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Improve selected-object association in closed-loop ambiguity runs:
+Improve selected-object continuity in closed-loop ambiguity runs:
 
-1. Add a compact per-run trace that compares the initial selected object, the
-   final selected object, and the object that absorbed the extra view.
-2. Inspect why the HF with-CLIP compact rerun still has `selected_assoc_rate = 0.0`
-   even though the same support-aware views help the no-CLIP condition.
+1. Add a compact continuity rule or diagnostic that explicitly prefers merging
+   extra-view observations back into the currently selected object when the
+   geometry remains compatible.
+2. Inspect why the HF with-CLIP compact rerun still sends half of its extra
+   views into a third object.
 3. Only build demo UI after the closed-loop perception result improves a
    measurable policy or memory metric.

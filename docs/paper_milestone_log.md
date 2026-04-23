@@ -538,6 +538,34 @@ This strongly suggests the next algorithmic target is not "add another view,"
 but "preserve selected-object continuity when the extra observation is folded
 back into memory."
 
+### Extra-View Absorber Trace Compact Ambiguity Benchmark
+
+Source:
+H200 `outputs/h200_60071_absorber_trace_ambiguity_compact_seed0`
+
+Setup:
+
+- Queries: `cube`, `block`, `container`, `object`
+- Seed: `0`
+- Conditions: HF no-CLIP and HF with-CLIP
+- Closed-loop policy: support-aware with `closer_front/left/right` variants
+- New diagnostics: which object actually absorbed the extra-view observation
+
+| setting | initial trigger | final trigger | resolution rate | initial selected absorber rate | final selected absorber rate | third-object rate | mean absorber count | selected object change rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| no CLIP | 1.0000 | 1.0000 | 0.0000 | 0.2500 | 0.5000 | 0.5000 | 1.2500 | 0.2500 |
+| with CLIP | 0.7500 | 0.7500 | 0.0000 | 0.0000 | 0.2500 | 0.5000 | 1.0000 | 0.2500 |
+
+Interpretation:
+
+This trace resolves the ambiguity around the previous association metric. In
+the compact no-CLIP condition, extra views sometimes land in the final selected
+object even when they do not preserve the initial selection. In the with-CLIP
+condition, only one quarter of runs land in the final selected object, while
+half of runs involve a third object entirely. That points the next coding
+milestone toward selected-object continuity and CLIP-aware memory association,
+not toward adding more views or more policy branches.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -768,14 +796,14 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Improve how closed-loop extra observations update the selected object memory,
+Improve selected-object continuity for closed-loop extra observations,
 especially in the HF with-CLIP condition:
 
-1. Add a compact per-run trace that compares the initial selected object, the
-   final selected object, and the object that actually absorbed the extra view.
+1. Add a compact continuity rule or diagnostic that explicitly prefers merging
+   extra-view observations back into the currently selected object when the
+   geometric evidence is compatible.
 2. Inspect whether CLIP-weighted candidates are shifting the extra observation
-   into a different memory slot even when the re-observation view is
-   support-aware.
+   into a third memory slot even when the re-observation view is support-aware.
 3. Keep real robot control and web demo out of scope until closed-loop
    perception improves a measurable policy or memory metric.
 

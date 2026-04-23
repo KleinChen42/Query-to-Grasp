@@ -296,6 +296,11 @@ def main() -> None:
             memory=memory,
             extra_view_ids=extra_view_ids,
         )
+        absorber_trace = build_closed_loop_absorber_trace(
+            before=initial_snapshot,
+            after=final_snapshot,
+            extra_view_results=extra_view_results,
+        )
         if args.enable_closed_loop_reobserve:
             write_closed_loop_reobserve_artifacts(
                 run_dir=run_dir,
@@ -392,6 +397,15 @@ def main() -> None:
         ]
         summary["closed_loop_before_selected_delta_num_views"] = selected_object_followup[
             "delta_num_views"
+        ]
+        summary["closed_loop_extra_view_absorber_object_ids"] = absorber_trace["absorber_object_ids"]
+        summary["closed_loop_extra_view_absorber_count"] = absorber_trace["absorber_count"]
+        summary["closed_loop_final_selected_absorbed_extra_view"] = absorber_trace[
+            "final_selected_absorbed_extra_view"
+        ]
+        summary["closed_loop_extra_view_third_object_ids"] = absorber_trace["third_object_ids"]
+        summary["closed_loop_extra_view_third_object_involved"] = absorber_trace[
+            "third_object_involved"
         ]
         write_json(summary, run_dir / "summary.json")
         print_summary(summary)
@@ -565,7 +579,7 @@ def process_view(
         clip_prompts=clip_prompts,
         crop_output_dir=view_dir / "candidate_crops",
     )
-    candidates_3d, observations_added = lift_and_add_candidates(
+    candidates_3d, observations_added, observation_assignments = lift_and_add_candidates(
         args=args,
         frame=frame,
         view_id=view_id,
@@ -580,6 +594,8 @@ def process_view(
         "num_ranked_candidates": len(reranked),
         "num_3d_candidates": len(candidates_3d),
         "num_observations_added": observations_added,
+        "added_object_ids": [assignment["object_id"] for assignment in observation_assignments],
+        "observation_assignments": observation_assignments,
         "detections": [candidate.to_json_dict() for candidate in detections],
         "reranked_candidates": [candidate.to_json_dict() for candidate in reranked],
         "candidates_3d": [candidate.to_json_dict() for candidate in candidates_3d],
@@ -622,7 +638,7 @@ def lift_and_add_candidates(
     reranked: list[RankedCandidate],
     memory: ObjectMemory3D,
     view_dir: Path,
-) -> tuple[list[Candidate3D], int]:
+) -> tuple[list[Candidate3D], int, list[dict[str, Any]]]:
     """Lift all ranked candidates into 3D and add valid world targets to memory."""
 
     if frame.rgb is None or frame.depth is None:
@@ -630,6 +646,7 @@ def lift_and_add_candidates(
 
     candidates_3d: list[Candidate3D] = []
     observations_added = 0
+    observation_assignments: list[dict[str, Any]] = []
     for index, ranked in enumerate(reranked):
         pointcloud_path = (
             view_dir / "candidate_pointclouds" / f"candidate_{index:03d}.ply"
@@ -653,7 +670,8 @@ def lift_and_add_candidates(
         candidates_3d.append(candidate_3d)
         if candidate_3d.world_xyz is None:
             continue
-        memory.add_observation(
+        existing_object_ids = {obj.object_id for obj in memory.objects}
+        matched_object = memory.add_observation(
             ObjectObservation3D(
                 world_xyz=candidate_3d.world_xyz,
                 label=ranked.phrase,
@@ -672,7 +690,17 @@ def lift_and_add_candidates(
             )
         )
         observations_added += 1
-    return candidates_3d, observations_added
+        observation_assignments.append(
+            {
+                "rank": int(ranked.rank),
+                "phrase": ranked.phrase,
+                "view_id": view_id,
+                "object_id": matched_object.object_id,
+                "created_new_object": matched_object.object_id not in existing_object_ids,
+                "num_points": int(candidate_3d.num_points),
+            }
+        )
+    return candidates_3d, observations_added, observation_assignments
 
 
 def build_memory_state(
@@ -806,11 +834,49 @@ def build_initial_selected_object_followup(
     }
 
 
+def build_closed_loop_absorber_trace(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    extra_view_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Summarize which objects absorbed the extra-view observations."""
+
+    before_selected_object_id = str(before.get("selected_object_id") or "").strip() or None
+    after_selected_object_id = str(after.get("selected_object_id") or "").strip() or None
+    assignments = [
+        assignment
+        for result in extra_view_results
+        for assignment in result.get("observation_assignments", [])
+        if isinstance(assignment, dict)
+    ]
+    absorber_object_ids = dedupe_object_ids(assignment.get("object_id") for assignment in assignments)
+    selected_object_ids = {
+        object_id for object_id in (before_selected_object_id, after_selected_object_id) if object_id
+    }
+    third_object_ids = [object_id for object_id in absorber_object_ids if object_id not in selected_object_ids]
+    return {
+        "initial_selected_object_id": before_selected_object_id,
+        "final_selected_object_id": after_selected_object_id,
+        "absorber_object_ids": absorber_object_ids,
+        "absorber_count": len(absorber_object_ids),
+        "initial_selected_absorbed_extra_view": before_selected_object_id in absorber_object_ids
+        if before_selected_object_id is not None
+        else False,
+        "final_selected_absorbed_extra_view": after_selected_object_id in absorber_object_ids
+        if after_selected_object_id is not None
+        else False,
+        "third_object_ids": third_object_ids,
+        "third_object_involved": bool(third_object_ids),
+        "observation_assignments": assignments,
+    }
+
+
 def build_closed_loop_reobserve_report(
     before: dict[str, Any],
     after: dict[str, Any],
     extra_view_results: list[dict[str, Any]],
     selected_object_followup: dict[str, Any],
+    absorber_trace: dict[str, Any],
 ) -> dict[str, Any]:
     """Build the before/after artifact for closed-loop re-observation."""
 
@@ -832,6 +898,7 @@ def build_closed_loop_reobserve_report(
         "after": after,
         "delta": build_closed_loop_delta(before, after),
         "initial_selected_object_followup": selected_object_followup,
+        "extra_view_absorber_trace": absorber_trace,
     }
 
 
@@ -856,11 +923,17 @@ def write_closed_loop_reobserve_artifacts(
         memory=memory,
         extra_view_ids=[result.get("view_id") for result in extra_view_results if result.get("view_id")],
     )
+    absorber_trace = build_closed_loop_absorber_trace(
+        before=initial_snapshot,
+        after=final_snapshot,
+        extra_view_results=extra_view_results,
+    )
     report = build_closed_loop_reobserve_report(
         before=initial_snapshot,
         after=final_snapshot,
         extra_view_results=extra_view_results,
         selected_object_followup=selected_object_followup,
+        absorber_trace=absorber_trace,
     )
     report["final_selection_trace"] = build_selection_trace(
         memory=memory,
@@ -939,6 +1012,19 @@ def _snapshot_float(snapshot: dict[str, Any], key: str) -> float:
         return float(snapshot.get(key) or 0.0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def dedupe_object_ids(values: Sequence[Any]) -> list[str]:
+    """Return stable unique non-empty object ids."""
+
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        object_id = str(value or "").strip()
+        if object_id and object_id not in seen:
+            seen.add(object_id)
+            deduped.append(object_id)
+    return deduped
 
 
 def find_memory_object(memory: ObjectMemory3D, object_id: str | None) -> MemoryObject3D | None:
