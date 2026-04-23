@@ -5,6 +5,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import pytest
+
 import scripts.run_multiview_fusion_benchmark as benchmark
 
 
@@ -123,6 +125,26 @@ def test_aggregate_rows_by_query() -> None:
     assert per_query["blue mug"]["mean_num_views"] == 2.0
 
 
+def test_failed_row_preserves_requested_benchmark_context(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+    args.detector_backend = "hf"
+    args.camera_name = "base_camera"
+
+    row = benchmark.failed_row(
+        query="object",
+        seed=0,
+        message="subprocess returned 1",
+        artifacts=str(tmp_path / "child"),
+        args=args,
+    )
+
+    assert row["run_failed"] is True
+    assert row["detector_backend"] == "hf"
+    assert row["skip_clip"] is True
+    assert row["view_preset"] == "tabletop_3"
+    assert row["camera_name"] == "base_camera"
+
+
 def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) -> None:
     seen_commands = []
 
@@ -197,6 +219,47 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert "selected_overall_confidence" in csv_header
     assert "should_reobserve" in csv_header
     assert all("--skip-clip" in command for command in seen_commands)
+
+
+def test_multiview_fusion_benchmark_can_fail_on_child_error(monkeypatch, tmp_path: Path) -> None:
+    def fake_run(command, cwd, capture_output, text, check):
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="boom")
+
+    output_dir = tmp_path / "benchmark"
+    monkeypatch.setattr(benchmark.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_multiview_fusion_benchmark.py",
+            "--queries",
+            "object",
+            "--seeds",
+            "0",
+            "--detector-backend",
+            "mock",
+            "--skip-clip",
+            "--view-preset",
+            "tabletop_3",
+            "--camera-name",
+            "base_camera",
+            "--fail-on-child-error",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as exc_info:
+        benchmark.main()
+
+    summary = json.loads((output_dir / "benchmark_summary.json").read_text(encoding="utf-8"))
+    rows = json.loads((output_dir / "benchmark_rows.json").read_text(encoding="utf-8"))
+
+    assert exc_info.value.code == 1
+    assert summary["aggregate_metrics"]["failed_runs"] == 1
+    assert rows[0]["run_failed"] is True
+    assert rows[0]["view_preset"] == "tabletop_3"
+    assert rows[0]["camera_name"] == "base_camera"
 
 
 def _args(

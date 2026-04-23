@@ -68,6 +68,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--env-id", default="PickCube-v1")
     parser.add_argument("--obs-mode", default="rgbd")
     parser.add_argument("--merge-distance", type=float, default=0.08)
+    parser.add_argument("--fail-on-child-error", action="store_true", help="Exit nonzero if any child debug run fails.")
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
 
@@ -118,6 +119,8 @@ def main() -> None:
     }
     write_json(benchmark_summary, args.output_dir / "benchmark_summary.json")
     print_benchmark_summary(benchmark_summary, args.output_dir)
+    if args.fail_on_child_error and benchmark_summary["aggregate_metrics"]["failed_runs"]:
+        raise SystemExit(1)
 
 
 def run_one_child(
@@ -137,7 +140,13 @@ def run_one_child(
     try:
         completed = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
     except Exception as exc:
-        return failed_row(query=query, seed=seed, message=f"subprocess failed to start: {exc}", artifacts=str(invocation_root))
+        return failed_row(
+            query=query,
+            seed=seed,
+            message=f"subprocess failed to start: {exc}",
+            artifacts=str(invocation_root),
+            args=args,
+        )
 
     if completed.returncode != 0:
         LOGGER.warning("Fusion child failed with return code %s for query=%r seed=%s", completed.returncode, query, seed)
@@ -146,6 +155,7 @@ def run_one_child(
             seed=seed,
             message=f"subprocess returned {completed.returncode}",
             artifacts=str(invocation_root),
+            args=args,
             stdout=completed.stdout,
             stderr=completed.stderr,
         )
@@ -157,6 +167,7 @@ def run_one_child(
             seed=seed,
             message="child completed but no run directory with summary.json was found",
             artifacts=str(invocation_root),
+            args=args,
             stdout=completed.stdout,
             stderr=completed.stderr,
         )
@@ -174,6 +185,7 @@ def run_one_child(
             seed=seed,
             message=f"failed to read child outputs: {exc}",
             artifacts=str(run_dir),
+            args=args,
             stdout=completed.stdout,
             stderr=completed.stderr,
         )
@@ -295,6 +307,7 @@ def failed_row(
     seed: int,
     message: str,
     artifacts: str,
+    args: argparse.Namespace | None = None,
     stdout: str | None = None,
     stderr: str | None = None,
 ) -> dict[str, Any]:
@@ -314,10 +327,10 @@ def failed_row(
         "should_reobserve": False,
         "reobserve_reason": None,
         "runtime_seconds": 0.0,
-        "detector_backend": "",
-        "skip_clip": False,
-        "view_preset": "none",
-        "camera_name": None,
+        "detector_backend": "" if args is None else str(args.detector_backend),
+        "skip_clip": False if args is None else bool(args.skip_clip),
+        "view_preset": "none" if args is None else str(args.view_preset or "none"),
+        "camera_name": None if args is None else _optional_str(args.camera_name),
         "artifacts": artifacts,
         "run_failed": True,
         "error_message": message,
