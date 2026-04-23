@@ -52,6 +52,13 @@ CSV_COLUMNS = [
     "closed_loop_reobserve_reason_changed",
     "closed_loop_reobserve_resolved",
     "closed_loop_reobserve_still_needed",
+    "closed_loop_before_selected_present_after",
+    "closed_loop_before_selected_still_selected",
+    "closed_loop_before_selected_received_observation",
+    "closed_loop_before_selected_gained_view_support",
+    "closed_loop_before_selected_merged_extra_view_ids",
+    "closed_loop_before_selected_delta_num_observations",
+    "closed_loop_before_selected_delta_num_views",
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
@@ -296,6 +303,29 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "closed_loop_reobserve_reason_changed": _as_bool(summary.get("closed_loop_reobserve_reason_changed")),
         "closed_loop_reobserve_resolved": _as_bool(summary.get("closed_loop_reobserve_resolved")),
         "closed_loop_reobserve_still_needed": _as_bool(summary.get("closed_loop_reobserve_still_needed")),
+        "closed_loop_before_selected_present_after": _as_bool(
+            summary.get("closed_loop_before_selected_present_after")
+        ),
+        "closed_loop_before_selected_still_selected": _as_bool(
+            summary.get("closed_loop_before_selected_still_selected")
+        ),
+        "closed_loop_before_selected_received_observation": _as_bool(
+            summary.get("closed_loop_before_selected_received_observation")
+        ),
+        "closed_loop_before_selected_gained_view_support": _as_bool(
+            summary.get("closed_loop_before_selected_gained_view_support")
+        ),
+        "closed_loop_before_selected_merged_extra_view_ids": " ".join(
+            str(item) for item in summary.get("closed_loop_before_selected_merged_extra_view_ids", [])
+        ),
+        "closed_loop_before_selected_delta_num_observations": _as_int(
+            summary.get("closed_loop_before_selected_delta_num_observations"),
+            0,
+        ),
+        "closed_loop_before_selected_delta_num_views": _as_int(
+            summary.get("closed_loop_before_selected_delta_num_views"),
+            0,
+        ),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
@@ -326,12 +356,17 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "closed_loop_still_needed_rate": 0.0,
             "closed_loop_selected_object_change_rate": 0.0,
             "closed_loop_reobserve_reason_change_rate": 0.0,
+            "closed_loop_before_selected_still_selected_rate": 0.0,
+            "closed_loop_before_selected_received_observation_rate": 0.0,
+            "closed_loop_before_selected_gained_view_support_rate": 0.0,
             "mean_closed_loop_delta_num_views": 0.0,
             "mean_closed_loop_delta_num_memory_objects": 0.0,
             "mean_closed_loop_delta_num_observations_added": 0.0,
             "mean_closed_loop_delta_selected_overall_confidence": 0.0,
             "mean_closed_loop_delta_selected_num_views": 0.0,
             "mean_closed_loop_delta_selected_num_observations": 0.0,
+            "mean_closed_loop_before_selected_delta_num_observations": 0.0,
+            "mean_closed_loop_before_selected_delta_num_views": 0.0,
             "reobserve_reason_counts": {},
             "initial_reobserve_reason_counts": {},
             "final_reobserve_reason_counts": {},
@@ -360,6 +395,15 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "closed_loop_reobserve_reason_change_rate": _mean(
             1 if _as_bool(row.get("closed_loop_reobserve_reason_changed")) else 0 for row in rows
         ),
+        "closed_loop_before_selected_still_selected_rate": _mean(
+            1 if _as_bool(row.get("closed_loop_before_selected_still_selected")) else 0 for row in rows
+        ),
+        "closed_loop_before_selected_received_observation_rate": _mean(
+            1 if _as_bool(row.get("closed_loop_before_selected_received_observation")) else 0 for row in rows
+        ),
+        "closed_loop_before_selected_gained_view_support_rate": _mean(
+            1 if _as_bool(row.get("closed_loop_before_selected_gained_view_support")) else 0 for row in rows
+        ),
         "mean_closed_loop_delta_num_views": _mean(
             _as_int(row.get("closed_loop_delta_num_views"), 0) for row in rows
         ),
@@ -377,6 +421,12 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "mean_closed_loop_delta_selected_num_observations": _mean(
             _as_int(row.get("closed_loop_delta_selected_num_observations"), 0) for row in rows
+        ),
+        "mean_closed_loop_before_selected_delta_num_observations": _mean(
+            _as_int(row.get("closed_loop_before_selected_delta_num_observations"), 0) for row in rows
+        ),
+        "mean_closed_loop_before_selected_delta_num_views": _mean(
+            _as_int(row.get("closed_loop_before_selected_delta_num_views"), 0) for row in rows
         ),
         "reobserve_reason_counts": count_values(
             row.get("reobserve_reason") or "none"
@@ -445,6 +495,13 @@ def failed_row(
         "closed_loop_reobserve_reason_changed": False,
         "closed_loop_reobserve_resolved": False,
         "closed_loop_reobserve_still_needed": False,
+        "closed_loop_before_selected_present_after": False,
+        "closed_loop_before_selected_still_selected": False,
+        "closed_loop_before_selected_received_observation": False,
+        "closed_loop_before_selected_gained_view_support": False,
+        "closed_loop_before_selected_merged_extra_view_ids": "",
+        "closed_loop_before_selected_delta_num_observations": 0,
+        "closed_loop_before_selected_delta_num_views": 0,
         "runtime_seconds": 0.0,
         "detector_backend": "" if args is None else str(args.detector_backend),
         "skip_clip": False if args is None else bool(args.skip_clip),

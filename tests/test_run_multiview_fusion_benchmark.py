@@ -79,6 +79,8 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["view_preset"] == "none"
     assert row["closed_loop_delta_selected_overall_confidence"] == 0.0
     assert row["closed_loop_reobserve_resolved"] is False
+    assert row["closed_loop_before_selected_received_observation"] is False
+    assert row["closed_loop_before_selected_delta_num_views"] == 0
 
 
 def test_aggregate_rows_by_query() -> None:
@@ -101,6 +103,12 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_reobserve_still_needed": False,
             "closed_loop_selected_object_changed": False,
             "closed_loop_reobserve_reason_changed": True,
+            "closed_loop_before_selected_present_after": True,
+            "closed_loop_before_selected_still_selected": True,
+            "closed_loop_before_selected_received_observation": True,
+            "closed_loop_before_selected_gained_view_support": True,
+            "closed_loop_before_selected_delta_num_observations": 1,
+            "closed_loop_before_selected_delta_num_views": 1,
             "closed_loop_delta_num_views": 1,
             "closed_loop_delta_num_memory_objects": 0,
             "closed_loop_delta_num_observations_added": 1,
@@ -128,6 +136,12 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_reobserve_still_needed": False,
             "closed_loop_selected_object_changed": False,
             "closed_loop_reobserve_reason_changed": False,
+            "closed_loop_before_selected_present_after": False,
+            "closed_loop_before_selected_still_selected": False,
+            "closed_loop_before_selected_received_observation": False,
+            "closed_loop_before_selected_gained_view_support": False,
+            "closed_loop_before_selected_delta_num_observations": 0,
+            "closed_loop_before_selected_delta_num_views": 0,
             "closed_loop_delta_num_views": 0,
             "closed_loop_delta_num_memory_objects": 0,
             "closed_loop_delta_num_observations_added": 0,
@@ -155,6 +169,12 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_reobserve_still_needed": True,
             "closed_loop_selected_object_changed": True,
             "closed_loop_reobserve_reason_changed": False,
+            "closed_loop_before_selected_present_after": True,
+            "closed_loop_before_selected_still_selected": False,
+            "closed_loop_before_selected_received_observation": False,
+            "closed_loop_before_selected_gained_view_support": False,
+            "closed_loop_before_selected_delta_num_observations": 0,
+            "closed_loop_before_selected_delta_num_views": 0,
             "closed_loop_delta_num_views": 1,
             "closed_loop_delta_num_memory_objects": 1,
             "closed_loop_delta_num_observations_added": 2,
@@ -180,11 +200,16 @@ def test_aggregate_rows_by_query() -> None:
     assert aggregate["closed_loop_still_needed_rate"] == 1 / 3
     assert aggregate["closed_loop_selected_object_change_rate"] == 1 / 3
     assert aggregate["closed_loop_reobserve_reason_change_rate"] == 1 / 3
+    assert aggregate["closed_loop_before_selected_still_selected_rate"] == 1 / 3
+    assert aggregate["closed_loop_before_selected_received_observation_rate"] == 1 / 3
+    assert aggregate["closed_loop_before_selected_gained_view_support_rate"] == 1 / 3
     assert aggregate["mean_closed_loop_delta_num_views"] == 2 / 3
     assert aggregate["mean_closed_loop_delta_num_memory_objects"] == 1 / 3
     assert aggregate["mean_closed_loop_delta_num_observations_added"] == 1.0
     assert aggregate["mean_closed_loop_delta_selected_overall_confidence"] == (0.2 + 0.0 - 0.1) / 3
     assert aggregate["mean_closed_loop_delta_selected_num_views"] == 1 / 3
+    assert aggregate["mean_closed_loop_before_selected_delta_num_observations"] == 1 / 3
+    assert aggregate["mean_closed_loop_before_selected_delta_num_views"] == 1 / 3
     assert aggregate["reobserve_reason_counts"] == {
         "ambiguous_top_candidates": 1,
         "low_overall_confidence": 1,
@@ -254,6 +279,13 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "closed_loop_reobserve_reason_changed": True,
             "closed_loop_reobserve_resolved": True,
             "closed_loop_reobserve_still_needed": False,
+            "closed_loop_before_selected_present_after": True,
+            "closed_loop_before_selected_still_selected": True,
+            "closed_loop_before_selected_received_observation": True,
+            "closed_loop_before_selected_gained_view_support": True,
+            "closed_loop_before_selected_merged_extra_view_ids": ["top_down"],
+            "closed_loop_before_selected_delta_num_observations": 1,
+            "closed_loop_before_selected_delta_num_views": 1,
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
@@ -308,14 +340,18 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["aggregate_metrics"]["closed_loop_execution_rate"] == 1.0
     assert summary["aggregate_metrics"]["closed_loop_resolution_rate"] == 1.0
     assert summary["aggregate_metrics"]["closed_loop_still_needed_rate"] == 0.0
+    assert summary["aggregate_metrics"]["closed_loop_before_selected_received_observation_rate"] == 1.0
+    assert summary["aggregate_metrics"]["closed_loop_before_selected_gained_view_support_rate"] == 1.0
     assert summary["aggregate_metrics"]["mean_closed_loop_delta_selected_num_views"] == 1.0
     assert summary["aggregate_metrics"]["mean_closed_loop_delta_selected_overall_confidence"] == 0.1
+    assert summary["aggregate_metrics"]["mean_closed_loop_before_selected_delta_num_views"] == 1.0
     assert summary["aggregate_metrics"]["reobserve_reason_counts"] == {"confident_enough": 4}
     assert summary["aggregate_metrics"]["mean_num_memory_objects"] == 2.0
     assert "selected_overall_confidence" in csv_header
     assert "should_reobserve" in csv_header
     assert "closed_loop_delta_selected_num_views" in csv_header
     assert "closed_loop_reobserve_resolved" in csv_header
+    assert "closed_loop_before_selected_received_observation" in csv_header
     assert all("--skip-clip" in command for command in seen_commands)
     assert all("--enable-closed-loop-reobserve" in command for command in seen_commands)
 

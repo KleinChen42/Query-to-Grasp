@@ -27,6 +27,8 @@ def test_build_policy_report_maps_aggregate_and_examples(tmp_path: Path) -> None
     assert benchmark["closed_loop_execution_rate"] == 0.5
     assert benchmark["closed_loop_resolution_rate"] == 0.5
     assert benchmark["closed_loop_still_needed_rate"] == 0.5
+    assert benchmark["closed_loop_before_selected_received_observation_rate"] == 0.5
+    assert benchmark["closed_loop_before_selected_gained_view_support_rate"] == 0.5
     assert benchmark["mean_closed_loop_delta_selected_num_views"] == 0.5
     assert benchmark["reobserve_reason_counts"] == {"ambiguous_top_candidates": 1, "confident_enough": 1}
     assert benchmark["per_query"][0]["query"] == "blue mug"
@@ -59,6 +61,8 @@ def test_render_markdown_contains_policy_sections(tmp_path: Path) -> None:
     assert "final_trigger_rate" in markdown
     assert "closed_loop_execution_rate" in markdown
     assert "resolution_rate" in markdown
+    assert "selected_assoc_rate" in markdown
+    assert "selected_support_gain_rate" in markdown
     assert "delta_selected_views" in markdown
     assert "ambiguous_top_candidates: 1" in markdown
     assert "resolution rate 0.5000" in markdown
@@ -123,9 +127,14 @@ def _write_fusion_benchmark(
             "closed_loop_execution_rate": closed_loop_execution_rate,
             "closed_loop_resolution_rate": trigger_rate,
             "closed_loop_still_needed_rate": trigger_rate,
+            "closed_loop_before_selected_still_selected_rate": trigger_rate,
+            "closed_loop_before_selected_received_observation_rate": trigger_rate,
+            "closed_loop_before_selected_gained_view_support_rate": trigger_rate,
             "mean_closed_loop_delta_selected_overall_confidence": 0.1,
             "mean_closed_loop_delta_selected_num_views": 0.5,
             "mean_closed_loop_delta_num_memory_objects": 0.0,
+            "mean_closed_loop_before_selected_delta_num_observations": trigger_rate,
+            "mean_closed_loop_before_selected_delta_num_views": trigger_rate,
             "reobserve_reason_counts": reason_counts,
             "initial_reobserve_reason_counts": {"ambiguous_top_candidates": 2},
             "final_reobserve_reason_counts": reason_counts,
@@ -141,8 +150,13 @@ def _write_fusion_benchmark(
                 "closed_loop_execution_rate": 1.0,
                 "closed_loop_resolution_rate": 0.0,
                 "closed_loop_still_needed_rate": 1.0,
+                "closed_loop_before_selected_still_selected_rate": 1.0,
+                "closed_loop_before_selected_received_observation_rate": 1.0,
+                "closed_loop_before_selected_gained_view_support_rate": 1.0,
                 "mean_closed_loop_delta_selected_overall_confidence": 0.2,
                 "mean_closed_loop_delta_selected_num_views": 1.0,
+                "mean_closed_loop_before_selected_delta_num_observations": 1.0,
+                "mean_closed_loop_before_selected_delta_num_views": 1.0,
                 "reobserve_reason_counts": {"ambiguous_top_candidates": 1},
             },
             "blue mug": {
@@ -155,8 +169,13 @@ def _write_fusion_benchmark(
                 "closed_loop_execution_rate": 0.0,
                 "closed_loop_resolution_rate": 1.0,
                 "closed_loop_still_needed_rate": 0.0,
+                "closed_loop_before_selected_still_selected_rate": 0.0,
+                "closed_loop_before_selected_received_observation_rate": 0.0,
+                "closed_loop_before_selected_gained_view_support_rate": 0.0,
                 "mean_closed_loop_delta_selected_overall_confidence": 0.0,
                 "mean_closed_loop_delta_selected_num_views": 0.0,
+                "mean_closed_loop_before_selected_delta_num_observations": 0.0,
+                "mean_closed_loop_before_selected_delta_num_views": 0.0,
                 "reobserve_reason_counts": {"confident_enough": 1},
             },
         },

@@ -54,15 +54,15 @@ def test_collect_reobserve_frames_uses_supported_virtual_views() -> None:
 
     frames = multiview.collect_reobserve_frames(
         scene=scene,
-        suggested_view_ids=["unsupported", "top_down", "left"],
+        suggested_view_ids=["unsupported", "top_down", "closer_left"],
         camera_name="base_camera",
         max_views=2,
     )
 
-    assert [view_id for view_id, _ in frames] == ["top_down", "left"]
+    assert [view_id for view_id, _ in frames] == ["top_down", "closer_left"]
     assert scene.calls[0][0] == "base_camera"
     assert scene.calls[0][1] == (0.0, 0.0, 0.75)
-    assert scene.calls[1][1] == (0.0, 0.35, 0.55)
+    assert scene.calls[1][1] == (0.0, 0.24, 0.42)
 
 
 def test_build_memory_config_uses_cli_weights() -> None:
@@ -283,6 +283,16 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
                 "artifacts": "outputs/view",
             }
         ],
+        selected_object_followup={
+            "before_selected_object_id": "obj_0000",
+            "present_after": True,
+            "still_selected_after": True,
+            "delta_num_views": 1,
+            "delta_num_observations": 1,
+            "received_observation": True,
+            "gained_view_support": True,
+            "merged_extra_view_ids": ["top_down"],
+        },
     )
 
     assert report["executed"] is True
@@ -297,3 +307,53 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
     assert report["delta"]["reobserve_reason_changed"] is True
     assert report["delta"]["reobserve_resolved"] is True
     assert report["delta"]["reobserve_still_needed"] is False
+    assert report["initial_selected_object_followup"]["received_observation"] is True
+    assert report["initial_selected_object_followup"]["merged_extra_view_ids"] == ["top_down"]
+
+
+def test_build_initial_selected_object_followup_tracks_merge_into_before_selected() -> None:
+    memory = ObjectMemory3D()
+    selected = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            label="object",
+            det_score=0.8,
+            fused_2d_score=0.8,
+            view_id="front",
+            num_points=100,
+            depth_valid_ratio=1.0,
+        )
+    )
+    before = {
+        "selected_object_id": selected.object_id,
+        "selected_num_views": 1,
+        "selected_view_ids": ["front"],
+        "selected_num_observations": 1,
+    }
+    memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.01, 0.0, 0.0], dtype=np.float32),
+            label="object",
+            det_score=0.85,
+            fused_2d_score=0.85,
+            view_id="closer_left",
+            num_points=120,
+            depth_valid_ratio=1.0,
+        )
+    )
+    after = {"selected_object_id": selected.object_id}
+
+    followup = multiview.build_initial_selected_object_followup(
+        before=before,
+        after=after,
+        memory=memory,
+        extra_view_ids=["closer_left"],
+    )
+
+    assert followup["present_after"] is True
+    assert followup["still_selected_after"] is True
+    assert followup["delta_num_views"] == 1
+    assert followup["delta_num_observations"] == 1
+    assert followup["received_observation"] is True
+    assert followup["gained_view_support"] is True
+    assert followup["merged_extra_view_ids"] == ["closer_left"]

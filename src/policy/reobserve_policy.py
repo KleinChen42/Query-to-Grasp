@@ -8,6 +8,12 @@ from typing import Any, Sequence
 from src.memory.object_memory_3d import MemoryObject3D, ObjectMemory3D
 from src.policy.target_selector import object_selection_sort_key
 
+SUPPORT_VIEW_VARIANTS: dict[str, str] = {
+    "front": "closer_front",
+    "left": "closer_left",
+    "right": "closer_right",
+}
+
 
 @dataclass(frozen=True)
 class ReobservePolicyConfig:
@@ -215,10 +221,12 @@ def suggest_reobserve_views(
     for source, view_id in prioritized:
         if len(suggestions) >= max(0, int(config.max_suggested_views)):
             break
-        suggestions.append(view_id)
+        suggested_view_id = remap_support_view_id(view_id, source)
+        suggestions.append(suggested_view_id)
         plan.append(
             {
-                "view_id": view_id,
+                "view_id": suggested_view_id,
+                "requested_view_id": view_id,
                 "source": source,
                 "priority_reason": priority_reason_for_suggestion(reason, source),
             }
@@ -234,6 +242,14 @@ def priority_reason_for_suggestion(reason: str | None, source: str) -> str:
     if reason in {"low_geometry_confidence", "too_few_3d_points"}:
         return "improve_geometry_evidence"
     return "expand_reobservation_coverage"
+
+
+def remap_support_view_id(view_id: str, source: str) -> str:
+    """Map support-driven repeated views onto novel nearby re-observation views."""
+
+    if source != "candidate_missing_support":
+        return view_id
+    return SUPPORT_VIEW_VARIANTS.get(view_id, view_id)
 
 
 def dedupe_view_ids(view_ids: Sequence[Any]) -> list[str]:

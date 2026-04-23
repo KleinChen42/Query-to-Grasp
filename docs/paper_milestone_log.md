@@ -482,6 +482,62 @@ an unused support view" and "look from a geometry-friendly view." The next step
 is to rerun a compact closed-loop benchmark and see whether selected-support
 deltas or resolution rate improve.
 
+### Support-Variant Compact Ambiguity Benchmark
+
+Source:
+H200 `outputs/h200_60071_support_variant_ambiguity_compact_seed0`
+
+Setup:
+
+- Queries: `cube`, `block`, `container`, `object`
+- Seed: `0`
+- Conditions: HF no-CLIP and HF with-CLIP
+- Closed-loop policy: support-aware with `closer_front/left/right` variants
+
+| setting | initial trigger | final trigger | resolution rate | selected support delta | selected object change rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| no CLIP | 1.0000 | 1.0000 | 0.0000 | 0.2500 | 0.2500 |
+| with CLIP | 0.7500 | 0.7500 | 0.0000 | 0.0000 | 0.2500 |
+
+Interpretation:
+
+The `closer_*` support-view variants are a real functional step forward:
+compared with the previous compact closed-loop rerun, the no-CLIP condition now
+shows positive selected-support movement (`mean_closed_loop_delta_selected_num_views = 0.25`).
+However, this still does not resolve uncertainty in the compact benchmark, and
+with-CLIP remains support-flat. This suggests the next bottleneck is not only
+which extra pose to capture, but how the new observation is associated back into
+the selected object memory.
+
+### Selected-Object Association Compact Ambiguity Benchmark
+
+Source:
+H200 `outputs/h200_60071_assoc_diag_ambiguity_compact_seed0_v2`
+
+Setup:
+
+- Queries: `cube`, `block`, `container`, `object`
+- Seed: `0`
+- Conditions: HF no-CLIP and HF with-CLIP
+- Closed-loop policy: support-aware with `closer_front/left/right` variants
+- New diagnostics: initial-selected association and support-gain rates
+
+| setting | initial trigger | final trigger | resolution rate | selected assoc rate | selected support gain rate | mean before-selected delta views | mean before-selected delta obs | selected object change rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| no CLIP | 1.0000 | 1.0000 | 0.0000 | 0.2500 | 0.2500 | 0.2500 | 0.2500 | 0.2500 |
+| with CLIP | 0.7500 | 0.7500 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.2500 |
+
+Interpretation:
+
+The new diagnostic makes the next bottleneck explicit. In the compact no-CLIP
+condition, one quarter of runs now merge the extra observation back into the
+initially selected object and increase that object's view support. In the
+with-CLIP condition, the same support-aware policy still executes, but the
+association rate remains `0.0` while selected-object change rate stays `0.25`.
+This strongly suggests the next algorithmic target is not "add another view,"
+but "preserve selected-object continuity when the extra observation is folded
+back into memory."
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -712,13 +768,14 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Measure whether support-aware view selection improves closed-loop outcomes:
+Improve how closed-loop extra observations update the selected object memory,
+especially in the HF with-CLIP condition:
 
-1. Re-run a compact ambiguity closed-loop benchmark with the new
-   support-aware suggestion policy.
-2. Check whether `closed_loop_resolution_rate`,
-   `mean_closed_loop_delta_selected_num_views`, or
-   `closed_loop_reobserve_reason_change_rate` improve.
+1. Add a compact per-run trace that compares the initial selected object, the
+   final selected object, and the object that actually absorbed the extra view.
+2. Inspect whether CLIP-weighted candidates are shifting the extra observation
+   into a different memory slot even when the re-observation view is
+   support-aware.
 3. Keep real robot control and web demo out of scope until closed-loop
    perception improves a measurable policy or memory metric.
 

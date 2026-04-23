@@ -59,6 +59,21 @@ VIEW_PRESETS: dict[str, tuple[VirtualCameraView, ...]] = {
 }
 
 REOBSERVE_VIEW_POSES: dict[str, VirtualCameraView] = {
+    "closer_front": VirtualCameraView(
+        label="closer_front",
+        eye=(0.24, 0.0, 0.42),
+        target=(0.0, 0.0, 0.05),
+    ),
+    "closer_left": VirtualCameraView(
+        label="closer_left",
+        eye=(0.0, 0.24, 0.42),
+        target=(0.0, 0.0, 0.05),
+    ),
+    "closer_right": VirtualCameraView(
+        label="closer_right",
+        eye=(0.0, -0.24, 0.42),
+        target=(0.0, 0.0, 0.05),
+    ),
     "top_down": VirtualCameraView(
         label="top_down",
         eye=(0.0, 0.0, 0.75),
@@ -275,6 +290,12 @@ def main() -> None:
             total_observations_added=total_observations_added,
         )
         closed_loop_delta = build_closed_loop_delta(initial_snapshot, final_snapshot)
+        selected_object_followup = build_initial_selected_object_followup(
+            before=initial_snapshot,
+            after=final_snapshot,
+            memory=memory,
+            extra_view_ids=extra_view_ids,
+        )
         if args.enable_closed_loop_reobserve:
             write_closed_loop_reobserve_artifacts(
                 run_dir=run_dir,
@@ -355,6 +376,23 @@ def main() -> None:
         summary["closed_loop_reobserve_reason_changed"] = closed_loop_delta["reobserve_reason_changed"]
         summary["closed_loop_reobserve_resolved"] = closed_loop_delta["reobserve_resolved"]
         summary["closed_loop_reobserve_still_needed"] = closed_loop_delta["reobserve_still_needed"]
+        summary["closed_loop_before_selected_present_after"] = selected_object_followup["present_after"]
+        summary["closed_loop_before_selected_still_selected"] = selected_object_followup["still_selected_after"]
+        summary["closed_loop_before_selected_received_observation"] = selected_object_followup[
+            "received_observation"
+        ]
+        summary["closed_loop_before_selected_gained_view_support"] = selected_object_followup[
+            "gained_view_support"
+        ]
+        summary["closed_loop_before_selected_merged_extra_view_ids"] = selected_object_followup[
+            "merged_extra_view_ids"
+        ]
+        summary["closed_loop_before_selected_delta_num_observations"] = selected_object_followup[
+            "delta_num_observations"
+        ]
+        summary["closed_loop_before_selected_delta_num_views"] = selected_object_followup[
+            "delta_num_views"
+        ]
         write_json(summary, run_dir / "summary.json")
         print_summary(summary)
     finally:
@@ -680,6 +718,7 @@ def build_reobserve_stage_snapshot(
         "selected_semantic_confidence": 0.0 if selected is None else float(selected.semantic_confidence),
         "selected_geometry_confidence": 0.0 if selected is None else float(selected.geometry_confidence),
         "selected_num_views": 0 if selected is None else len(selected.view_ids),
+        "selected_view_ids": [] if selected is None else list(selected.view_ids),
         "selected_num_observations": 0 if selected is None else int(selected.num_observations),
         "should_reobserve": bool(decision.should_reobserve),
         "reobserve_reason": decision.reason,
@@ -717,10 +756,61 @@ def build_closed_loop_delta(before: dict[str, Any], after: dict[str, Any]) -> di
     }
 
 
+def build_initial_selected_object_followup(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    memory: ObjectMemory3D,
+    extra_view_ids: Sequence[str],
+) -> dict[str, Any]:
+    """Track what happened to the initially selected object after extra views."""
+
+    before_selected_object_id = str(before.get("selected_object_id") or "").strip() or None
+    before_selected_view_ids = [
+        str(view_id).strip()
+        for view_id in before.get("selected_view_ids", [])
+        if str(view_id).strip()
+    ]
+    before_selected_num_views = _snapshot_int(before, "selected_num_views")
+    before_selected_num_observations = _snapshot_int(before, "selected_num_observations")
+    after_object = find_memory_object(memory, before_selected_object_id)
+    if after_object is None:
+        return {
+            "before_selected_object_id": before_selected_object_id,
+            "present_after": False,
+            "still_selected_after": False,
+            "delta_num_views": 0,
+            "delta_num_observations": 0,
+            "received_observation": False,
+            "gained_view_support": False,
+            "merged_extra_view_ids": [],
+        }
+
+    after_selected_object_id = str(after.get("selected_object_id") or "").strip() or None
+    after_view_ids = [str(view_id).strip() for view_id in after_object.view_ids if str(view_id).strip()]
+    merged_extra_view_ids = [
+        str(view_id).strip()
+        for view_id in extra_view_ids
+        if str(view_id).strip() in after_view_ids and str(view_id).strip() not in before_selected_view_ids
+    ]
+    delta_num_views = len(after_view_ids) - before_selected_num_views
+    delta_num_observations = int(after_object.num_observations) - before_selected_num_observations
+    return {
+        "before_selected_object_id": before_selected_object_id,
+        "present_after": True,
+        "still_selected_after": before_selected_object_id == after_selected_object_id,
+        "delta_num_views": delta_num_views,
+        "delta_num_observations": delta_num_observations,
+        "received_observation": delta_num_observations > 0,
+        "gained_view_support": delta_num_views > 0,
+        "merged_extra_view_ids": merged_extra_view_ids,
+    }
+
+
 def build_closed_loop_reobserve_report(
     before: dict[str, Any],
     after: dict[str, Any],
     extra_view_results: list[dict[str, Any]],
+    selected_object_followup: dict[str, Any],
 ) -> dict[str, Any]:
     """Build the before/after artifact for closed-loop re-observation."""
 
@@ -741,6 +831,7 @@ def build_closed_loop_reobserve_report(
         "before": before,
         "after": after,
         "delta": build_closed_loop_delta(before, after),
+        "initial_selected_object_followup": selected_object_followup,
     }
 
 
@@ -759,10 +850,17 @@ def write_closed_loop_reobserve_artifacts(
     """Write opt-in closed-loop before/after artifacts."""
 
     write_json(final_decision.to_json_dict(), run_dir / "reobserve_decision_after.json")
+    selected_object_followup = build_initial_selected_object_followup(
+        before=initial_snapshot,
+        after=final_snapshot,
+        memory=memory,
+        extra_view_ids=[result.get("view_id") for result in extra_view_results if result.get("view_id")],
+    )
     report = build_closed_loop_reobserve_report(
         before=initial_snapshot,
         after=final_snapshot,
         extra_view_results=extra_view_results,
+        selected_object_followup=selected_object_followup,
     )
     report["final_selection_trace"] = build_selection_trace(
         memory=memory,
@@ -841,6 +939,17 @@ def _snapshot_float(snapshot: dict[str, Any], key: str) -> float:
         return float(snapshot.get(key) or 0.0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def find_memory_object(memory: ObjectMemory3D, object_id: str | None) -> MemoryObject3D | None:
+    """Return one memory object by id."""
+
+    if object_id is None:
+        return None
+    for obj in memory.objects:
+        if obj.object_id == object_id:
+            return obj
+    return None
 
 
 if __name__ == "__main__":

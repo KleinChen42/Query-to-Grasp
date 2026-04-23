@@ -392,14 +392,32 @@ the next support-aware view selection milestone a measurable success criterion.
 Current functional improvement:
 
 The re-observation policy now chooses suggested views based on the triggered
-failure mode. Ambiguity and insufficient-support cases prefer missing selected
+failure mode, and closed-loop runs now emit initial-selected association
+diagnostics. Ambiguity and insufficient-support cases prefer missing selected
 support views, while geometry-driven cases prefer `top_down`-style views and
 record the rationale in `suggested_view_plan`.
+
+Compact H200 rerun with association diagnostics:
+
+| setting | initial trigger | final trigger | resolution rate | selected assoc rate | selected support gain rate | selected object change rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Ambiguity compact HF no CLIP closed-loop v2 | 1.0000 | 1.0000 | 0.0000 | 0.2500 | 0.2500 | 0.2500 |
+| Ambiguity compact HF with CLIP closed-loop v2 | 0.7500 | 0.7500 | 0.0000 | 0.0000 | 0.0000 | 0.2500 |
+
+Interpretation:
+
+This new diagnostic narrows the failure mode. The no-CLIP compact rerun shows
+that one quarter of runs now merge the extra observation back into the initial
+selected object and increase its view support. The with-CLIP compact rerun does
+not: association stays at `0.0` while selected-object change rate remains
+`0.25`. That points the next implementation step toward memory association and
+selection continuity under CLIP-weighted fusion, not toward adding more views.
 
 Artifacts:
 
 - `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md`
 - `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md`
+- `outputs/h200_60071_assoc_diag_ambiguity_compact_seed0_v2/reobserve_policy_report_ambiguity_compact_hf_closed_loop.md`
 
 ## Figures and Tables
 
@@ -457,11 +475,11 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Measure whether support-aware view selection improves closed-loop outcomes:
+Improve selected-object association in closed-loop ambiguity runs:
 
-1. Rerun a compact ambiguity closed-loop benchmark with the new reason-aware
-   suggestion policy.
-2. Check whether selected support, policy resolution, or reason-change deltas
-   improve relative to the current closed-loop baseline.
+1. Add a compact per-run trace that compares the initial selected object, the
+   final selected object, and the object that absorbed the extra view.
+2. Inspect why the HF with-CLIP compact rerun still has `selected_assoc_rate = 0.0`
+   even though the same support-aware views help the no-CLIP condition.
 3. Only build demo UI after the closed-loop perception result improves a
    measurable policy or memory metric.
