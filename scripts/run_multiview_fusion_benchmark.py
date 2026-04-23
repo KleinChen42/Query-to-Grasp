@@ -213,6 +213,8 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         command.extend(str(view_id) for view_id in args.view_ids if str(view_id).strip())
     if args.skip_clip:
         command.append("--skip-clip")
+    else:
+        command.append("--use-clip")
     return command
 
 

@@ -8,7 +8,7 @@ import sys
 import scripts.run_multiview_fusion_benchmark as benchmark
 
 
-def test_build_child_command_only_appends_skip_clip_when_requested(tmp_path: Path) -> None:
+def test_build_child_command_explicitly_forwards_clip_mode(tmp_path: Path) -> None:
     args = _args(output_dir=tmp_path, skip_clip=False, view_ids=["front", "left"], view_preset="none")
 
     command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
@@ -22,11 +22,13 @@ def test_build_child_command_only_appends_skip_clip_when_requested(tmp_path: Pat
     assert "front" in command
     assert "left" in command
     assert "--skip-clip" not in command
+    assert "--use-clip" in command
 
     args.skip_clip = True
     command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
 
     assert "--skip-clip" in command
+    assert "--use-clip" not in command
 
 
 def test_build_child_command_forwards_view_preset(tmp_path: Path) -> None:
