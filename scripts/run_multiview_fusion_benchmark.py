@@ -67,6 +67,10 @@ CSV_COLUMNS = [
     "closed_loop_selected_object_continuity_enabled",
     "closed_loop_preferred_merge_count",
     "closed_loop_preferred_merge_rate",
+    "closed_loop_post_selection_continuity_enabled",
+    "closed_loop_post_selection_continuity_eligible",
+    "closed_loop_post_selection_continuity_applied",
+    "closed_loop_post_selection_continuity_reason",
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
@@ -104,6 +108,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--closed-loop-max-extra-views", type=int, default=1)
     parser.add_argument("--enable-selected-object-continuity", action="store_true")
     parser.add_argument("--selected-object-continuity-distance-scale", type=float, default=1.0)
+    parser.add_argument("--enable-post-reobserve-selection-continuity", action="store_true")
+    parser.add_argument("--post-reobserve-selection-margin", type=float, default=0.03)
     parser.add_argument("--fail-on-child-error", action="store_true", help="Exit nonzero if any child debug run fails.")
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
@@ -154,6 +160,8 @@ def main() -> None:
         "closed_loop_max_extra_views": int(args.closed_loop_max_extra_views),
         "closed_loop_selected_object_continuity_enabled": bool(args.enable_selected_object_continuity),
         "selected_object_continuity_distance_scale": float(args.selected_object_continuity_distance_scale),
+        "closed_loop_post_selection_continuity_enabled": bool(args.enable_post_reobserve_selection_continuity),
+        "post_reobserve_selection_margin": float(args.post_reobserve_selection_margin),
         "aggregate_metrics": aggregate_rows(rows),
         "per_query_metrics": aggregate_rows_by_query(rows),
     }
@@ -278,6 +286,9 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
                 str(args.selected_object_continuity_distance_scale),
             ]
         )
+    if args.enable_post_reobserve_selection_continuity:
+        command.append("--enable-post-reobserve-selection-continuity")
+        command.extend(["--post-reobserve-selection-margin", str(args.post_reobserve_selection_margin)])
     return command
 
 
@@ -373,6 +384,18 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
             summary.get("closed_loop_preferred_merge_rate"),
             0.0,
         ),
+        "closed_loop_post_selection_continuity_enabled": _as_bool(
+            summary.get("closed_loop_post_selection_continuity_enabled")
+        ),
+        "closed_loop_post_selection_continuity_eligible": _as_bool(
+            summary.get("closed_loop_post_selection_continuity_eligible")
+        ),
+        "closed_loop_post_selection_continuity_applied": _as_bool(
+            summary.get("closed_loop_post_selection_continuity_applied")
+        ),
+        "closed_loop_post_selection_continuity_reason": _optional_str(
+            summary.get("closed_loop_post_selection_continuity_reason")
+        ),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
@@ -410,6 +433,8 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "closed_loop_extra_view_third_object_involved_rate": 0.0,
             "mean_closed_loop_preferred_merge_count": 0.0,
             "mean_closed_loop_preferred_merge_rate": 0.0,
+            "closed_loop_post_selection_continuity_eligibility_rate": 0.0,
+            "closed_loop_post_selection_continuity_apply_rate": 0.0,
             "mean_closed_loop_delta_num_views": 0.0,
             "mean_closed_loop_delta_num_memory_objects": 0.0,
             "mean_closed_loop_delta_num_observations_added": 0.0,
@@ -422,6 +447,7 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "reobserve_reason_counts": {},
             "initial_reobserve_reason_counts": {},
             "final_reobserve_reason_counts": {},
+            "closed_loop_post_selection_continuity_reason_counts": {},
             "mean_selected_overall_confidence": 0.0,
             "mean_runtime_seconds": 0.0,
         }
@@ -468,6 +494,12 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_closed_loop_preferred_merge_rate": _mean(
             _as_float(row.get("closed_loop_preferred_merge_rate"), 0.0) for row in rows
         ),
+        "closed_loop_post_selection_continuity_eligibility_rate": _mean(
+            1 if _as_bool(row.get("closed_loop_post_selection_continuity_eligible")) else 0 for row in rows
+        ),
+        "closed_loop_post_selection_continuity_apply_rate": _mean(
+            1 if _as_bool(row.get("closed_loop_post_selection_continuity_applied")) else 0 for row in rows
+        ),
         "mean_closed_loop_delta_num_views": _mean(
             _as_int(row.get("closed_loop_delta_num_views"), 0) for row in rows
         ),
@@ -505,6 +537,10 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "final_reobserve_reason_counts": count_values(
             row.get("final_reobserve_reason") or row.get("reobserve_reason") or "none"
+            for row in rows
+        ),
+        "closed_loop_post_selection_continuity_reason_counts": count_values(
+            row.get("closed_loop_post_selection_continuity_reason") or "none"
             for row in rows
         ),
         "mean_selected_overall_confidence": _mean(_as_float(row.get("selected_overall_confidence"), 0.0) for row in rows),
@@ -577,6 +613,10 @@ def failed_row(
         "closed_loop_selected_object_continuity_enabled": False,
         "closed_loop_preferred_merge_count": 0,
         "closed_loop_preferred_merge_rate": 0.0,
+        "closed_loop_post_selection_continuity_enabled": False if args is None else bool(getattr(args, "enable_post_reobserve_selection_continuity", False)),
+        "closed_loop_post_selection_continuity_eligible": False,
+        "closed_loop_post_selection_continuity_applied": False,
+        "closed_loop_post_selection_continuity_reason": None,
         "runtime_seconds": 0.0,
         "detector_backend": "" if args is None else str(args.detector_backend),
         "skip_clip": False if args is None else bool(args.skip_clip),

@@ -66,6 +66,18 @@ def test_build_child_command_forwards_selected_object_continuity(tmp_path: Path)
     assert command[command.index("--selected-object-continuity-distance-scale") + 1] == "1.5"
 
 
+def test_build_child_command_forwards_post_selection_continuity(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+    args.enable_post_reobserve_selection_continuity = True
+    args.post_reobserve_selection_margin = 0.04
+
+    command = benchmark.build_child_command(args=args, query="object", seed=0, output_dir=tmp_path / "child")
+
+    assert "--enable-post-reobserve-selection-continuity" in command
+    assert "--post-reobserve-selection-margin" in command
+    assert command[command.index("--post-reobserve-selection-margin") + 1] == "0.04"
+
+
 def test_summarize_fusion_run_defaults_missing_fields() -> None:
     row = benchmark.summarize_fusion_run(
         {
@@ -98,6 +110,10 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["closed_loop_selected_object_continuity_enabled"] is False
     assert row["closed_loop_preferred_merge_count"] == 0
     assert row["closed_loop_preferred_merge_rate"] == 0.0
+    assert row["closed_loop_post_selection_continuity_enabled"] is False
+    assert row["closed_loop_post_selection_continuity_eligible"] is False
+    assert row["closed_loop_post_selection_continuity_applied"] is False
+    assert row["closed_loop_post_selection_continuity_reason"] is None
 
 
 def test_aggregate_rows_by_query() -> None:
@@ -132,6 +148,10 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_selected_object_continuity_enabled": True,
             "closed_loop_preferred_merge_count": 2,
             "closed_loop_preferred_merge_rate": 1.0,
+            "closed_loop_post_selection_continuity_enabled": True,
+            "closed_loop_post_selection_continuity_eligible": True,
+            "closed_loop_post_selection_continuity_applied": True,
+            "closed_loop_post_selection_continuity_reason": "kept_preferred_object_within_margin",
             "closed_loop_delta_num_views": 1,
             "closed_loop_delta_num_memory_objects": 0,
             "closed_loop_delta_num_observations_added": 1,
@@ -171,6 +191,10 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_selected_object_continuity_enabled": False,
             "closed_loop_preferred_merge_count": 0,
             "closed_loop_preferred_merge_rate": 0.0,
+            "closed_loop_post_selection_continuity_enabled": False,
+            "closed_loop_post_selection_continuity_eligible": False,
+            "closed_loop_post_selection_continuity_applied": False,
+            "closed_loop_post_selection_continuity_reason": None,
             "closed_loop_delta_num_views": 0,
             "closed_loop_delta_num_memory_objects": 0,
             "closed_loop_delta_num_observations_added": 0,
@@ -210,6 +234,10 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_selected_object_continuity_enabled": True,
             "closed_loop_preferred_merge_count": 1,
             "closed_loop_preferred_merge_rate": 0.5,
+            "closed_loop_post_selection_continuity_enabled": True,
+            "closed_loop_post_selection_continuity_eligible": True,
+            "closed_loop_post_selection_continuity_applied": False,
+            "closed_loop_post_selection_continuity_reason": "confidence_gap_exceeds_margin",
             "closed_loop_delta_num_views": 1,
             "closed_loop_delta_num_memory_objects": 1,
             "closed_loop_delta_num_observations_added": 2,
@@ -242,6 +270,8 @@ def test_aggregate_rows_by_query() -> None:
     assert aggregate["closed_loop_extra_view_third_object_involved_rate"] == 1 / 3
     assert aggregate["mean_closed_loop_preferred_merge_count"] == 1.0
     assert aggregate["mean_closed_loop_preferred_merge_rate"] == 0.5
+    assert aggregate["closed_loop_post_selection_continuity_eligibility_rate"] == 2 / 3
+    assert aggregate["closed_loop_post_selection_continuity_apply_rate"] == 1 / 3
     assert aggregate["mean_closed_loop_delta_num_views"] == 2 / 3
     assert aggregate["mean_closed_loop_delta_num_memory_objects"] == 1 / 3
     assert aggregate["mean_closed_loop_delta_num_observations_added"] == 1.0
@@ -253,6 +283,11 @@ def test_aggregate_rows_by_query() -> None:
     assert aggregate["reobserve_reason_counts"] == {
         "ambiguous_top_candidates": 1,
         "low_overall_confidence": 1,
+        "none": 1,
+    }
+    assert aggregate["closed_loop_post_selection_continuity_reason_counts"] == {
+        "confidence_gap_exceeds_margin": 1,
+        "kept_preferred_object_within_margin": 1,
         "none": 1,
     }
     assert aggregate["mean_selected_overall_confidence"] == (0.6 + 0.0 + 0.8) / 3
@@ -334,6 +369,10 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "closed_loop_selected_object_continuity_enabled": True,
             "closed_loop_preferred_merge_count": 1,
             "closed_loop_preferred_merge_rate": 1.0,
+            "closed_loop_post_selection_continuity_enabled": True,
+            "closed_loop_post_selection_continuity_eligible": True,
+            "closed_loop_post_selection_continuity_applied": True,
+            "closed_loop_post_selection_continuity_reason": "kept_preferred_object_within_margin",
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
@@ -368,6 +407,9 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "--enable-selected-object-continuity",
             "--selected-object-continuity-distance-scale",
             "1.25",
+            "--enable-post-reobserve-selection-continuity",
+            "--post-reobserve-selection-margin",
+            "0.04",
             "--output-dir",
             str(output_dir),
         ],
@@ -386,6 +428,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["skip_clip"] is True
     assert summary["closed_loop_selected_object_continuity_enabled"] is True
     assert summary["selected_object_continuity_distance_scale"] == 1.25
+    assert summary["closed_loop_post_selection_continuity_enabled"] is True
+    assert summary["post_reobserve_selection_margin"] == 0.04
     assert summary["aggregate_metrics"]["fraction_with_selected_object"] == 1.0
     assert summary["aggregate_metrics"]["reobserve_trigger_rate"] == 0.0
     assert summary["aggregate_metrics"]["initial_reobserve_trigger_rate"] == 1.0
@@ -399,6 +443,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["aggregate_metrics"]["closed_loop_extra_view_third_object_involved_rate"] == 0.0
     assert summary["aggregate_metrics"]["mean_closed_loop_preferred_merge_count"] == 1.0
     assert summary["aggregate_metrics"]["mean_closed_loop_preferred_merge_rate"] == 1.0
+    assert summary["aggregate_metrics"]["closed_loop_post_selection_continuity_eligibility_rate"] == 1.0
+    assert summary["aggregate_metrics"]["closed_loop_post_selection_continuity_apply_rate"] == 1.0
     assert summary["aggregate_metrics"]["mean_closed_loop_delta_selected_num_views"] == 1.0
     assert summary["aggregate_metrics"]["mean_closed_loop_delta_selected_overall_confidence"] == 0.1
     assert summary["aggregate_metrics"]["mean_closed_loop_before_selected_delta_num_views"] == 1.0
@@ -413,10 +459,13 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert "closed_loop_final_selected_absorbed_extra_view" in csv_header
     assert "closed_loop_selected_object_continuity_enabled" in csv_header
     assert "closed_loop_preferred_merge_rate" in csv_header
+    assert "closed_loop_post_selection_continuity_applied" in csv_header
     assert all("--skip-clip" in command for command in seen_commands)
     assert all("--enable-closed-loop-reobserve" in command for command in seen_commands)
     assert all("--enable-selected-object-continuity" in command for command in seen_commands)
     assert all("--selected-object-continuity-distance-scale" in command for command in seen_commands)
+    assert all("--enable-post-reobserve-selection-continuity" in command for command in seen_commands)
+    assert all("--post-reobserve-selection-margin" in command for command in seen_commands)
 
 
 def test_multiview_fusion_benchmark_can_fail_on_child_error(monkeypatch, tmp_path: Path) -> None:
@@ -485,5 +534,7 @@ def _args(
             "closed_loop_max_extra_views": 1,
             "enable_selected_object_continuity": False,
             "selected_object_continuity_distance_scale": 1.0,
+            "enable_post_reobserve_selection_continuity": False,
+            "post_reobserve_selection_margin": 0.03,
         },
     )()

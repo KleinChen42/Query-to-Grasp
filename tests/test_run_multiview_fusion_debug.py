@@ -311,6 +311,12 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
             "preferred_merge_count": 1,
             "preferred_merge_rate": 1.0,
         },
+        post_selection_continuity={
+            "enabled": True,
+            "eligible": True,
+            "applied": True,
+            "reason": "kept_preferred_object_within_margin",
+        },
     )
 
     assert report["executed"] is True
@@ -329,6 +335,7 @@ def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
     assert report["initial_selected_object_followup"]["merged_extra_view_ids"] == ["top_down"]
     assert report["extra_view_absorber_trace"]["final_selected_absorbed_extra_view"] is True
     assert report["preferred_merge_trace"]["preferred_merge_rate"] == 1.0
+    assert report["post_selection_continuity"]["applied"] is True
 
 
 def test_build_initial_selected_object_followup_tracks_merge_into_before_selected() -> None:
@@ -417,3 +424,24 @@ def test_build_closed_loop_preferred_merge_trace_counts_used_merges() -> None:
     assert trace["observation_assignment_count"] == 3
     assert trace["preferred_merge_count"] == 2
     assert trace["preferred_merge_rate"] == 2 / 3
+
+
+def test_build_post_selection_continuity_trace_requires_received_observation() -> None:
+    trace = multiview.build_post_selection_continuity_trace(
+        args=argparse.Namespace(
+            enable_post_reobserve_selection_continuity=True,
+            post_reobserve_selection_margin=0.03,
+        ),
+        initial_snapshot={"selected_object_id": "obj_0000"},
+        selected_object_followup={
+            "received_observation": False,
+            "gained_view_support": False,
+        },
+        base_selected=SimpleNamespace(object_id="obj_0001"),
+        base_selection_label="cube",
+    )
+
+    assert trace["enabled"] is True
+    assert trace["eligible"] is False
+    assert trace["reason"] == "preferred_object_did_not_receive_extra_view"
+    assert trace["selected_object_id_before"] == "obj_0001"

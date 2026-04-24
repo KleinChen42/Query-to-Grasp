@@ -47,6 +47,7 @@ Current evidence supports the following narrower near-term claim:
 | Closed-loop ambiguity HF comparison | HF no-CLIP/with-CLIP ambiguity benchmark with one suggested extra virtual view | `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/fusion_comparison_table_ambiguity_tabletop3_hf_closed_loop.md` |
 | Closed-loop ambiguity policy report | Initial vs final policy trigger rates and per-query reason counts | `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md` |
 | Selected-object continuity policy report | Compact ambiguity closed-loop rerun after preferred-merge continuity rule | H200: `outputs/h200_60071_selected_continuity_ambiguity_compact_seed0/reobserve_policy_report_selected_continuity.md` |
+| Post-selection continuity policy report | Compact ambiguity rerun after adding final-selection continuity bias | `outputs/h200_60071_post_selection_continuity_ambiguity_compact_seed0/reobserve_policy_report_post_selection_continuity.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -81,6 +82,7 @@ Current evidence supports the following narrower near-term claim:
 | Closed-loop delta diagnostics | Done | H200 mock smoke with `closed_loop_resolution_rate`, `closed_loop_still_needed_rate`, and selected-support deltas | Future closed-loop runs now expose whether an extra view changed selected object, confidence, selected view support, memory size, policy reason, or resolved re-observation. |
 | Support-aware reobserve suggestion policy | Done | H200 mock smokes for ambiguity-driven and geometry-driven reasons | Re-observation suggestions now depend on the failure mode: missing support views are preferred for ambiguity/support issues, while `top_down`-style views are preferred for geometry issues. |
 | Selected-object continuity rule | Done | H200 compact ambiguity rerun with `--enable-selected-object-continuity` | Preferred-merge continuity improves selected-object association in compact ambiguity stress tests, but closed-loop resolution remains `0.0` and extra views still sometimes attach to third objects. |
+| Post-selection continuity rule | Done | H200 compact ambiguity rerun with `--enable-post-reobserve-selection-continuity` | The new final-selection continuity hook is instrumented and runnable, but `selection_continuity_apply_rate = 0.0` in the current compact ambiguity setting, so the current margin/eligibility logic is too conservative to change outcomes. |
 
 ## Key Quantitative Results
 
@@ -297,6 +299,32 @@ Paper note:
 > between association and resolution, likely by improving the selected-object
 > continuity rule under CLIP or tightening how extra views compete with third
 > objects in memory.
+
+### Post-Selection Continuity Diagnostic
+
+Source:
+
+`outputs/h200_60071_post_selection_continuity_ambiguity_compact_seed0/reobserve_policy_report_post_selection_continuity.md`
+
+After adding `--enable-post-reobserve-selection-continuity` with
+`--post-reobserve-selection-margin 0.03`:
+
+| setting | selected_assoc_rate | third_object_rate | preferred_merge_rate | selection_continuity_apply_rate | resolution_rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| no CLIP | 0.5000 | 0.2500 | 0.5000 | 0.0000 | 0.0000 |
+| with CLIP | 0.2500 | 0.2500 | 0.2500 | 0.0000 | 0.0000 |
+
+Row-level diagnostics show why the new rule had no effect:
+
+- `block`: continuity was eligible, but rejected because `confidence_gap_exceeds_margin`
+- `object`: the preferred object was already selected
+- `cube` / `container`: the preferred object never received the extra-view observation
+
+Interpretation:
+
+The added post-selection hook is not wrong; it is simply inactive in the
+current compact benchmark. The next experiment should therefore be a tiny margin
+sweep or confidence-gap analysis, not another large control-flow rewrite.
 
 Paper note:
 

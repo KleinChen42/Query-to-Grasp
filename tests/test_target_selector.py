@@ -4,6 +4,7 @@ import numpy as np
 
 from src.memory.object_memory_3d import ObjectMemory3D, ObjectObservation3D
 from src.policy.target_selector import (
+    apply_selection_continuity,
     build_selection_trace,
     candidate_selection_labels,
     render_selection_trace_markdown,
@@ -132,3 +133,85 @@ def test_select_memory_target_falls_back_to_best_object_without_label_match() ->
     assert selected.object_id == selected_object.object_id
     assert selection_label is None
     assert trace["selection"]["fallback_to_all_objects"] is True
+
+
+def test_apply_selection_continuity_prefers_previous_object_within_margin() -> None:
+    memory = ObjectMemory3D()
+    preferred = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            label="cube",
+            det_score=0.7,
+            fused_2d_score=0.7,
+            view_id="front",
+            num_points=1000,
+            depth_valid_ratio=1.0,
+        )
+    )
+    winner = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.3, 0.0, 0.0], dtype=np.float32),
+            label="cube",
+            det_score=0.72,
+            fused_2d_score=0.72,
+            view_id="left",
+            num_points=1000,
+            depth_valid_ratio=1.0,
+        )
+    )
+
+    selected, selection_label, diagnostics = apply_selection_continuity(
+        memory=memory,
+        parsed_query={"normalized_prompt": "cube", "target_name": "cube", "synonyms": ["block"]},
+        selected=winner,
+        selection_label="cube",
+        preferred_object_id=preferred.object_id,
+        max_confidence_gap=0.05,
+    )
+
+    assert selected is not None
+    assert selected.object_id == preferred.object_id
+    assert selection_label == "cube"
+    assert diagnostics["applied"] is True
+    assert diagnostics["reason"] == "kept_preferred_object_within_margin"
+
+
+def test_apply_selection_continuity_respects_confidence_margin() -> None:
+    memory = ObjectMemory3D()
+    preferred = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            label="cube",
+            det_score=0.5,
+            fused_2d_score=0.5,
+            view_id="front",
+            num_points=1000,
+            depth_valid_ratio=1.0,
+        )
+    )
+    winner = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.3, 0.0, 0.0], dtype=np.float32),
+            label="cube",
+            det_score=0.9,
+            fused_2d_score=0.9,
+            view_id="left",
+            num_points=1000,
+            depth_valid_ratio=1.0,
+        )
+    )
+
+    selected, selection_label, diagnostics = apply_selection_continuity(
+        memory=memory,
+        parsed_query={"normalized_prompt": "cube", "target_name": "cube", "synonyms": ["block"]},
+        selected=winner,
+        selection_label="cube",
+        preferred_object_id=preferred.object_id,
+        max_confidence_gap=0.05,
+    )
+
+    assert selected is not None
+    assert selected.object_id == winner.object_id
+    assert selection_label == "cube"
+    assert diagnostics["applied"] is False
+    assert diagnostics["reason"] == "confidence_gap_exceeds_margin"

@@ -188,6 +188,10 @@ Current closed-loop diagnostic:
 - However, closed-loop resolution remains `0.0`, so the current next bottleneck
   is not merely executing extra views but making those extra observations reduce
   policy uncertainty.
+- A second-stage post-selection continuity rule is now implemented and
+  benchmarked, but in the current compact ambiguity setting its
+  `selection_continuity_apply_rate` is still `0.0`; the practical next step is a
+  small margin sweep rather than another large architectural change.
 
 ### 7. Placeholder Pick Execution
 
@@ -295,6 +299,32 @@ The continuity rule improves selected-object association and reduces third-objec
 involvement relative to the earlier compact closed-loop baseline, but it still
 does not reduce the final trigger rate. This is evidence that memory association
 is part of the bottleneck, not the whole bottleneck.
+
+### Experiment 6: Post-Selection Continuity
+
+Question:
+
+If extra-view observations already merge back into the initially selected object,
+can a small final-selection continuity bias keep that object selected and lower
+closed-loop uncertainty?
+
+Current result:
+
+| setting | selected_assoc_rate | preferred_merge_rate | selection_continuity_apply_rate | resolution_rate |
+| --- | ---: | ---: | ---: | ---: |
+| compact ambiguity no CLIP | 0.5000 | 0.5000 | 0.0000 | 0.0000 |
+| compact ambiguity with CLIP | 0.2500 | 0.2500 | 0.0000 | 0.0000 |
+
+Artifact:
+
+- `outputs/h200_60071_post_selection_continuity_ambiguity_compact_seed0/reobserve_policy_report_post_selection_continuity.md`
+
+Interpretation:
+
+The post-selection continuity hook is implemented and instrumented, but in the
+current compact ambiguity benchmark it does not fire. The next targeted step is
+to inspect confidence gaps and sweep the continuity margin, rather than adding a
+larger new module.
 - Pool size: `2`
 - Selected object has stronger view support and confidence.
 

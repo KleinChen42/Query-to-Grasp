@@ -28,6 +28,7 @@ from src.memory.object_memory_3d import (  # noqa: E402
 )
 from src.policy.reobserve_policy import ReobserveDecision, ReobservePolicyConfig, decide_reobserve  # noqa: E402
 from src.policy.target_selector import (  # noqa: E402
+    apply_selection_continuity,
     build_selection_trace,
     render_selection_trace_markdown,
     select_memory_target,
@@ -166,6 +167,17 @@ def parse_args() -> argparse.Namespace:
         default=1.0,
         help="Compatibility distance for selected-object continuity as a multiple of --merge-distance.",
     )
+    parser.add_argument(
+        "--enable-post-reobserve-selection-continuity",
+        action="store_true",
+        help="Prefer keeping the initial selected object after re-observation when it remains competitive.",
+    )
+    parser.add_argument(
+        "--post-reobserve-selection-margin",
+        type=float,
+        default=0.03,
+        help="Maximum confidence gap allowed when keeping the initial selected object after re-observation.",
+    )
     parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
@@ -293,7 +305,39 @@ def main() -> None:
                 total_observations_added += int(view_result["num_observations_added"])
 
         final_view_ids = [*initial_view_ids, *extra_view_ids]
-        selected, selection_label = select_memory_target(memory, parsed_query)
+        selected_object_followup_preselection = build_initial_selected_object_followup(
+            before=initial_snapshot,
+            after=None,
+            memory=memory,
+            extra_view_ids=extra_view_ids,
+        )
+        base_selected, base_selection_label = select_memory_target(memory, parsed_query)
+        selected = base_selected
+        selection_label = base_selection_label
+        post_selection_continuity = build_post_selection_continuity_trace(
+            args=args,
+            initial_snapshot=initial_snapshot,
+            selected_object_followup=selected_object_followup_preselection,
+            base_selected=base_selected,
+            base_selection_label=base_selection_label,
+        )
+        if post_selection_continuity["eligible"]:
+            selected, selection_label, continuity_diagnostics = apply_selection_continuity(
+                memory=memory,
+                parsed_query=parsed_query,
+                selected=base_selected,
+                selection_label=base_selection_label,
+                preferred_object_id=initial_snapshot["selected_object_id"],
+                max_confidence_gap=float(args.post_reobserve_selection_margin),
+            )
+            post_selection_continuity = {
+                **post_selection_continuity,
+                **continuity_diagnostics,
+                "applied": bool(continuity_diagnostics.get("applied")),
+                "reason": str(continuity_diagnostics.get("reason") or "not_applied"),
+                "selected_object_id_after": None if selected is None else selected.object_id,
+                "selected_selection_label_after": selection_label,
+            }
         final_decision = decide_reobserve(
             memory=memory,
             selected=selected,
@@ -335,6 +379,7 @@ def main() -> None:
                 final_selected=selected,
                 final_selection_label=selection_label,
                 final_decision=final_decision,
+                post_selection_continuity=post_selection_continuity,
             )
 
         memory_state = build_memory_state(
@@ -434,6 +479,16 @@ def main() -> None:
         )
         summary["closed_loop_preferred_merge_count"] = preferred_merge_trace["preferred_merge_count"]
         summary["closed_loop_preferred_merge_rate"] = preferred_merge_trace["preferred_merge_rate"]
+        summary["closed_loop_post_selection_continuity_enabled"] = bool(
+            args.enable_post_reobserve_selection_continuity
+        )
+        summary["closed_loop_post_selection_continuity_eligible"] = bool(
+            post_selection_continuity["eligible"]
+        )
+        summary["closed_loop_post_selection_continuity_applied"] = bool(
+            post_selection_continuity["applied"]
+        )
+        summary["closed_loop_post_selection_continuity_reason"] = post_selection_continuity["reason"]
         write_json(summary, run_dir / "summary.json")
         print_summary(summary)
     finally:
@@ -820,7 +875,7 @@ def build_closed_loop_delta(before: dict[str, Any], after: dict[str, Any]) -> di
 
 def build_initial_selected_object_followup(
     before: dict[str, Any],
-    after: dict[str, Any],
+    after: dict[str, Any] | None,
     memory: ObjectMemory3D,
     extra_view_ids: Sequence[str],
 ) -> dict[str, Any]:
@@ -847,7 +902,7 @@ def build_initial_selected_object_followup(
             "merged_extra_view_ids": [],
         }
 
-    after_selected_object_id = str(after.get("selected_object_id") or "").strip() or None
+    after_selected_object_id = None if after is None else str(after.get("selected_object_id") or "").strip() or None
     after_view_ids = [str(view_id).strip() for view_id in after_object.view_ids if str(view_id).strip()]
     merged_extra_view_ids = [
         str(view_id).strip()
@@ -865,6 +920,44 @@ def build_initial_selected_object_followup(
         "received_observation": delta_num_observations > 0,
         "gained_view_support": delta_num_views > 0,
         "merged_extra_view_ids": merged_extra_view_ids,
+    }
+
+
+def build_post_selection_continuity_trace(
+    args: argparse.Namespace,
+    initial_snapshot: dict[str, Any],
+    selected_object_followup: dict[str, Any],
+    base_selected: MemoryObject3D | None,
+    base_selection_label: str | None,
+) -> dict[str, Any]:
+    """Explain whether post-reobserve selection continuity can be applied."""
+
+    preferred_object_id = str(initial_snapshot.get("selected_object_id") or "").strip() or None
+    if not args.enable_post_reobserve_selection_continuity:
+        reason = "disabled"
+        eligible = False
+    elif preferred_object_id is None:
+        reason = "no_initial_selected_object"
+        eligible = False
+    elif not selected_object_followup.get("received_observation"):
+        reason = "preferred_object_did_not_receive_extra_view"
+        eligible = False
+    else:
+        reason = "eligible"
+        eligible = True
+    return {
+        "enabled": bool(args.enable_post_reobserve_selection_continuity),
+        "eligible": bool(eligible),
+        "applied": False,
+        "reason": reason,
+        "preferred_object_id": preferred_object_id,
+        "preferred_object_received_observation": bool(selected_object_followup.get("received_observation")),
+        "preferred_object_gained_view_support": bool(selected_object_followup.get("gained_view_support")),
+        "max_confidence_gap": float(args.post_reobserve_selection_margin),
+        "selected_object_id_before": None if base_selected is None else base_selected.object_id,
+        "selected_selection_label_before": base_selection_label,
+        "selected_object_id_after": None if base_selected is None else base_selected.object_id,
+        "selected_selection_label_after": base_selection_label,
     }
 
 
@@ -935,6 +1028,7 @@ def build_closed_loop_reobserve_report(
     selected_object_followup: dict[str, Any],
     absorber_trace: dict[str, Any],
     preferred_merge_trace: dict[str, Any],
+    post_selection_continuity: dict[str, Any],
 ) -> dict[str, Any]:
     """Build the before/after artifact for closed-loop re-observation."""
 
@@ -958,6 +1052,7 @@ def build_closed_loop_reobserve_report(
         "initial_selected_object_followup": selected_object_followup,
         "extra_view_absorber_trace": absorber_trace,
         "preferred_merge_trace": preferred_merge_trace,
+        "post_selection_continuity": post_selection_continuity,
     }
 
 
@@ -972,6 +1067,7 @@ def write_closed_loop_reobserve_artifacts(
     final_selected: MemoryObject3D | None,
     final_selection_label: str | None,
     final_decision: ReobserveDecision,
+    post_selection_continuity: dict[str, Any],
 ) -> None:
     """Write opt-in closed-loop before/after artifacts."""
 
@@ -995,6 +1091,7 @@ def write_closed_loop_reobserve_artifacts(
         selected_object_followup=selected_object_followup,
         absorber_trace=absorber_trace,
         preferred_merge_trace=preferred_merge_trace,
+        post_selection_continuity=post_selection_continuity,
     )
     report["final_selection_trace"] = build_selection_trace(
         memory=memory,

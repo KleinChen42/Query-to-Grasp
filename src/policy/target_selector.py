@@ -20,6 +20,91 @@ def select_memory_target(
     return memory.select_best(), None
 
 
+def apply_selection_continuity(
+    memory: ObjectMemory3D,
+    parsed_query: dict[str, Any],
+    selected: MemoryObject3D | None,
+    selection_label: str | None,
+    preferred_object_id: str | None,
+    max_confidence_gap: float,
+) -> tuple[MemoryObject3D | None, str | None, dict[str, Any]]:
+    """Prefer the previous selected object when it stays competitively ranked."""
+
+    diagnostics = {
+        "preferred_object_id": preferred_object_id,
+        "selected_object_id_before": None if selected is None else selected.object_id,
+        "selected_selection_label_before": selection_label,
+        "selected_overall_confidence_before": 0.0 if selected is None else float(selected.overall_confidence),
+        "max_confidence_gap": float(max_confidence_gap),
+        "applied": False,
+        "reason": "disabled_or_missing_preferred_object",
+    }
+    preferred = memory.get_object_by_id(preferred_object_id)
+    if preferred is None:
+        diagnostics["reason"] = "preferred_object_missing"
+        return selected, selection_label, diagnostics
+
+    preferred_selection_label = preferred_selection_label_for_object(preferred, parsed_query)
+    preferred_priority = selection_label_priority(parsed_query, preferred_selection_label)
+    selected_priority = selection_label_priority(parsed_query, selection_label)
+    diagnostics.update(
+        {
+            "preferred_top_label": preferred.top_label,
+            "preferred_selection_label": preferred_selection_label,
+            "preferred_overall_confidence": float(preferred.overall_confidence),
+            "preferred_priority": preferred_priority,
+            "selected_priority_before": selected_priority,
+        }
+    )
+
+    if selected is None:
+        if preferred_selection_label is None and candidate_selection_labels(parsed_query):
+            diagnostics["reason"] = "preferred_object_not_query_eligible"
+            return selected, selection_label, diagnostics
+        diagnostics["applied"] = True
+        diagnostics["reason"] = "preferred_object_restored"
+        diagnostics["selected_object_id_after"] = preferred.object_id
+        diagnostics["selected_selection_label_after"] = preferred_selection_label
+        return preferred, preferred_selection_label, diagnostics
+
+    if preferred.object_id == selected.object_id:
+        diagnostics["reason"] = "preferred_already_selected"
+        diagnostics["selected_object_id_after"] = selected.object_id
+        diagnostics["selected_selection_label_after"] = selection_label
+        return selected, selection_label, diagnostics
+
+    if preferred_selection_label is None and selection_label is not None:
+        diagnostics["reason"] = "preferred_object_not_eligible_for_selected_label"
+        diagnostics["selected_object_id_after"] = selected.object_id
+        diagnostics["selected_selection_label_after"] = selection_label
+        return selected, selection_label, diagnostics
+
+    if preferred_priority > selected_priority:
+        diagnostics["reason"] = "preferred_object_has_lower_label_priority"
+        diagnostics["selected_object_id_after"] = selected.object_id
+        diagnostics["selected_selection_label_after"] = selection_label
+        return selected, selection_label, diagnostics
+
+    confidence_gap = float(selected.overall_confidence) - float(preferred.overall_confidence)
+    diagnostics["confidence_gap_to_selected"] = confidence_gap
+    if confidence_gap > float(max_confidence_gap):
+        diagnostics["reason"] = "confidence_gap_exceeds_margin"
+        diagnostics["selected_object_id_after"] = selected.object_id
+        diagnostics["selected_selection_label_after"] = selection_label
+        return selected, selection_label, diagnostics
+
+    result_label = selection_label
+    if preferred_priority < selected_priority:
+        result_label = preferred_selection_label
+    elif result_label is None:
+        result_label = preferred_selection_label
+    diagnostics["applied"] = True
+    diagnostics["reason"] = "kept_preferred_object_within_margin"
+    diagnostics["selected_object_id_after"] = preferred.object_id
+    diagnostics["selected_selection_label_after"] = result_label
+    return preferred, result_label, diagnostics
+
+
 def build_selection_trace(
     memory: ObjectMemory3D,
     selected: MemoryObject3D | None,
@@ -195,6 +280,30 @@ def candidate_selection_labels(parsed_query: dict[str, Any]) -> list[str]:
             *list(parsed_query.get("synonyms", [])),
         ]
     )
+
+
+def preferred_selection_label_for_object(
+    obj: MemoryObject3D,
+    parsed_query: dict[str, Any],
+) -> str | None:
+    """Return the highest-priority query label present in one object."""
+
+    for label in candidate_selection_labels(parsed_query):
+        if label in obj.label_votes:
+            return label
+    return None
+
+
+def selection_label_priority(parsed_query: dict[str, Any], selection_label: str | None) -> int:
+    """Return the query-label priority index used for continuity checks."""
+
+    labels = candidate_selection_labels(parsed_query)
+    if selection_label is None:
+        return len(labels)
+    try:
+        return labels.index(selection_label)
+    except ValueError:
+        return len(labels) + 1
 
 
 def object_selection_sort_key(obj: MemoryObject3D) -> tuple[float, int, float, str]:
