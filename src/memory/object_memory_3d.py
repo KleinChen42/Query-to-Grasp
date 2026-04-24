@@ -156,8 +156,10 @@ class ObjectMemory3D:
             and preferred_distance <= max_distance
         )
         existing_object_ids = {obj.object_id for obj in self._objects}
+        confidence_state_before: dict[str, float] | None = None
         if preferred_object_compatible:
             match = preferred_object
+            confidence_state_before = self._confidence_update_state(match)
             self._merge_into(match, observation)
         else:
             match = self._find_match(observation)
@@ -165,8 +167,9 @@ class ObjectMemory3D:
                 match = self._create_object(observation)
                 self._objects.append(match)
             else:
+                confidence_state_before = self._confidence_update_state(match)
                 self._merge_into(match, observation)
-        self._refresh_confidences(match)
+        self._refresh_confidences(match, confidence_state_before=confidence_state_before)
         assignment = {
             "object_id": match.object_id,
             "preferred_object_id": preferred_object_id,
@@ -264,7 +267,11 @@ class ObjectMemory3D:
             obj.point_cloud_path = observation.point_cloud_path
         _append_observation_metadata(obj, observation)
 
-    def _refresh_confidences(self, obj: MemoryObject3D) -> None:
+    def _refresh_confidences(
+        self,
+        obj: MemoryObject3D,
+        confidence_state_before: dict[str, float] | None = None,
+    ) -> None:
         obj.semantic_confidence = _semantic_confidence(obj.label_votes)
         obj.geometry_confidence = _geometry_confidence(
             num_points=_mean(obj.metadata.get("num_points_history", [])),
@@ -274,7 +281,7 @@ class ObjectMemory3D:
         if not obj.metadata.get("num_points_history"):
             obj.geometry_confidence = 0.0
 
-        view_score = clip01(len(obj.view_ids) / max(1, self.config.max_views_for_full_view_confidence))
+        view_score = self._view_score(obj)
         consistency_score = _spatial_consistency(obj.observation_xyzs, self.config.merge_distance)
         terms = FusionScoreTerms(
             det_score=_mean(obj.det_scores),
@@ -287,6 +294,69 @@ class ObjectMemory3D:
         obj.score_terms = result.terms
         obj.fusion_trace = result.to_json_dict()
         obj.overall_confidence = result.overall_confidence
+        self._apply_new_view_support_floor(obj, confidence_state_before)
+
+    def _confidence_update_state(self, obj: MemoryObject3D) -> dict[str, float]:
+        """Return confidence terms needed for monotonic support updates."""
+
+        return {
+            "overall_confidence": float(obj.overall_confidence),
+            "view_score": self._view_score(obj),
+        }
+
+    def _view_score(self, obj: MemoryObject3D) -> float:
+        return clip01(len(obj.view_ids) / max(1, self.config.max_views_for_full_view_confidence))
+
+    def _apply_new_view_support_floor(
+        self,
+        obj: MemoryObject3D,
+        confidence_state_before: dict[str, float] | None,
+    ) -> None:
+        raw_overall_confidence = float(obj.overall_confidence)
+        previous_floor = clip01(obj.metadata.get("new_view_support_confidence_floor", 0.0))
+        if confidence_state_before is None:
+            if previous_floor > raw_overall_confidence:
+                obj.overall_confidence = previous_floor
+                obj.fusion_trace["overall_confidence"] = float(obj.overall_confidence)
+                obj.fusion_trace["new_view_support_floor"] = {
+                    "applied": True,
+                    "raw_overall_confidence": raw_overall_confidence,
+                    "confidence_floor": previous_floor,
+                    "support_gain": 0.0,
+                    "before_view_score": self._view_score(obj),
+                    "after_view_score": self._view_score(obj),
+                }
+            return
+
+        before_view_score = float(confidence_state_before.get("view_score", 0.0))
+        after_view_score = self._view_score(obj)
+        view_score_gain = max(0.0, after_view_score - before_view_score)
+        if view_score_gain <= 0.0 and previous_floor <= raw_overall_confidence:
+            return
+
+        weights = self.config.fusion_weights.to_json_dict()
+        normalizer = sum(weight for weight in weights.values() if weight > 0.0)
+        if normalizer <= 0.0:
+            return
+
+        support_gain = view_score_gain * max(0.0, weights["view_score"]) / normalizer
+        confidence_floor = max(
+            previous_floor,
+            clip01(float(confidence_state_before.get("overall_confidence", 0.0)) + support_gain),
+        )
+        applied = confidence_floor > raw_overall_confidence
+        obj.metadata["new_view_support_confidence_floor"] = confidence_floor
+        if applied:
+            obj.overall_confidence = confidence_floor
+            obj.fusion_trace["overall_confidence"] = float(obj.overall_confidence)
+        obj.fusion_trace["new_view_support_floor"] = {
+            "applied": bool(applied),
+            "raw_overall_confidence": raw_overall_confidence,
+            "confidence_floor": confidence_floor,
+            "support_gain": support_gain,
+            "before_view_score": before_view_score,
+            "after_view_score": after_view_score,
+        }
 
 
 def observation_from_candidate(

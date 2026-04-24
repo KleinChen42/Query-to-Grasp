@@ -83,6 +83,68 @@ def test_memory_can_prefer_selected_object_when_geometry_is_compatible() -> None
     assert len(memory.objects) == 2
 
 
+def test_preferred_new_view_merge_applies_support_floor_when_raw_confidence_drops() -> None:
+    memory = ObjectMemory3D(ObjectMemoryConfig(merge_distance=0.08))
+
+    selected = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            label="cube",
+            det_score=0.9,
+            clip_score=0.0,
+            fused_2d_score=0.9,
+            view_id="front",
+            num_points=1000,
+            depth_valid_ratio=1.0,
+        )
+    )
+    confidence_before = float(selected.overall_confidence)
+
+    matched, assignment = memory.add_observation_with_preferred_object(
+        ObjectObservation3D(
+            world_xyz=np.array([0.04, 0.0, 0.0], dtype=np.float32),
+            label="cube",
+            det_score=0.1,
+            clip_score=0.0,
+            fused_2d_score=0.1,
+            view_id="closer_left",
+            num_points=1,
+            depth_valid_ratio=0.1,
+        ),
+        preferred_object_id=selected.object_id,
+        preferred_merge_distance=0.08,
+    )
+
+    support_floor = matched.fusion_trace["new_view_support_floor"]
+    assert matched.object_id == selected.object_id
+    assert assignment["used_preferred_object"] is True
+    assert support_floor["applied"] is True
+    assert support_floor["raw_overall_confidence"] < confidence_before
+    assert matched.overall_confidence > confidence_before
+    assert support_floor["confidence_floor"] == pytest.approx(matched.overall_confidence)
+
+    floor_after_new_view = float(matched.overall_confidence)
+    matched_again, _ = memory.add_observation_with_preferred_object(
+        ObjectObservation3D(
+            world_xyz=np.array([0.03, 0.0, 0.0], dtype=np.float32),
+            label="cube",
+            det_score=0.1,
+            clip_score=0.0,
+            fused_2d_score=0.1,
+            view_id="closer_left",
+            num_points=1,
+            depth_valid_ratio=0.1,
+        ),
+        preferred_object_id=selected.object_id,
+        preferred_merge_distance=0.08,
+    )
+
+    same_view_support_floor = matched_again.fusion_trace["new_view_support_floor"]
+    assert matched_again.object_id == selected.object_id
+    assert same_view_support_floor["applied"] is True
+    assert matched_again.overall_confidence == pytest.approx(floor_after_new_view)
+
+
 def test_select_best_is_deterministic_with_view_tie_break() -> None:
     memory = ObjectMemory3D(
         ObjectMemoryConfig(
