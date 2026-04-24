@@ -208,6 +208,38 @@ PYTHONPATH=$PWD python scripts/generate_reobserve_policy_report.py \
   --output-json outputs/reobserve_policy_report.json
 ```
 
+## H200 Sync Workflow
+
+For H200 runs, keep the local workspace and remote `OpenMythos_test` tree in
+sync with the checked-in helpers in `scripts/`.
+
+Push changed repo files to the remote workspace:
+
+```powershell
+$env:SSH_KEY_PASSPHRASE = "..."
+powershell -ExecutionPolicy Bypass -File scripts/sync_h200_files.ps1 `
+  -Direction push `
+  -Paths @("scripts/run_multiview_fusion_benchmark.py", "src/policy/target_selector.py")
+```
+
+Pull a benchmark/report directory back to local `outputs/`:
+
+```powershell
+$env:SSH_KEY_PASSPHRASE = "..."
+powershell -ExecutionPolicy Bypass -File scripts/sync_h200_files.ps1 `
+  -Direction pull `
+  -Recursive `
+  -Paths @("outputs/h200_60071_post_selection_continuity_ambiguity_compact_seed0")
+```
+
+Run a non-interactive remote command from the same SSH setup:
+
+```powershell
+$env:SSH_KEY_PASSPHRASE = "..."
+powershell -ExecutionPolicy Bypass -File scripts/invoke_h200_command.ps1 `
+  -RemoteCommand "source ~/q2g_venv/bin/activate && python --version"
+```
+
 ## Paper Figure Pack
 
 Collect the current paper/demo artifacts into one captioned folder:
