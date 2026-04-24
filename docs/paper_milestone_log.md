@@ -48,6 +48,8 @@ Current evidence supports the following narrower near-term claim:
 | Closed-loop ambiguity policy report | Initial vs final policy trigger rates and per-query reason counts | `outputs/h200_60071_closed_loop_ambiguity_seed012/outputs/reobserve_policy_report_ambiguity_tabletop3_hf_closed_loop.md` |
 | Selected-object continuity policy report | Compact ambiguity closed-loop rerun after preferred-merge continuity rule | H200: `outputs/h200_60071_selected_continuity_ambiguity_compact_seed0/reobserve_policy_report_selected_continuity.md` |
 | Post-selection continuity policy report | Compact ambiguity rerun after adding final-selection continuity bias | `outputs/h200_60071_post_selection_continuity_ambiguity_compact_seed0/reobserve_policy_report_post_selection_continuity.md` |
+| Post-selection margin sweep (no CLIP) | Compact ambiguity margin sweep for post-selection continuity without CLIP | `outputs/h200_60071_post_selection_margin_sweep_compact_seed0/no_clip/margin_sweep_summary.md` |
+| Post-selection margin sweep (with CLIP) | Compact ambiguity margin sweep for post-selection continuity with CLIP | `outputs/h200_60071_post_selection_margin_sweep_compact_seed0/with_clip/margin_sweep_summary.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -83,6 +85,7 @@ Current evidence supports the following narrower near-term claim:
 | Support-aware reobserve suggestion policy | Done | H200 mock smokes for ambiguity-driven and geometry-driven reasons | Re-observation suggestions now depend on the failure mode: missing support views are preferred for ambiguity/support issues, while `top_down`-style views are preferred for geometry issues. |
 | Selected-object continuity rule | Done | H200 compact ambiguity rerun with `--enable-selected-object-continuity` | Preferred-merge continuity improves selected-object association in compact ambiguity stress tests, but closed-loop resolution remains `0.0` and extra views still sometimes attach to third objects. |
 | Post-selection continuity rule | Done | H200 compact ambiguity rerun with `--enable-post-reobserve-selection-continuity` | The new final-selection continuity hook is instrumented and runnable, but `selection_continuity_apply_rate = 0.0` in the current compact ambiguity setting, so the current margin/eligibility logic is too conservative to change outcomes. |
+| Post-selection continuity margin sweep | Done | H200 compact ambiguity sweep across margins `0.03, 0.05, 0.08, 0.12` | Raising the margin from `0.03` to `0.05+` activates post-selection continuity in one compact ambiguity case (`apply_rate = 0.2500` per benchmark), but closed-loop resolution stays `0.0`. The next bottleneck is no longer margin gating alone; it is how confidence and uncertainty update after the extra view is merged. |
 
 ## Key Quantitative Results
 

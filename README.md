@@ -208,6 +208,22 @@ PYTHONPATH=$PWD python scripts/generate_reobserve_policy_report.py \
   --output-json outputs/reobserve_policy_report.json
 ```
 
+Post-selection continuity margin sweep:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_post_selection_margin_sweep.py \
+  --queries-file configs/ambiguity_queries_compact.txt \
+  --seeds 0 \
+  --detector-backend hf \
+  --use-clip \
+  --depth-scale 1000 \
+  --view-preset tabletop_3 \
+  --camera-name base_camera \
+  --output-dir outputs/post_selection_margin_sweep_with_clip \
+  --generate-policy-report \
+  --fail-on-child-error
+```
+
 ## H200 Sync Workflow
 
 For H200 runs, keep the local workspace and remote `OpenMythos_test` tree in

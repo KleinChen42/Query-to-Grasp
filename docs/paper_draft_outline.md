@@ -192,6 +192,13 @@ Current closed-loop diagnostic:
   benchmarked, but in the current compact ambiguity setting its
   `selection_continuity_apply_rate` is still `0.0`; the practical next step is a
   small margin sweep rather than another large architectural change.
+- That margin sweep is now complete. Increasing the margin from `0.03` to
+  `0.05+` raises `selection_continuity_apply_rate` from `0.0` to `0.2500` in
+  the compact ambiguity benchmark for both no-CLIP and with-CLIP settings, but
+  `closed_loop_resolution_rate` remains `0.0`.
+- Therefore the current next-code target is not more margin tuning; it is a
+  minimal confidence/update fix so that extra-view continuity does not simply
+  preserve object identity while leaving the policy equally uncertain.
 
 ### 7. Placeholder Pick Execution
 

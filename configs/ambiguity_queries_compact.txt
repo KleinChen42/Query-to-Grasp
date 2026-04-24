@@ -1,0 +1,5 @@
+# Compact ambiguity stress set for closed-loop continuity diagnostics.
+cube
+block
+container
+object
