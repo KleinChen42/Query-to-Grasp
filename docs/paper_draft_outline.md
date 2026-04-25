@@ -176,29 +176,21 @@ Evidence:
 
 - `outputs/h200_60071_reobserve_smoke/reobserve_decision.json`
 - H200: `outputs/h200_smoke_closed_loop_reobserve_mock/closed_loop_reobserve.json`
-- H200: `outputs/h200_60071_selected_continuity_ambiguity_compact_seed0/reobserve_policy_report_selected_continuity.md`
+- H200: `outputs/h200_60071_absorber_aware_continuity_compact_seed01234/reports/reobserve_policy_report.md`
 
 Current closed-loop diagnostic:
 
-- A selected-object continuity rule now prefers merging extra-view observations
-  back into the initially selected memory object when geometry is compatible.
-- In compact HF ambiguity reruns, this improves selected-object association from
-  `0.2500` to `0.5000` in the no-CLIP setting and from `0.0000` to `0.2500` in
-  the with-CLIP setting.
-- However, closed-loop resolution remains `0.0`, so the current next bottleneck
-  is not merely executing extra views but making those extra observations reduce
-  policy uncertainty.
-- A second-stage post-selection continuity rule is now implemented and
-  benchmarked, but in the current compact ambiguity setting its
-  `selection_continuity_apply_rate` is still `0.0`; the practical next step is a
-  small margin sweep rather than another large architectural change.
-- That margin sweep is now complete. Increasing the margin from `0.03` to
-  `0.05+` raises `selection_continuity_apply_rate` from `0.0` to `0.2500` in
-  the compact ambiguity benchmark for both no-CLIP and with-CLIP settings, but
-  `closed_loop_resolution_rate` remains `0.0`.
-- Therefore the current next-code target is not more margin tuning; it is a
-  minimal confidence/update fix so that extra-view continuity does not simply
-  preserve object identity while leaving the policy equally uncertain.
+- The current accepted compact H200 baseline combines support-aware extra-view
+  selection, selected-object continuity, a supported near-gap policy floor, and
+  absorber-aware post-reobserve continuity.
+- On compact ambiguity seeds `0..4`, both no-CLIP and with-CLIP reach
+  `closed_loop_resolution_rate = 0.6500`, `closed_loop_still_needed_rate =
+  0.0000`, and positive selected-confidence deltas.
+- The absorber-aware guard fixes the rejected stage-aware variant's third-object
+  regression: `third_object_rate` returns from `0.1500` to the accepted `0.1000`
+  gate while preserving the `0.6500` resolution rate.
+- This remains a virtual-camera perception loop, not learned view planning or
+  robot camera motion.
 
 ### 7. Placeholder Pick Execution
 
@@ -281,6 +273,12 @@ Current result:
 - Query: `red cube`
 - Selected: `obj_0000`
 - Selection pool label: `red cube`
+- Pool size: `2`
+- Selected object has stronger view support and confidence.
+
+Artifact:
+
+- `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md`
 
 ### Experiment 5: Closed-Loop Re-Observation Continuity
 
@@ -328,16 +326,38 @@ Artifact:
 
 Interpretation:
 
-The post-selection continuity hook is implemented and instrumented, but in the
-current compact ambiguity benchmark it does not fire. The next targeted step is
-to inspect confidence gaps and sweep the continuity margin, rather than adding a
-larger new module.
-- Pool size: `2`
-- Selected object has stronger view support and confidence.
+The initial post-selection continuity hook was useful as instrumentation but
+did not fire in the compact ambiguity benchmark. The later margin sweep showed
+that margin gating was not the only blocker: after continuity applied, policy
+uncertainty still remained flat.
+
+### Experiment 7: Absorber-Aware Closed-Loop Re-Observation
+
+Question:
+
+Can a conservative supported near-gap policy floor resolve compact ambiguity
+without increasing third-object extra-view absorption?
+
+Current result:
+
+| setting | runs | resolution_rate | still_needed_rate | third_object_rate | delta_confidence |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| support_no_clip baseline | 20 | 0.3000 | 0.3500 | 0.3000 | 0.0182 |
+| selection_sanity_no_clip baseline | 20 | 0.5500 | 0.1000 | 0.1000 | 0.0344 |
+| stageaware_rejected_no_clip | 20 | 0.6500 | 0.0000 | 0.1500 | 0.0322 |
+| absorber_aware_no_clip | 20 | 0.6500 | 0.0000 | 0.1000 | 0.0344 |
+| absorber_aware_with_clip | 20 | 0.6500 | 0.0000 | 0.1000 | 0.0344 |
 
 Artifact:
 
-- `outputs/h200_60071_selection_trace_red_cube_seed0/selection_trace.md`
+- `outputs/h200_60071_absorber_aware_continuity_compact_seed01234/reports/reobserve_policy_report.md`
+- `outputs/h200_60071_absorber_aware_continuity_compact_seed01234/reports/ablation_table.md`
+
+Interpretation:
+
+The accepted absorber-aware run is the current closed-loop perception baseline:
+the extra view resolves all final policy triggers in the compact benchmark while
+keeping the third-object rate within the pre-set `0.10` acceptance gate.
 
 ### Experiment 5: Re-Observation Decision Smoke
 
@@ -538,9 +558,9 @@ Be explicit:
 
 - Real low-level ManiSkill robot control is not implemented.
 - Web demo is not implemented.
-- Re-observation is implemented only as a minimal opt-in virtual-view loop; it
-  does not yet reduce ambiguity-trigger rates in the HF ambiguity benchmark and
-  is not learned view planning or physical camera motion.
+- Re-observation is implemented as a minimal opt-in virtual-view loop. It now
+  resolves compact ambiguity triggers in the accepted H200 diagnostic benchmark,
+  but is still not learned view planning or physical camera motion.
 - Experiments are small and use `PickCube-v1` plus virtual camera poses.
 - CLIP did not change top-1 in current benchmarks.
 - Query parser supports simple attributes and conservative relations, not full
@@ -559,6 +579,7 @@ Important for a stronger v1:
 - [x] Closed-loop HF ambiguity benchmark with initial/final policy metrics.
 - [x] Compact closed-loop delta diagnostics for benchmark summaries and reports.
 - [x] Support-aware suggested-view policy with reason-specific priorities.
+- [x] Accepted absorber-aware compact H200 closed-loop baseline.
 - [x] Small paper/demo architecture diagram.
 - [x] README cleanup and current quickstart refresh.
 - [ ] Optional Gradio demo shell.
@@ -566,12 +587,12 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Improve selected-object continuity in closed-loop ambiguity runs:
+Refresh the paper figure pack and written claims from the accepted closed-loop
+baseline:
 
-1. Add a compact continuity rule or diagnostic that explicitly prefers merging
-   extra-view observations back into the currently selected object when the
-   geometry remains compatible.
-2. Inspect why the HF with-CLIP compact rerun still sends half of its extra
-   views into a third object.
-3. Only build demo UI after the closed-loop perception result improves a
-   measurable policy or memory metric.
+1. Rebuild `outputs/paper_figure_pack_latest` from the accepted absorber-aware
+   reports.
+2. Promote the closed-loop compact table into the paper draft as the current
+   diagnostic baseline.
+3. Keep demo UI and real control out of scope until the paper artifacts are
+   internally consistent.
