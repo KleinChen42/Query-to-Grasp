@@ -408,6 +408,24 @@ def test_build_closed_loop_absorber_trace_distinguishes_final_and_third_objects(
     assert trace["third_object_involved"] is True
 
 
+def test_collect_extra_view_absorber_object_ids_dedupes_stably() -> None:
+    object_ids = multiview.collect_extra_view_absorber_object_ids(
+        [
+            {
+                "observation_assignments": [
+                    {"object_id": "obj_0002"},
+                    {"object_id": "obj_0000"},
+                    {"object_id": "obj_0002"},
+                    {"object_id": ""},
+                ]
+            },
+            {"observation_assignments": [{"object_id": "obj_0001"}]},
+        ]
+    )
+
+    assert object_ids == ["obj_0002", "obj_0000", "obj_0001"]
+
+
 def test_build_closed_loop_preferred_merge_trace_counts_used_merges() -> None:
     trace = multiview.build_closed_loop_preferred_merge_trace(
         [
@@ -445,3 +463,47 @@ def test_build_post_selection_continuity_trace_requires_received_observation() -
     assert trace["eligible"] is False
     assert trace["reason"] == "preferred_object_did_not_receive_extra_view"
     assert trace["selected_object_id_before"] == "obj_0001"
+
+
+def test_build_post_selection_continuity_trace_allows_when_base_selected_did_not_absorb_extra_view() -> None:
+    trace = multiview.build_post_selection_continuity_trace(
+        args=argparse.Namespace(
+            enable_post_reobserve_selection_continuity=True,
+            post_reobserve_selection_margin=0.05,
+        ),
+        initial_snapshot={"selected_object_id": "obj_0000"},
+        selected_object_followup={
+            "received_observation": True,
+            "gained_view_support": True,
+        },
+        base_selected=SimpleNamespace(object_id="obj_0001"),
+        base_selection_label="cube",
+        extra_view_absorber_object_ids=["obj_0000", "obj_0002"],
+    )
+
+    assert trace["eligible"] is True
+    assert trace["reason"] == "eligible"
+    assert trace["base_selected_absorbed_extra_view"] is False
+    assert trace["extra_view_absorber_object_ids"] == ["obj_0000", "obj_0002"]
+
+
+def test_build_post_selection_continuity_trace_blocks_when_base_selected_absorbed_extra_view() -> None:
+    trace = multiview.build_post_selection_continuity_trace(
+        args=argparse.Namespace(
+            enable_post_reobserve_selection_continuity=True,
+            post_reobserve_selection_margin=0.05,
+        ),
+        initial_snapshot={"selected_object_id": "obj_0002"},
+        selected_object_followup={
+            "received_observation": True,
+            "gained_view_support": True,
+        },
+        base_selected=SimpleNamespace(object_id="obj_0000"),
+        base_selection_label="cube",
+        extra_view_absorber_object_ids=["obj_0002", "obj_0000"],
+    )
+
+    assert trace["eligible"] is False
+    assert trace["reason"] == "base_selected_absorbed_extra_view"
+    assert trace["base_selected_absorbed_extra_view"] is True
+    assert trace["selected_object_id_before"] == "obj_0000"

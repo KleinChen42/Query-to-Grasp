@@ -63,6 +63,109 @@ def test_decide_reobserve_flags_close_top_candidates() -> None:
     assert decision.diagnostics["suggested_view_plan"][0]["requested_view_id"] == "right"
 
 
+def test_decide_reobserve_accepts_supported_near_gap_selection() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_two_view_object(
+        memory,
+        [0.0, 0.0, 0.0],
+        "cube",
+        det=0.55,
+        points=1000,
+        view_ids=("front", "closer_front"),
+    )
+    challenger = _add_two_view_object(memory, [0.3, 0.0, 0.0], "cube", det=0.41, points=1000)
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="cube",
+        candidate_view_ids=["front", "left", "right"],
+    )
+
+    assert challenger.object_id != selected.object_id
+    assert decision.should_reobserve is False
+    assert decision.reason == "confident_enough"
+    assert decision.diagnostics["confidence_gap"] < 0.05
+    assert decision.diagnostics["confidence_gap"] >= 0.03
+    assert decision.diagnostics["supported_confidence_floor_applied"] is True
+    assert decision.diagnostics["supported_ambiguity_floor_applied"] is True
+
+
+def test_decide_reobserve_keeps_initial_base_view_near_gap_ambiguous() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_two_view_object(memory, [0.0, 0.0, 0.0], "cube", det=0.55, points=1000)
+    _add_two_view_object(memory, [0.3, 0.0, 0.0], "cube", det=0.41, points=1000)
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="cube",
+        candidate_view_ids=["front", "left", "right"],
+    )
+
+    assert decision.should_reobserve is True
+    assert decision.reason == "ambiguous_top_candidates"
+    assert decision.diagnostics["selected_has_reobserve_view_support"] is False
+    assert decision.diagnostics["supported_confidence_floor_applied"] is True
+    assert decision.diagnostics["supported_ambiguity_floor_applied"] is False
+
+
+def test_decide_reobserve_accepts_supported_near_margin_continuity_selection() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_two_view_object(
+        memory,
+        [0.0, 0.0, 0.0],
+        "cube",
+        det=0.50,
+        points=1000,
+        view_ids=("right", "closer_right"),
+    )
+    challenger = _add_two_view_object(memory, [0.3, 0.0, 0.0], "cube", det=0.64, points=1000)
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="cube",
+        candidate_view_ids=["front", "left", "right"],
+    )
+
+    assert challenger.object_id != selected.object_id
+    assert decision.should_reobserve is False
+    assert decision.reason == "confident_enough"
+    assert decision.diagnostics["confidence_gap"] < 0.0
+    assert decision.diagnostics["absolute_confidence_gap"] < 0.05
+    assert decision.diagnostics["absolute_confidence_gap"] >= 0.03
+    assert decision.diagnostics["supported_confidence_floor_applied"] is True
+    assert decision.diagnostics["supported_ambiguity_floor_applied"] is True
+
+
+def test_decide_reobserve_keeps_true_supported_tie_ambiguous() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_two_view_object(
+        memory,
+        [0.0, 0.0, 0.0],
+        "cube",
+        det=0.55,
+        points=1000,
+        view_ids=("front", "closer_front"),
+    )
+    challenger = _add_two_view_object(memory, [0.3, 0.0, 0.0], "cube", det=0.50, points=1000)
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="cube",
+        candidate_view_ids=["front", "left", "right"],
+    )
+
+    assert challenger.object_id != selected.object_id
+    assert decision.should_reobserve is True
+    assert decision.reason == "ambiguous_top_candidates"
+    assert decision.diagnostics["confidence_gap"] < 0.03
+    assert decision.diagnostics["supported_confidence_floor_applied"] is True
+    assert decision.diagnostics["supported_ambiguity_floor_applied"] is False
+
+
 def test_decide_reobserve_ignores_suppressed_geometry_outlier_challenger() -> None:
     memory = ObjectMemory3D()
     selected = _add_object(memory, [0.0, -0.03, 0.01], "cube", det=0.5, view_id="right", points=14000)
@@ -175,3 +278,16 @@ def _add_object(
             depth_valid_ratio=1.0,
         )
     )
+
+
+def _add_two_view_object(
+    memory: ObjectMemory3D,
+    xyz: list[float],
+    label: str,
+    det: float,
+    points: int,
+    view_ids: tuple[str, str] = ("front", "left"),
+):
+    selected = _add_object(memory, xyz, label, det=det, view_id=view_ids[0], points=points)
+    _add_object(memory, [xyz[0], xyz[1] + 0.01, xyz[2]], label, det=det, view_id=view_ids[1], points=points)
+    return selected

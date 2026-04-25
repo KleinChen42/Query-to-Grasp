@@ -14,6 +14,9 @@ SUPPORT_VIEW_VARIANTS: dict[str, str] = {
     "right": "closer_right",
 }
 SUPPORTED_CONFIDENCE_TOLERANCE = 0.02
+SUPPORTED_AMBIGUITY_GAP_TOLERANCE = 0.02
+REOBSERVE_SUPPORT_VIEW_PREFIXES = ("closer_",)
+REOBSERVE_SUPPORT_VIEW_IDS = {"top_down", "closer_oblique"}
 
 
 @dataclass(frozen=True)
@@ -128,7 +131,8 @@ def decide_reobserve_reason(
 
     confidence_gap = diagnostics.get("confidence_gap")
     if confidence_gap is not None and confidence_gap < config.min_confidence_gap:
-        return "ambiguous_top_candidates"
+        if not has_supported_ambiguity_floor(diagnostics, config):
+            return "ambiguous_top_candidates"
 
     if (
         diagnostics["selected_overall_confidence"] < config.min_overall_confidence
@@ -154,6 +158,20 @@ def has_supported_confidence_floor(diagnostics: dict[str, Any], config: Reobserv
         and diagnostics["selected_mean_num_points"] >= config.min_mean_num_points
         and diagnostics["selected_overall_confidence"]
         >= config.min_overall_confidence - SUPPORTED_CONFIDENCE_TOLERANCE
+    )
+
+
+def has_supported_ambiguity_floor(diagnostics: dict[str, Any], config: ReobservePolicyConfig) -> bool:
+    """Return whether supported evidence should satisfy a near-threshold confidence gap."""
+
+    confidence_gap = diagnostics.get("confidence_gap")
+    near_gap_floor = config.min_confidence_gap - SUPPORTED_AMBIGUITY_GAP_TOLERANCE
+    absolute_gap = abs(float(confidence_gap)) if confidence_gap is not None else None
+    return (
+        absolute_gap is not None
+        and diagnostics["selected_has_reobserve_view_support"]
+        and has_supported_confidence_floor(diagnostics, config)
+        and near_gap_floor <= absolute_gap <= config.min_confidence_gap
     )
 
 
@@ -189,7 +207,8 @@ def build_reobserve_diagnostics(
         if selected is not None and confidence_challenger is not None
         else None
     )
-    return {
+    selected_view_ids = [] if selected is None else list(selected.view_ids)
+    diagnostics = {
         "num_memory_objects": len(memory.objects),
         "selection_pool_label": selection_label,
         "selection_pool_size": len(ranked_pool),
@@ -200,17 +219,33 @@ def build_reobserve_diagnostics(
         ),
         "suppressed_geometry_outlier_challenger_ids": suppressed_challengers,
         "confidence_gap": confidence_gap,
+        "absolute_confidence_gap": None if confidence_gap is None else abs(float(confidence_gap)),
         "selected_object_id": None if selected is None else selected.object_id,
         "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
         "selected_geometry_confidence": 0.0 if selected is None else float(selected.geometry_confidence),
         "selected_semantic_confidence": 0.0 if selected is None else float(selected.semantic_confidence),
         "selected_num_views": 0 if selected is None else len(selected.view_ids),
-        "selected_view_ids": [] if selected is None else list(selected.view_ids),
+        "selected_view_ids": selected_view_ids,
+        "selected_has_reobserve_view_support": has_reobserve_view_support(selected_view_ids),
         "selected_num_observations": 0 if selected is None else int(selected.num_observations),
         "selected_mean_num_points": selected_mean_num_points,
         "thresholds": config.to_json_dict(),
         "supported_confidence_tolerance": SUPPORTED_CONFIDENCE_TOLERANCE,
+        "supported_ambiguity_gap_tolerance": SUPPORTED_AMBIGUITY_GAP_TOLERANCE,
     }
+    diagnostics["supported_confidence_floor_applied"] = has_supported_confidence_floor(diagnostics, config)
+    diagnostics["supported_ambiguity_floor_applied"] = has_supported_ambiguity_floor(diagnostics, config)
+    return diagnostics
+
+
+def has_reobserve_view_support(view_ids: Sequence[Any]) -> bool:
+    """Return whether selected evidence includes an extra re-observation view."""
+
+    for view_id in view_ids:
+        text = str(view_id or "")
+        if text in REOBSERVE_SUPPORT_VIEW_IDS or text.startswith(REOBSERVE_SUPPORT_VIEW_PREFIXES):
+            return True
+    return False
 
 
 def confidence_challenger_for_selected(

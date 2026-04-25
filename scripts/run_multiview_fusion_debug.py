@@ -314,12 +314,14 @@ def main() -> None:
         base_selected, base_selection_label = select_memory_target(memory, parsed_query)
         selected = base_selected
         selection_label = base_selection_label
+        extra_view_absorber_object_ids = collect_extra_view_absorber_object_ids(extra_view_results)
         post_selection_continuity = build_post_selection_continuity_trace(
             args=args,
             initial_snapshot=initial_snapshot,
             selected_object_followup=selected_object_followup_preselection,
             base_selected=base_selected,
             base_selection_label=base_selection_label,
+            extra_view_absorber_object_ids=extra_view_absorber_object_ids,
         )
         if post_selection_continuity["eligible"]:
             selected, selection_label, continuity_diagnostics = apply_selection_continuity(
@@ -929,10 +931,18 @@ def build_post_selection_continuity_trace(
     selected_object_followup: dict[str, Any],
     base_selected: MemoryObject3D | None,
     base_selection_label: str | None,
+    extra_view_absorber_object_ids: Sequence[Any] | None = None,
 ) -> dict[str, Any]:
     """Explain whether post-reobserve selection continuity can be applied."""
 
     preferred_object_id = str(initial_snapshot.get("selected_object_id") or "").strip() or None
+    base_selected_object_id = None if base_selected is None else base_selected.object_id
+    absorber_object_ids = dedupe_object_ids(extra_view_absorber_object_ids or [])
+    base_selected_absorbed_extra_view = (
+        base_selected_object_id is not None
+        and base_selected_object_id != preferred_object_id
+        and base_selected_object_id in absorber_object_ids
+    )
     if not args.enable_post_reobserve_selection_continuity:
         reason = "disabled"
         eligible = False
@@ -941,6 +951,9 @@ def build_post_selection_continuity_trace(
         eligible = False
     elif not selected_object_followup.get("received_observation"):
         reason = "preferred_object_did_not_receive_extra_view"
+        eligible = False
+    elif base_selected_absorbed_extra_view:
+        reason = "base_selected_absorbed_extra_view"
         eligible = False
     else:
         reason = "eligible"
@@ -953,12 +966,32 @@ def build_post_selection_continuity_trace(
         "preferred_object_id": preferred_object_id,
         "preferred_object_received_observation": bool(selected_object_followup.get("received_observation")),
         "preferred_object_gained_view_support": bool(selected_object_followup.get("gained_view_support")),
+        "base_selected_absorbed_extra_view": bool(base_selected_absorbed_extra_view),
+        "extra_view_absorber_object_ids": absorber_object_ids,
         "max_confidence_gap": float(args.post_reobserve_selection_margin),
-        "selected_object_id_before": None if base_selected is None else base_selected.object_id,
+        "selected_object_id_before": base_selected_object_id,
         "selected_selection_label_before": base_selection_label,
-        "selected_object_id_after": None if base_selected is None else base_selected.object_id,
+        "selected_object_id_after": base_selected_object_id,
         "selected_selection_label_after": base_selection_label,
     }
+
+
+def collect_extra_view_observation_assignments(extra_view_results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return observation assignments from extra re-observation views."""
+
+    return [
+        assignment
+        for result in extra_view_results
+        for assignment in result.get("observation_assignments", [])
+        if isinstance(assignment, dict)
+    ]
+
+
+def collect_extra_view_absorber_object_ids(extra_view_results: list[dict[str, Any]]) -> list[str]:
+    """Return stable object ids that absorbed extra-view observations."""
+
+    assignments = collect_extra_view_observation_assignments(extra_view_results)
+    return dedupe_object_ids(assignment.get("object_id") for assignment in assignments)
 
 
 def build_closed_loop_absorber_trace(
@@ -970,12 +1003,7 @@ def build_closed_loop_absorber_trace(
 
     before_selected_object_id = str(before.get("selected_object_id") or "").strip() or None
     after_selected_object_id = str(after.get("selected_object_id") or "").strip() or None
-    assignments = [
-        assignment
-        for result in extra_view_results
-        for assignment in result.get("observation_assignments", [])
-        if isinstance(assignment, dict)
-    ]
+    assignments = collect_extra_view_observation_assignments(extra_view_results)
     absorber_object_ids = dedupe_object_ids(assignment.get("object_id") for assignment in assignments)
     selected_object_ids = {
         object_id for object_id in (before_selected_object_id, after_selected_object_id) if object_id
@@ -1001,12 +1029,7 @@ def build_closed_loop_absorber_trace(
 def build_closed_loop_preferred_merge_trace(extra_view_results: list[dict[str, Any]]) -> dict[str, Any]:
     """Summarize whether selected-object continuity was actually used."""
 
-    assignments = [
-        assignment
-        for result in extra_view_results
-        for assignment in result.get("observation_assignments", [])
-        if isinstance(assignment, dict)
-    ]
+    assignments = collect_extra_view_observation_assignments(extra_view_results)
     preferred_merge_count = sum(
         1 for assignment in assignments if bool(assignment.get("used_preferred_object"))
     )
