@@ -1,0 +1,1 @@
+[{"query": "red cube", "seed": 0, "num_detections": 1, "num_ranked_candidates": 1, "has_3d_target": true, "num_3d_points": 10, "pick_success": false, "pick_stage": "placeholder_not_executed", "artifacts": "E:\\CODE\\Query-to-Grasp\\tmp_pytest_safe_all_selected_continuity\\pytest-of-KleinChan\\pytest-0\\test_generate_benchmark_report5\\benchmark\\runs\\run_0001"}]

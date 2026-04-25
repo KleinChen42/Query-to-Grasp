@@ -1,0 +1,1 @@
+{"detector_backend": "hf", "skip_clip": true, "view_preset": "tabletop_3", "aggregate_metrics": {"mean_num_views": 3.0, "mean_num_memory_objects": 3.0}}

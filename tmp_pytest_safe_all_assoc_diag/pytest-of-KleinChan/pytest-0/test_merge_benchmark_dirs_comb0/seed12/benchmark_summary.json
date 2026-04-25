@@ -1,0 +1,1 @@
+{"total_runs": 1, "unique_queries": ["object"], "view_ids": [], "camera_name": "base_camera", "view_preset": "tabletop_3", "detector_backend": "hf", "skip_clip": true, "depth_scale": 1000.0, "merge_distance": 0.08, "aggregate_metrics": {}, "per_query_metrics": {}}

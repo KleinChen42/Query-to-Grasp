@@ -1,0 +1,132 @@
+{
+  "benchmark_dir": "E:\\CODE\\Query-to-Grasp\\tmp_pytest_safe_all_absorber_trace\\pytest-of-KleinChan\\pytest-0\\test_generate_benchmark_report1\\primary",
+  "compare_benchmark_dir": "E:\\CODE\\Query-to-Grasp\\tmp_pytest_safe_all_absorber_trace\\pytest-of-KleinChan\\pytest-0\\test_generate_benchmark_report1\\secondary",
+  "comparison_metrics": {
+    "fraction_top1_changed_by_rerank": {
+      "delta": 0.0,
+      "primary": 0.0,
+      "secondary": 0.0
+    },
+    "fraction_with_3d_target": {
+      "delta": 0.0,
+      "primary": 1.0,
+      "secondary": 1.0
+    },
+    "mean_num_3d_points": {
+      "delta": 0.0,
+      "primary": 10.0,
+      "secondary": 10.0
+    },
+    "mean_num_detections": {
+      "delta": 1.0,
+      "primary": 2.0,
+      "secondary": 1.0
+    },
+    "mean_num_ranked_candidates": {
+      "delta": 0.0,
+      "primary": 1.0,
+      "secondary": 1.0
+    },
+    "mean_raw_num_detections": {
+      "delta": 1.0,
+      "primary": 2.0,
+      "secondary": 1.0
+    },
+    "mean_runtime_seconds": {
+      "delta": 0.0,
+      "primary": 1.5,
+      "secondary": 1.5
+    },
+    "pick_success_rate": {
+      "delta": 0.25,
+      "primary": 0.25,
+      "secondary": 0.0
+    },
+    "total_runs": {
+      "delta": 0.0,
+      "primary": 1.0,
+      "secondary": 1.0
+    }
+  },
+  "comparison_takeaway": "Comparison takeaway: Primary improves mean_raw_num_detections, mean_num_detections, pick_success_rate over secondary.",
+  "primary_summary": {
+    "aggregate_metrics": {
+      "fraction_top1_changed_by_rerank": 0.0,
+      "fraction_with_3d_target": 1.0,
+      "mean_num_3d_points": 10.0,
+      "mean_num_detections": 2.0,
+      "mean_num_ranked_candidates": 1.0,
+      "mean_raw_num_detections": 2.0,
+      "mean_runtime_seconds": 1.5,
+      "pick_stage_counts": {
+        "placeholder_not_executed": 1
+      },
+      "pick_success_rate": 0.25,
+      "total_runs": 1
+    },
+    "depth_scale": 1000.0,
+    "detector_backend": "mock",
+    "per_query_metrics": {
+      "red cube": {
+        "fraction_top1_changed_by_rerank": 0.0,
+        "fraction_with_3d_target": 1.0,
+        "mean_num_3d_points": 10.0,
+        "mean_num_detections": 2.0,
+        "mean_num_ranked_candidates": 1.0,
+        "mean_raw_num_detections": 2.0,
+        "mean_runtime_seconds": 1.5,
+        "pick_stage_counts": {
+          "placeholder_not_executed": 1
+        },
+        "pick_success_rate": 0.25,
+        "total_runs": 1
+      }
+    },
+    "skip_clip": true,
+    "timestamp": "2026-04-20T00:00:00+00:00",
+    "total_runs": 1,
+    "unique_queries": [
+      "red cube"
+    ]
+  },
+  "secondary_summary": {
+    "aggregate_metrics": {
+      "fraction_top1_changed_by_rerank": 0.0,
+      "fraction_with_3d_target": 1.0,
+      "mean_num_3d_points": 10.0,
+      "mean_num_detections": 1.0,
+      "mean_num_ranked_candidates": 1.0,
+      "mean_raw_num_detections": 1.0,
+      "mean_runtime_seconds": 1.5,
+      "pick_stage_counts": {
+        "placeholder_not_executed": 1
+      },
+      "pick_success_rate": 0.0,
+      "total_runs": 1
+    },
+    "depth_scale": 1000.0,
+    "detector_backend": "mock",
+    "per_query_metrics": {
+      "blue mug": {
+        "fraction_top1_changed_by_rerank": 0.0,
+        "fraction_with_3d_target": 1.0,
+        "mean_num_3d_points": 10.0,
+        "mean_num_detections": 1.0,
+        "mean_num_ranked_candidates": 1.0,
+        "mean_raw_num_detections": 1.0,
+        "mean_runtime_seconds": 1.5,
+        "pick_stage_counts": {
+          "placeholder_not_executed": 1
+        },
+        "pick_success_rate": 0.0,
+        "total_runs": 1
+      }
+    },
+    "skip_clip": true,
+    "timestamp": "2026-04-20T00:00:00+00:00",
+    "total_runs": 1,
+    "unique_queries": [
+      "blue mug"
+    ]
+  }
+}

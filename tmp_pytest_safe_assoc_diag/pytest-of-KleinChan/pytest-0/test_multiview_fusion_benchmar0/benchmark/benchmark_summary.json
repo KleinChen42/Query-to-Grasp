@@ -1,0 +1,136 @@
+{
+  "aggregate_metrics": {
+    "closed_loop_before_selected_gained_view_support_rate": 1.0,
+    "closed_loop_before_selected_received_observation_rate": 1.0,
+    "closed_loop_before_selected_still_selected_rate": 1.0,
+    "closed_loop_execution_rate": 1.0,
+    "closed_loop_reobserve_reason_change_rate": 1.0,
+    "closed_loop_resolution_rate": 1.0,
+    "closed_loop_selected_object_change_rate": 0.0,
+    "closed_loop_still_needed_rate": 0.0,
+    "failed_runs": 0,
+    "final_reobserve_reason_counts": {
+      "confident_enough": 4
+    },
+    "final_reobserve_trigger_rate": 0.0,
+    "fraction_run_failed": 0.0,
+    "fraction_with_selected_object": 1.0,
+    "initial_reobserve_reason_counts": {
+      "ambiguous_top_candidates": 4
+    },
+    "initial_reobserve_trigger_rate": 1.0,
+    "mean_closed_loop_before_selected_delta_num_observations": 1.0,
+    "mean_closed_loop_before_selected_delta_num_views": 1.0,
+    "mean_closed_loop_delta_num_memory_objects": 0.0,
+    "mean_closed_loop_delta_num_observations_added": 1.0,
+    "mean_closed_loop_delta_num_views": 1.0,
+    "mean_closed_loop_delta_selected_num_observations": 1.0,
+    "mean_closed_loop_delta_selected_num_views": 1.0,
+    "mean_closed_loop_delta_selected_overall_confidence": 0.1,
+    "mean_num_memory_objects": 2.0,
+    "mean_num_observations_added": 2.0,
+    "mean_num_views": 1.0,
+    "mean_runtime_seconds": 2.5,
+    "mean_selected_overall_confidence": 0.7,
+    "reobserve_reason_counts": {
+      "confident_enough": 4
+    },
+    "reobserve_trigger_rate": 0.0,
+    "total_runs": 4
+  },
+  "camera_name": null,
+  "closed_loop_max_extra_views": 1,
+  "closed_loop_reobserve_enabled": true,
+  "depth_scale": 1000.0,
+  "detector_backend": "mock",
+  "merge_distance": 0.08,
+  "per_query_metrics": {
+    "blue mug": {
+      "closed_loop_before_selected_gained_view_support_rate": 1.0,
+      "closed_loop_before_selected_received_observation_rate": 1.0,
+      "closed_loop_before_selected_still_selected_rate": 1.0,
+      "closed_loop_execution_rate": 1.0,
+      "closed_loop_reobserve_reason_change_rate": 1.0,
+      "closed_loop_resolution_rate": 1.0,
+      "closed_loop_selected_object_change_rate": 0.0,
+      "closed_loop_still_needed_rate": 0.0,
+      "failed_runs": 0,
+      "final_reobserve_reason_counts": {
+        "confident_enough": 2
+      },
+      "final_reobserve_trigger_rate": 0.0,
+      "fraction_run_failed": 0.0,
+      "fraction_with_selected_object": 1.0,
+      "initial_reobserve_reason_counts": {
+        "ambiguous_top_candidates": 2
+      },
+      "initial_reobserve_trigger_rate": 1.0,
+      "mean_closed_loop_before_selected_delta_num_observations": 1.0,
+      "mean_closed_loop_before_selected_delta_num_views": 1.0,
+      "mean_closed_loop_delta_num_memory_objects": 0.0,
+      "mean_closed_loop_delta_num_observations_added": 1.0,
+      "mean_closed_loop_delta_num_views": 1.0,
+      "mean_closed_loop_delta_selected_num_observations": 1.0,
+      "mean_closed_loop_delta_selected_num_views": 1.0,
+      "mean_closed_loop_delta_selected_overall_confidence": 0.1,
+      "mean_num_memory_objects": 2.0,
+      "mean_num_observations_added": 2.0,
+      "mean_num_views": 1.0,
+      "mean_runtime_seconds": 2.5,
+      "mean_selected_overall_confidence": 0.7,
+      "reobserve_reason_counts": {
+        "confident_enough": 2
+      },
+      "reobserve_trigger_rate": 0.0,
+      "total_runs": 2
+    },
+    "red cube": {
+      "closed_loop_before_selected_gained_view_support_rate": 1.0,
+      "closed_loop_before_selected_received_observation_rate": 1.0,
+      "closed_loop_before_selected_still_selected_rate": 1.0,
+      "closed_loop_execution_rate": 1.0,
+      "closed_loop_reobserve_reason_change_rate": 1.0,
+      "closed_loop_resolution_rate": 1.0,
+      "closed_loop_selected_object_change_rate": 0.0,
+      "closed_loop_still_needed_rate": 0.0,
+      "failed_runs": 0,
+      "final_reobserve_reason_counts": {
+        "confident_enough": 2
+      },
+      "final_reobserve_trigger_rate": 0.0,
+      "fraction_run_failed": 0.0,
+      "fraction_with_selected_object": 1.0,
+      "initial_reobserve_reason_counts": {
+        "ambiguous_top_candidates": 2
+      },
+      "initial_reobserve_trigger_rate": 1.0,
+      "mean_closed_loop_before_selected_delta_num_observations": 1.0,
+      "mean_closed_loop_before_selected_delta_num_views": 1.0,
+      "mean_closed_loop_delta_num_memory_objects": 0.0,
+      "mean_closed_loop_delta_num_observations_added": 1.0,
+      "mean_closed_loop_delta_num_views": 1.0,
+      "mean_closed_loop_delta_selected_num_observations": 1.0,
+      "mean_closed_loop_delta_selected_num_views": 1.0,
+      "mean_closed_loop_delta_selected_overall_confidence": 0.1,
+      "mean_num_memory_objects": 2.0,
+      "mean_num_observations_added": 2.0,
+      "mean_num_views": 1.0,
+      "mean_runtime_seconds": 2.5,
+      "mean_selected_overall_confidence": 0.7,
+      "reobserve_reason_counts": {
+        "confident_enough": 2
+      },
+      "reobserve_trigger_rate": 0.0,
+      "total_runs": 2
+    }
+  },
+  "skip_clip": true,
+  "timestamp": "2026-04-23T09:18:30.049765+00:00",
+  "total_runs": 4,
+  "unique_queries": [
+    "blue mug",
+    "red cube"
+  ],
+  "view_ids": [],
+  "view_preset": "none"
+}

@@ -1,0 +1,2 @@
+query,seed,raw_num_detections,num_detections,num_ranked_candidates,top1_changed_by_rerank,detector_top_phrase,final_top_phrase,has_3d_target,num_3d_points,pick_success,pick_stage,runtime_seconds,artifacts
+red cube,0,1,1,1,False,,,True,12,False,placeholder_not_executed,1.5,E:\CODE\Query-to-Grasp\tmp_pytest_safe_all_absorber_trace\pytest-of-KleinChan\pytest-0\test_single_view_pick_benchmar1\benchmark\runs\run_0001_seed_0\fake_run_0

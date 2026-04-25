@@ -1,0 +1,1 @@
+[{"query": "red cube", "seed": 0, "should_reobserve": true, "reobserve_reason": "ambiguous_top_candidates", "selected_overall_confidence": 0.62, "artifacts": "outputs/run_red"}, {"query": "blue mug", "seed": 1, "should_reobserve": false, "reobserve_reason": "confident_enough", "selected_overall_confidence": 0.78, "artifacts": "outputs/run_blue"}]

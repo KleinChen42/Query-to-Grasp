@@ -1,0 +1,1 @@
+{"camera_info": {"intrinsic": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]], "intrinsic_key": "sensor_param.base_camera.intrinsic_cv", "extrinsic": [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]], "extrinsic_key": "sensor_param.base_camera.cam2world_gl"}}
