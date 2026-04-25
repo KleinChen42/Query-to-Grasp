@@ -197,6 +197,7 @@ def suggest_reobserve_views(
     """Suggest support-aware views and explain why each one was chosen."""
 
     used_views = set(selected.view_ids if selected is not None else [])
+    selected_support_candidates = selected_existing_support_views(selected)
     cleaned_candidates = dedupe_view_ids(view_id for view_id in candidate_view_ids or [] if view_id)
     default_candidates = dedupe_view_ids(config.default_suggested_view_ids)
     missing_candidate_support = [view_id for view_id in cleaned_candidates if view_id not in used_views]
@@ -211,6 +212,13 @@ def suggest_reobserve_views(
             *(("default_missing_support", view_id) for view_id in missing_default_support),
             *(("candidate_missing_support", view_id) for view_id in missing_candidate_support),
         ]
+    elif reason == "insufficient_view_support":
+        prioritized = [
+            *(("selected_existing_support", view_id) for view_id in selected_support_candidates),
+            *(("candidate_missing_support", view_id) for view_id in missing_candidate_support),
+        ]
+        if not prioritized:
+            prioritized = [("default_missing_support", view_id) for view_id in missing_default_support]
     else:
         prioritized = [("candidate_missing_support", view_id) for view_id in missing_candidate_support]
         if not prioritized:
@@ -237,6 +245,8 @@ def suggest_reobserve_views(
 def priority_reason_for_suggestion(reason: str | None, source: str) -> str:
     """Explain why one suggested view was prioritized."""
 
+    if source == "selected_existing_support":
+        return "reinforce_selected_view_support"
     if source == "candidate_missing_support":
         return "increase_selected_view_support"
     if reason in {"low_geometry_confidence", "too_few_3d_points"}:
@@ -247,9 +257,21 @@ def priority_reason_for_suggestion(reason: str | None, source: str) -> str:
 def remap_support_view_id(view_id: str, source: str) -> str:
     """Map support-driven repeated views onto novel nearby re-observation views."""
 
-    if source != "candidate_missing_support":
+    if source not in {"candidate_missing_support", "selected_existing_support"}:
         return view_id
     return SUPPORT_VIEW_VARIANTS.get(view_id, view_id)
+
+
+def selected_existing_support_views(selected: MemoryObject3D | None) -> list[str]:
+    """Return selected object's existing base views that have nearby support variants."""
+
+    if selected is None:
+        return []
+    return [
+        view_id
+        for view_id in dedupe_view_ids(selected.view_ids)
+        if SUPPORT_VIEW_VARIANTS.get(view_id) not in {None, *selected.view_ids}
+    ]
 
 
 def dedupe_view_ids(view_ids: Sequence[Any]) -> list[str]:

@@ -77,8 +77,27 @@ def test_decide_reobserve_flags_insufficient_view_support_before_confidence() ->
 
     assert decision.should_reobserve is True
     assert decision.reason == "insufficient_view_support"
-    assert decision.suggested_view_ids == ["closer_left", "closer_right"]
-    assert decision.diagnostics["suggested_view_plan"][0]["priority_reason"] == "increase_selected_view_support"
+    assert decision.suggested_view_ids == ["closer_front", "closer_left"]
+    assert decision.diagnostics["suggested_view_plan"][0]["source"] == "selected_existing_support"
+    assert decision.diagnostics["suggested_view_plan"][0]["priority_reason"] == "reinforce_selected_view_support"
+
+
+def test_decide_reobserve_reinforces_selected_view_before_missing_views() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_object(memory, [0.0, 0.0, 0.0], "red cube", det=0.95, view_id="left", points=1000)
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="red cube",
+        config=ReobservePolicyConfig(min_views=2),
+        candidate_view_ids=["front", "left", "right"],
+    )
+
+    assert decision.should_reobserve is True
+    assert decision.reason == "insufficient_view_support"
+    assert decision.suggested_view_ids == ["closer_left", "closer_front"]
+    assert decision.diagnostics["suggested_view_plan"][0]["requested_view_id"] == "left"
 
 
 def test_decide_reobserve_deduplicates_suggested_views() -> None:
@@ -94,7 +113,7 @@ def test_decide_reobserve_deduplicates_suggested_views() -> None:
     )
 
     assert decision.should_reobserve is True
-    assert decision.suggested_view_ids == ["closer_left", "closer_right"]
+    assert decision.suggested_view_ids == ["closer_front", "closer_left", "closer_right"]
 
 
 def test_decide_reobserve_flags_low_point_support() -> None:
