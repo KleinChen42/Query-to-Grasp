@@ -135,6 +135,83 @@ def test_select_memory_target_falls_back_to_best_object_without_label_match() ->
     assert trace["selection"]["fallback_to_all_objects"] is True
 
 
+def test_select_memory_target_replaces_single_view_geometry_outlier_within_margin() -> None:
+    memory = ObjectMemory3D()
+    outlier = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([-0.05, 0.02, 0.30], dtype=np.float32),
+            label="cube",
+            det_score=0.65,
+            fused_2d_score=0.65,
+            view_id="front",
+            num_points=2200,
+            depth_valid_ratio=1.0,
+        )
+    )
+    supported = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, -0.03, 0.01], dtype=np.float32),
+            label="cube",
+            det_score=0.50,
+            fused_2d_score=0.50,
+            view_id="right",
+            num_points=14000,
+            depth_valid_ratio=1.0,
+        )
+    )
+
+    selected, selection_label = select_memory_target(
+        memory,
+        {"normalized_prompt": "cube", "target_name": "cube", "synonyms": ["block"]},
+    )
+    trace = build_selection_trace(
+        memory=memory,
+        selected=selected,
+        selection_label=selection_label,
+        parsed_query={"raw_query": "cube", "normalized_prompt": "cube", "target_name": "cube", "synonyms": ["block"]},
+    )
+
+    assert selected is not None
+    assert outlier.overall_confidence > supported.overall_confidence
+    assert selected.object_id == supported.object_id
+    assert trace["selection"]["selected_rank"] == 2
+    assert "support sanity" in trace["selection"]["reason"]
+
+
+def test_select_memory_target_keeps_geometry_outlier_when_confidence_gap_is_large() -> None:
+    memory = ObjectMemory3D()
+    outlier = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([-0.05, 0.02, 0.30], dtype=np.float32),
+            label="cube",
+            det_score=0.95,
+            fused_2d_score=0.95,
+            view_id="front",
+            num_points=2200,
+            depth_valid_ratio=1.0,
+        )
+    )
+    memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, -0.03, 0.01], dtype=np.float32),
+            label="cube",
+            det_score=0.50,
+            fused_2d_score=0.50,
+            view_id="right",
+            num_points=14000,
+            depth_valid_ratio=1.0,
+        )
+    )
+
+    selected, _ = select_memory_target(
+        memory,
+        {"normalized_prompt": "cube", "target_name": "cube", "synonyms": ["block"]},
+    )
+
+    assert selected is not None
+    assert selected.object_id == outlier.object_id
+
+
 def test_apply_selection_continuity_prefers_previous_object_within_margin() -> None:
     memory = ObjectMemory3D()
     preferred = memory.add_observation(

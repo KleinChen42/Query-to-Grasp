@@ -6,6 +6,10 @@ from typing import Any, Sequence
 
 from src.memory.object_memory_3d import MemoryObject3D, ObjectMemory3D
 
+GEOMETRY_SANITY_CONFIDENCE_MARGIN = 0.05
+GEOMETRY_SANITY_MIN_Z_GAP = 0.15
+GEOMETRY_SANITY_MIN_POINT_RATIO = 2.0
+
 
 def select_memory_target(
     memory: ObjectMemory3D,
@@ -14,10 +18,69 @@ def select_memory_target(
     """Select the best object, trying exact query labels before falling back."""
 
     for label in candidate_selection_labels(parsed_query):
-        selected = memory.select_best(label=label)
+        selected = select_best_supported(memory.objects, label=label)
         if selected is not None:
             return selected, label
-    return memory.select_best(), None
+    return select_best_supported(memory.objects), None
+
+
+def select_best_supported(
+    objects: Sequence[MemoryObject3D],
+    label: str | None = None,
+) -> MemoryObject3D | None:
+    """Select the best object, with a conservative geometry sanity check."""
+
+    candidates = [
+        obj
+        for obj in objects
+        if label is None or label in obj.label_votes
+    ]
+    if not candidates:
+        return None
+
+    ranked = sorted(candidates, key=object_selection_sort_key)
+    return support_sanity_alternative(ranked) or ranked[0]
+
+
+def support_sanity_alternative(ranked_candidates: Sequence[MemoryObject3D]) -> MemoryObject3D | None:
+    """Prefer stronger tabletop support when the nominal winner is a likely 3D outlier."""
+
+    if len(ranked_candidates) <= 1:
+        return None
+
+    winner = ranked_candidates[0]
+    for candidate in ranked_candidates[1:]:
+        if should_replace_geometry_outlier(winner, candidate):
+            return candidate
+    return None
+
+
+def should_replace_geometry_outlier(winner: MemoryObject3D, candidate: MemoryObject3D) -> bool:
+    """Return whether a near-tied candidate has much saner tabletop support."""
+
+    confidence_gap = float(winner.overall_confidence) - float(candidate.overall_confidence)
+    if confidence_gap < 0.0 or confidence_gap > GEOMETRY_SANITY_CONFIDENCE_MARGIN:
+        return False
+    return is_geometry_outlier_against(outlier=winner, supported=candidate)
+
+
+def is_geometry_outlier_against(outlier: MemoryObject3D, supported: MemoryObject3D) -> bool:
+    """Return whether one object is a weak high-z outlier beside a supported object."""
+
+    if len(outlier.view_ids) > 1:
+        return False
+
+    outlier_z = float(outlier.world_xyz[2])
+    supported_z = float(supported.world_xyz[2])
+    if outlier_z - supported_z < GEOMETRY_SANITY_MIN_Z_GAP:
+        return False
+
+    outlier_points = mean_object_points(outlier)
+    supported_points = mean_object_points(supported)
+    if supported_points < max(1.0, outlier_points * GEOMETRY_SANITY_MIN_POINT_RATIO):
+        return False
+
+    return supported.geometry_confidence >= outlier.geometry_confidence - 0.05
 
 
 def apply_selection_continuity(
@@ -124,12 +187,19 @@ def build_selection_trace(
     ranked_all = sorted(objects, key=object_selection_sort_key)
     candidate_labels = candidate_selection_labels(parsed_query)
 
+    selected_rank = _rank_for_object(ranked_pool, selected_id)
     if selected is None:
         reason = "No memory object was available for selection."
     elif selection_label is None:
         reason = (
             "No candidate query label matched the memory. Selected the highest "
             "confidence object across all memory objects."
+        )
+    elif selected_rank is not None and selected_rank > 1:
+        reason = (
+            f"Selected {selected.object_id} from {len(selection_pool)} object(s) "
+            f"containing label {selection_label!r} after support sanity favored a "
+            "near-tied object with stronger tabletop geometry."
         )
     else:
         reason = (
@@ -147,7 +217,7 @@ def build_selection_trace(
         },
         "selection": {
             "selected_object_id": selected_id,
-            "selected_rank": _rank_for_object(ranked_pool, selected_id),
+            "selected_rank": selected_rank,
             "selection_pool_label": selection_label,
             "selection_pool_size": len(selection_pool),
             "fallback_to_all_objects": selected is not None and selection_label is None,
@@ -315,6 +385,12 @@ def object_selection_sort_key(obj: MemoryObject3D) -> tuple[float, int, float, s
         -float(obj.geometry_confidence),
         obj.object_id,
     )
+
+
+def mean_object_points(obj: MemoryObject3D) -> float:
+    """Return the mean 3D point support recorded for one object."""
+
+    return _mean_floats(obj.metadata.get("num_points_history", []))
 
 
 def _rank_for_object(objects: Sequence[MemoryObject3D], object_id: str | None) -> int | None:

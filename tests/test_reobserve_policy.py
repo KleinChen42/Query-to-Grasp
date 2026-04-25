@@ -63,6 +63,26 @@ def test_decide_reobserve_flags_close_top_candidates() -> None:
     assert decision.diagnostics["suggested_view_plan"][0]["requested_view_id"] == "right"
 
 
+def test_decide_reobserve_ignores_suppressed_geometry_outlier_challenger() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_object(memory, [0.0, -0.03, 0.01], "cube", det=0.5, view_id="right", points=14000)
+    _add_object(memory, [0.0, -0.02, 0.01], "cube", det=0.5, view_id="closer_right", points=14000)
+    outlier = _add_object(memory, [-0.05, 0.02, 0.30], "cube", det=0.65, view_id="front", points=2200)
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="cube",
+        candidate_view_ids=["front", "left", "right"],
+    )
+
+    assert outlier.object_id != selected.object_id
+    assert decision.should_reobserve is False
+    assert decision.reason == "confident_enough"
+    assert decision.diagnostics["suppressed_geometry_outlier_challenger_ids"] == [outlier.object_id]
+    assert decision.diagnostics["confidence_challenger_object_id"] is None
+
+
 def test_decide_reobserve_flags_insufficient_view_support_before_confidence() -> None:
     memory = ObjectMemory3D()
     selected = _add_object(memory, [0.0, 0.0, 0.0], "red cube", det=0.95, view_id="front", points=1000)

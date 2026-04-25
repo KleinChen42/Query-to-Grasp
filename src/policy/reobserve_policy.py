@@ -6,13 +6,14 @@ from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 from src.memory.object_memory_3d import MemoryObject3D, ObjectMemory3D
-from src.policy.target_selector import object_selection_sort_key
+from src.policy.target_selector import is_geometry_outlier_against, object_selection_sort_key
 
 SUPPORT_VIEW_VARIANTS: dict[str, str] = {
     "front": "closer_front",
     "left": "closer_left",
     "right": "closer_right",
 }
+SUPPORTED_CONFIDENCE_TOLERANCE = 0.02
 
 
 @dataclass(frozen=True)
@@ -129,7 +130,10 @@ def decide_reobserve_reason(
     if confidence_gap is not None and confidence_gap < config.min_confidence_gap:
         return "ambiguous_top_candidates"
 
-    if diagnostics["selected_overall_confidence"] < config.min_overall_confidence:
+    if (
+        diagnostics["selected_overall_confidence"] < config.min_overall_confidence
+        and not has_supported_confidence_floor(diagnostics, config)
+    ):
         return "low_overall_confidence"
 
     if diagnostics["selected_geometry_confidence"] < config.min_geometry_confidence:
@@ -139,6 +143,18 @@ def decide_reobserve_reason(
         return "too_few_3d_points"
 
     return None
+
+
+def has_supported_confidence_floor(diagnostics: dict[str, Any], config: ReobservePolicyConfig) -> bool:
+    """Return whether strong geometric support should satisfy near-threshold confidence."""
+
+    return (
+        diagnostics["selected_num_views"] >= config.min_views
+        and diagnostics["selected_geometry_confidence"] >= config.min_geometry_confidence
+        and diagnostics["selected_mean_num_points"] >= config.min_mean_num_points
+        and diagnostics["selected_overall_confidence"]
+        >= config.min_overall_confidence - SUPPORTED_CONFIDENCE_TOLERANCE
+    )
 
 
 def selection_pool_for_label(
@@ -163,10 +179,14 @@ def build_reobserve_diagnostics(
 
     top1 = ranked_pool[0] if ranked_pool else None
     top2 = ranked_pool[1] if len(ranked_pool) >= 2 else None
+    confidence_challenger, suppressed_challengers = confidence_challenger_for_selected(
+        selected=selected,
+        ranked_pool=ranked_pool,
+    )
     selected_mean_num_points = mean_float(selected.metadata.get("num_points_history", [])) if selected else 0.0
     confidence_gap = (
-        float(top1.overall_confidence) - float(top2.overall_confidence)
-        if top1 is not None and top2 is not None
+        float(selected.overall_confidence) - float(confidence_challenger.overall_confidence)
+        if selected is not None and confidence_challenger is not None
         else None
     )
     return {
@@ -175,6 +195,10 @@ def build_reobserve_diagnostics(
         "selection_pool_size": len(ranked_pool),
         "top1_object_id": None if top1 is None else top1.object_id,
         "top2_object_id": None if top2 is None else top2.object_id,
+        "confidence_challenger_object_id": (
+            None if confidence_challenger is None else confidence_challenger.object_id
+        ),
+        "suppressed_geometry_outlier_challenger_ids": suppressed_challengers,
         "confidence_gap": confidence_gap,
         "selected_object_id": None if selected is None else selected.object_id,
         "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
@@ -185,7 +209,28 @@ def build_reobserve_diagnostics(
         "selected_num_observations": 0 if selected is None else int(selected.num_observations),
         "selected_mean_num_points": selected_mean_num_points,
         "thresholds": config.to_json_dict(),
+        "supported_confidence_tolerance": SUPPORTED_CONFIDENCE_TOLERANCE,
     }
+
+
+def confidence_challenger_for_selected(
+    selected: MemoryObject3D | None,
+    ranked_pool: Sequence[MemoryObject3D],
+) -> tuple[MemoryObject3D | None, list[str]]:
+    """Return the strongest relevant challenger for ambiguity checks."""
+
+    if selected is None:
+        return (ranked_pool[0] if ranked_pool else None), []
+
+    suppressed: list[str] = []
+    for obj in ranked_pool:
+        if obj.object_id == selected.object_id:
+            continue
+        if is_geometry_outlier_against(outlier=obj, supported=selected):
+            suppressed.append(obj.object_id)
+            continue
+        return obj, suppressed
+    return None, suppressed
 
 
 def suggest_reobserve_views(
