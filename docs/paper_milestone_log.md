@@ -53,6 +53,7 @@ Current evidence supports the following narrower near-term claim:
 | Absorber-aware continuity policy report | Accepted compact ambiguity closed-loop rerun after supported near-gap and absorber-aware continuity fixes | `outputs/h200_60071_absorber_aware_continuity_compact_seed01234/reports/reobserve_policy_report.md` |
 | Full ambiguity absorber-aware validation | Full ambiguity query file, seeds 0-4, no-CLIP and with-CLIP | `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234/reports/reobserve_policy_report.md` |
 | Attribute residual diagnosis | Trace-level diagnosis of full-validation residuals without rerunning benchmarks | `outputs/h200_60071_attribute_residual_diagnostics_existing/reports/residual_diagnosis.md` |
+| Attribute trace-field targeted validation | Targeted H200 rerun confirming additive attribute/point/support trace fields | `outputs/h200_60071_attribute_trace_fields_targeted/trace_exports/trace_field_validation.json` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -92,6 +93,7 @@ Current evidence supports the following narrower near-term claim:
 | Absorber-aware closed-loop continuity | Done | `outputs/h200_60071_absorber_aware_continuity_compact_seed01234/reports/reobserve_policy_report.md` | The accepted compact H200 rerun resolves all final policy triggers (`still_needed_rate = 0.0000`) while preserving the third-object acceptance gate (`third_object_rate = 0.1000`). |
 | Full ambiguity absorber-aware validation | Done | `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234/reports/reobserve_policy_report.md` | The accepted policy completes the full ambiguity file with `55/55` successful runs in both modes. Residual uncertainty concentrates in attribute-style queries such as `red block` and `red cube`, so the next step is diagnostic, not immediate tuning. |
 | Attribute-query residual diagnosis | Done | `outputs/h200_60071_attribute_residual_diagnostics_existing/reports/residual_diagnosis.md` | Existing full-run traces isolate three residual types: 3D point insufficiency for `red cube` seed 3, selected-view support conflict for `red block` seed 3, and same-phrase attribute ambiguity plus third-object absorption for `red block` seed 0. |
+| Attribute trace-field validation | Done | `outputs/h200_60071_attribute_trace_fields_targeted/trace_exports/trace_field_validation.json` | Targeted H200 traces confirm all new diagnostic fields are present. Residual attribute-style queries have `attribute_coverage = 1.0`, so the next bottleneck is same-phrase memory fragmentation and point/view support, not missing parsed color evidence. |
 
 ## Key Quantitative Results
 
@@ -744,6 +746,56 @@ the selector tries normalized prompt, target name, and synonyms, while object
 memory stores only `label_votes`; color attributes are not maintained as an
 independent memory term.
 
+### Attribute Trace-Field Targeted Validation
+
+Source:
+`outputs/h200_60071_attribute_trace_fields_targeted`
+
+Setup:
+
+- no-CLIP: `red block`, `red cube`, `cup`, `mug` with seeds `0,3`
+- with-CLIP: `red block`, `red cube` with seeds `0,3`
+- Same accepted absorber-aware closed-loop settings as the full validation
+- Extra validation artifact:
+  `outputs/h200_60071_attribute_trace_fields_targeted/trace_exports/trace_field_validation.json`
+
+Status:
+
+| step | status |
+| --- | --- |
+| `unit_policy_tests` | 0 |
+| `targeted_no_clip` | 0 |
+| `targeted_with_clip` | 0 |
+| `export_trace_samples` | 0 |
+| `finished_at` | ok |
+
+Trace validation:
+
+| mode | rows | missing required fields |
+| --- | ---: | --- |
+| no-CLIP | 8 | none |
+| with-CLIP | 4 | none |
+
+Key trace readout:
+
+| case | attribute coverage | same-phrase competitors | point/view signal |
+| --- | ---: | ---: | --- |
+| no-CLIP `red block`, seed 0 | 1.0000 | 1 | Both top objects have full `red block` labels and strong support. |
+| with-CLIP `red block`, seed 0 | 1.0000 | 1 | Same near-tie pattern with a very small confidence gap. |
+| `red block`, seed 3 | 1.0000 | 4 | Selected object has one view; strongest multi-view alternative has only `56.3` mean points. |
+| `red cube`, seed 3 | 1.0000 | 3 | Selected object has three views but only `56.3` mean points. |
+
+Interpretation:
+
+The targeted trace fields refine the earlier diagnosis. The residual
+attribute-style queries are not failing because the parsed color attribute is
+missing from the selected trace: each targeted `red block` and `red cube`
+residual reports `attribute_coverage = 1.0`. The remaining issue is that
+multiple memory objects carry the same full phrase label, while different
+objects trade off view count against point support. The next behavior patch
+should therefore target same-phrase fragmentation or point/view support
+accounting, not broad attribute-aware selection.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -969,8 +1021,8 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
    future geometry diagnostics should continue to log the convention explicitly.
 6. The accepted compact closed-loop re-observation path now reduces final
    policy uncertainty in the diagnostic ambiguity benchmark; full-query
-   residuals now point to attribute-query evidence and selection diagnostics as
-   the next bottleneck.
+   residuals now point to same-phrase memory fragmentation and point/view
+   support tradeoffs as the next bottleneck.
 7. Re-observation remains a virtual-camera perception loop rather than learned
    view planning or robot motion.
 8. Real robot control is still intentionally absent; placeholder pick success is
@@ -978,13 +1030,12 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Prepare the smallest benchmark-backed follow-up from the residual diagnosis:
+Prepare the smallest benchmark-backed follow-up from the trace-field diagnosis:
 
-1. Add diagnostic-only trace fields for parsed attributes, same-phrase
-   competitors, and per-object point/support conflicts, or make one very small
-   policy guard if the intended residual case is unambiguous.
-2. Recheck only the targeted residual cases on H200 before launching another
-   full benchmark.
+1. Prefer one small same-phrase fragmentation or point/view-support experiment;
+   do not retune broad attribute handling.
+2. Recheck only the targeted residual cases on H200, with timed polling, before
+   launching another full benchmark.
 3. Keep detector backends, fusion weights, web demo, training, and real robot
    control out of scope.
 
@@ -998,5 +1049,6 @@ Candidate paper framing:
 > conservative one-extra-view policy can reduce compact ambiguity triggers when
 > memory association and post-reobserve continuity are explicitly instrumented.
 > Full ambiguity validation confirms stable execution across broader query
-> coverage, while isolating the next bottleneck to attribute-style residuals
-> rather than benchmark reliability.
+> coverage. Targeted trace diagnostics show that those residuals retain full
+> parsed-attribute coverage; the next bottleneck is same-phrase memory
+> fragmentation and point/view support, not benchmark reliability.

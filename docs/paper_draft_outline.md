@@ -179,6 +179,7 @@ Evidence:
 - H200: `outputs/h200_60071_absorber_aware_continuity_compact_seed01234/reports/reobserve_policy_report.md`
 - H200: `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234/reports/reobserve_policy_report.md`
 - `outputs/h200_60071_attribute_residual_diagnostics_existing/reports/residual_diagnosis.md`
+- `outputs/h200_60071_attribute_trace_fields_targeted/trace_exports/trace_field_validation.json`
 
 Current closed-loop diagnostic:
 
@@ -197,6 +198,10 @@ Current closed-loop diagnostic:
 - Trace-level residual diagnosis shows that the remaining cases are mixed:
   point-count insufficiency, selected-view support conflict, and same-phrase
   attribute ambiguity with third-object absorption.
+- Targeted attribute trace fields show `attribute_coverage = 1.0` in the
+  residual `red block` and `red cube` cases. The next bottleneck is therefore
+  same-phrase fragmentation and point/view support, not missing parsed color
+  evidence.
 - This remains a virtual-camera perception loop, not learned view planning or
   robot camera motion.
 
@@ -421,6 +426,18 @@ not maintained as a separate memory term, so the next implementation should
 start with targeted diagnostics or one narrowly justified guard rather than a
 broad attribute-aware selector rewrite.
 
+Targeted trace-field validation:
+
+| mode | runs | missing trace fields | key readout |
+| --- | ---: | --- | --- |
+| no-CLIP | 8 | none | Residual `red block`/`red cube` cases have full attribute coverage. |
+| with-CLIP | 4 | none | Same attribute-coverage pattern; residuals remain point/support limited. |
+
+The new trace fields change the interpretation: the parser and trace can expose
+the color attribute, but the residual memory objects all carry the full phrase
+label. The next behavior patch should focus on same-phrase memory fragmentation
+or point/view support accounting, not on a broad attribute-aware selector.
+
 ### Experiment 5: Re-Observation Decision Smoke
 
 Question:
@@ -615,7 +632,9 @@ Paper assets:
    reports plus residual attribute-query summary.
 11. Attribute residual diagnosis: trace-level classification of the remaining
    full-validation cases.
-12. Limitation box: placeholder pick, low detector multiplicity, and no real
+12. Attribute trace-field validation: targeted residual traces with parsed
+   attributes, same-phrase competitors, and point/view support flags.
+13. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
 ## Limitations
@@ -634,6 +653,9 @@ Be explicit:
 - The first residual diagnosis found mixed causes rather than one clean policy
   knob: point insufficiency, selected-view support conflict, and third-object
   absorption all appear.
+- Attribute diagnostics show full attribute coverage in the residual red-object
+  traces, so future changes should avoid claiming a missing-color-evidence fix
+  unless new data contradicts this targeted result.
 - Experiments are small and use `PickCube-v1` plus virtual camera poses.
 - CLIP did not change top-1 in current benchmarks.
 - Query parser supports simple attributes and conservative relations, not full
@@ -661,12 +683,11 @@ Important for a stronger v1:
 
 ## Next Coding Milestone
 
-Make one small, benchmark-backed follow-up from the residual diagnosis:
+Make one small, benchmark-backed follow-up from the trace-field diagnosis:
 
-1. Prefer diagnostic-only trace additions for parsed attributes, same-phrase
-   competitors, and point/support conflicts unless a single residual case is
-   chosen for a behavior change.
+1. Prefer a same-phrase fragmentation or point/view-support experiment; do not
+   retune broad attribute handling.
 2. If behavior changes, keep it narrowly scoped to one classified failure mode
-   and validate only the targeted residual cases first.
+   and validate only the targeted residual cases first with timed H200 polling.
 3. Keep detector backends, fusion weights, demo UI, training, and real control
    out of scope.
