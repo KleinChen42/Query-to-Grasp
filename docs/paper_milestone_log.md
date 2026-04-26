@@ -1,6 +1,6 @@
 # Query-to-Grasp Paper Milestone Log
 
-Last updated: 2026-04-23
+Last updated: 2026-04-26
 
 Purpose: keep a concise, paper-oriented record of key implementation milestones,
 experiment reports, quantitative findings, and next decisions. This file is
@@ -51,6 +51,8 @@ Current evidence supports the following narrower near-term claim:
 | Post-selection margin sweep (no CLIP) | Compact ambiguity margin sweep for post-selection continuity without CLIP | `outputs/h200_60071_post_selection_margin_sweep_compact_seed0/no_clip/margin_sweep_summary.md` |
 | Post-selection margin sweep (with CLIP) | Compact ambiguity margin sweep for post-selection continuity with CLIP | `outputs/h200_60071_post_selection_margin_sweep_compact_seed0/with_clip/margin_sweep_summary.md` |
 | Absorber-aware continuity policy report | Accepted compact ambiguity closed-loop rerun after supported near-gap and absorber-aware continuity fixes | `outputs/h200_60071_absorber_aware_continuity_compact_seed01234/reports/reobserve_policy_report.md` |
+| Full ambiguity absorber-aware validation | Full ambiguity query file, seeds 0-4, no-CLIP and with-CLIP | `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234/reports/reobserve_policy_report.md` |
+| Attribute residual diagnosis | Trace-level diagnosis of full-validation residuals without rerunning benchmarks | `outputs/h200_60071_attribute_residual_diagnostics_existing/reports/residual_diagnosis.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -88,6 +90,8 @@ Current evidence supports the following narrower near-term claim:
 | Post-selection continuity rule | Done | H200 compact ambiguity rerun with `--enable-post-reobserve-selection-continuity` | The new final-selection continuity hook is instrumented and runnable, but `selection_continuity_apply_rate = 0.0` in the current compact ambiguity setting, so the current margin/eligibility logic is too conservative to change outcomes. |
 | Post-selection continuity margin sweep | Done | H200 compact ambiguity sweep across margins `0.03, 0.05, 0.08, 0.12` | Raising the margin from `0.03` to `0.05+` activates post-selection continuity in one compact ambiguity case (`apply_rate = 0.2500` per benchmark), but closed-loop resolution stays `0.0`. The next bottleneck is no longer margin gating alone; it is how confidence and uncertainty update after the extra view is merged. |
 | Absorber-aware closed-loop continuity | Done | `outputs/h200_60071_absorber_aware_continuity_compact_seed01234/reports/reobserve_policy_report.md` | The accepted compact H200 rerun resolves all final policy triggers (`still_needed_rate = 0.0000`) while preserving the third-object acceptance gate (`third_object_rate = 0.1000`). |
+| Full ambiguity absorber-aware validation | Done | `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234/reports/reobserve_policy_report.md` | The accepted policy completes the full ambiguity file with `55/55` successful runs in both modes. Residual uncertainty concentrates in attribute-style queries such as `red block` and `red cube`, so the next step is diagnostic, not immediate tuning. |
+| Attribute-query residual diagnosis | Done | `outputs/h200_60071_attribute_residual_diagnostics_existing/reports/residual_diagnosis.md` | Existing full-run traces isolate three residual types: 3D point insufficiency for `red cube` seed 3, selected-view support conflict for `red block` seed 3, and same-phrase attribute ambiguity plus third-object absorption for `red block` seed 0. |
 
 ## Key Quantitative Results
 
@@ -670,6 +674,76 @@ absorber-aware post-selection guard keeps the resolution gain while returning
 third-object involvement to the accepted `0.1000` rate. This is the current
 stable closed-loop perception baseline for paper tables.
 
+### Full Ambiguity Absorber-Aware Validation
+
+Source:
+H200 `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234`
+
+Setup:
+
+- Queries: `configs/ambiguity_queries.txt`
+- Seeds: `0 1 2 3 4`
+- Conditions: HF no-CLIP and HF with-CLIP
+- Closed-loop policy: same accepted absorber-aware policy as the compact
+  baseline
+
+| setting | runs | failed | final trigger | resolution rate | still-needed rate | third-object rate | delta confidence |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| absorber_aware_full_no_clip | 55 | 0 | 0.0909 | 0.3273 | 0.0909 | 0.1091 | 0.0186 |
+| absorber_aware_full_with_clip | 55 | 0 | 0.0545 | 0.3273 | 0.0545 | 0.0727 | 0.0184 |
+
+Residual summary:
+
+| query | no-CLIP final trigger | with-CLIP final trigger | note |
+| --- | ---: | ---: | --- |
+| `red block` | 0.4000 | 0.4000 | Dominant remaining attribute-query residual. |
+| `red cube` | 0.2000 | 0.2000 | Residual includes a `too_few_3d_points` case. |
+| `cup` | 0.2000 | 0.0000 | With-CLIP removes the residual trigger in this full run. |
+| `mug` | 0.2000 | 0.0000 | With-CLIP removes the residual trigger in this full run. |
+| `cube` | 0.0000 | 0.0000 | Fully resolves, but still has third-object absorbers in some seeds. |
+
+Interpretation:
+
+The full ambiguity validation passes the broad execution gate: both modes
+complete `55/55` runs with zero failures and positive selected-confidence
+deltas. The compact acceptance result still holds, but the full query set shows
+that residual uncertainty is concentrated in attribute-style queries, especially
+`red block` and `red cube`. With-CLIP does not change the resolution rate, but
+it reduces final still-needed rate from `0.0909` to `0.0545` and third-object
+involvement from `0.1091` to `0.0727`. The next step should inspect residual
+selection traces, label votes, final reobserve reasons, point counts, and
+whether color attributes are represented in memory before adding any new policy
+logic.
+
+### Attribute Residual Diagnosis
+
+Source:
+`outputs/h200_60071_attribute_residual_diagnostics_existing/reports/residual_diagnosis.md`
+
+Method:
+
+- Reused the existing full-validation child artifacts.
+- Inspected parsed queries, selection traces, label votes, final reobserve
+  reasons, point counts, view support, extra-view absorbers, and continuity
+  traces.
+- Did not rerun benchmarks or change code.
+
+| case | final reason | classification |
+| --- | --- | --- |
+| `red cube`, seed 3 | `too_few_3d_points` | 3D point insufficiency: selected object has 3 views but only `56.3` mean points. |
+| `red block`, seed 3 | `insufficient_view_support` | Selected-view support conflict: final selected object has 1 view despite strong point support. |
+| `red block`, seed 0 | `ambiguous_top_candidates` | Attribute evidence is represented only as the phrase label `red block`, with a third absorber also involved. |
+| no-CLIP `cup`/`mug`, seed 3 | `ambiguous_top_candidates` | Third-object absorption without an attribute term. |
+
+Interpretation:
+
+The next patch should not be a broad policy retune. The traces show a mixed
+failure set: one geometry/point-count case, one view-support conflict, and one
+attribute-style same-phrase ambiguity. Source inspection matches this diagnosis:
+the selector tries normalized prompt, target name, and synonyms, while object
+memory stores only `label_votes`; color attributes are not maintained as an
+independent memory term.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -886,30 +960,33 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 1. Detector candidate multiplicity is still low in most exact-object settings.
 2. CLIP reranking has no current top-1 effect because candidate sets are too small.
-3. Corrected virtual multi-view capture now gives compact memory in the small
-   HF no-CLIP and with-CLIP benchmarks, but the claim still needs broader query
-   and seed coverage before becoming a final result.
+3. Corrected virtual multi-view capture gives compact memory in the small HF
+   benchmarks, and the full absorber-aware validation now confirms zero-failure
+   execution across the complete ambiguity query file for seeds `0..4`.
 4. Memory merge behavior is now plausible at `0.08 m`, but selection traces need
    to be easier to inspect for paper figures.
 5. The RGB-D lifting camera convention bug is fixed for `cam2world_gl`, but
    future geometry diagnostics should continue to log the convention explicitly.
 6. The accepted compact closed-loop re-observation path now reduces final
-   policy uncertainty in the diagnostic ambiguity benchmark, but it remains a
-   virtual-camera perception loop rather than learned view planning or robot
-   motion.
-7. Real robot control is still intentionally absent; placeholder pick success is
+   policy uncertainty in the diagnostic ambiguity benchmark; full-query
+   residuals now point to attribute-query evidence and selection diagnostics as
+   the next bottleneck.
+7. Re-observation remains a virtual-camera perception loop rather than learned
+   view planning or robot motion.
+8. Real robot control is still intentionally absent; placeholder pick success is
    not an end-to-end grasp metric.
 
 ## Next Recommended Milestone
 
-Refresh the paper support artifacts around the accepted absorber-aware baseline:
+Prepare the smallest benchmark-backed follow-up from the residual diagnosis:
 
-1. Rebuild `outputs/paper_figure_pack_latest` so the latest closed-loop reports
-   and ablation tables are included.
-2. Promote the absorber-aware compact table into the draft as the stable
-   closed-loop diagnostic result.
-3. Keep real robot control and web demo out of scope until the paper artifact
-   set is internally consistent.
+1. Add diagnostic-only trace fields for parsed attributes, same-phrase
+   competitors, and per-object point/support conflicts, or make one very small
+   policy guard if the intended residual case is unambiguous.
+2. Recheck only the targeted residual cases on H200 before launching another
+   full benchmark.
+3. Keep detector backends, fusion weights, web demo, training, and real robot
+   control out of scope.
 
 Candidate paper framing:
 
@@ -920,3 +997,6 @@ Candidate paper framing:
 > The accepted absorber-aware closed-loop diagnostic further shows that a
 > conservative one-extra-view policy can reduce compact ambiguity triggers when
 > memory association and post-reobserve continuity are explicitly instrumented.
+> Full ambiguity validation confirms stable execution across broader query
+> coverage, while isolating the next bottleneck to attribute-style residuals
+> rather than benchmark reliability.
