@@ -255,6 +255,62 @@ def test_decide_reobserve_flags_low_point_support() -> None:
     assert decision.should_reobserve is True
     assert decision.reason == "too_few_3d_points"
     assert decision.diagnostics["selected_mean_num_points"] == 10.0
+    assert decision.suggested_view_ids == ["closer_front", "closer_left"]
+    assert decision.diagnostics["suggested_view_plan"][0]["source"] == "selected_existing_support"
+    assert decision.diagnostics["suggested_view_plan"][0]["priority_reason"] == "reinforce_selected_view_support"
+
+
+def test_decide_reobserve_keeps_geometry_fallback_after_low_point_support_views() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_object(memory, [0.0, 0.0, 0.0], "red cube", det=0.9, view_id="front", points=10)
+    _add_object(memory, [0.01, 0.0, 0.0], "red cube", det=0.9, view_id="left", points=10)
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="red cube",
+        config=ReobservePolicyConfig(min_mean_num_points=100.0, max_suggested_views=3),
+        candidate_view_ids=["front", "left", "right"],
+    )
+
+    assert decision.should_reobserve is True
+    assert decision.reason == "too_few_3d_points"
+    assert decision.suggested_view_ids == ["closer_front", "closer_left", "top_down"]
+    assert decision.diagnostics["suggested_view_plan"][2]["source"] == "default_missing_support"
+    assert decision.diagnostics["suggested_view_plan"][2]["priority_reason"] == "improve_geometry_evidence"
+
+
+def test_decide_reobserve_keeps_low_geometry_priority_on_default_geometry_views() -> None:
+    memory = ObjectMemory3D()
+    selected = _add_object(
+        memory,
+        [0.0, 0.0, 0.0],
+        "red cube",
+        det=0.9,
+        view_id="front",
+        points=1000,
+        depth_valid_ratio=0.1,
+    )
+    _add_object(
+        memory,
+        [0.01, 0.0, 0.0],
+        "red cube",
+        det=0.9,
+        view_id="left",
+        points=1000,
+        depth_valid_ratio=0.1,
+    )
+
+    decision = decide_reobserve(
+        memory=memory,
+        selected=selected,
+        selection_label="red cube",
+        config=ReobservePolicyConfig(min_geometry_confidence=0.95),
+        candidate_view_ids=["front", "left", "right"],
+    )
+
+    assert decision.should_reobserve is True
+    assert decision.reason == "low_geometry_confidence"
     assert decision.suggested_view_ids == ["top_down", "closer_oblique"]
     assert decision.diagnostics["suggested_view_plan"][0]["priority_reason"] == "improve_geometry_evidence"
 
@@ -266,6 +322,7 @@ def _add_object(
     det: float,
     view_id: str,
     points: int,
+    depth_valid_ratio: float = 1.0,
 ):
     return memory.add_observation(
         ObjectObservation3D(
@@ -275,7 +332,7 @@ def _add_object(
             fused_2d_score=det,
             view_id=view_id,
             num_points=points,
-            depth_valid_ratio=1.0,
+            depth_valid_ratio=depth_valid_ratio,
         )
     )
 

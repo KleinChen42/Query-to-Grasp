@@ -287,7 +287,13 @@ def suggest_reobserve_views(
         if view_id not in used_views and view_id not in missing_candidate_support
     ]
 
-    if reason in {"low_geometry_confidence", "too_few_3d_points"}:
+    if reason == "too_few_3d_points":
+        prioritized = [
+            *(("selected_existing_support", view_id) for view_id in selected_support_candidates),
+            *(("default_missing_support", view_id) for view_id in missing_default_support),
+            *(("candidate_missing_support", view_id) for view_id in missing_candidate_support),
+        ]
+    elif reason == "low_geometry_confidence":
         prioritized = [
             *(("default_missing_support", view_id) for view_id in missing_default_support),
             *(("candidate_missing_support", view_id) for view_id in missing_candidate_support),
