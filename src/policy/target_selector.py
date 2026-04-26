@@ -9,6 +9,8 @@ from src.memory.object_memory_3d import MemoryObject3D, ObjectMemory3D
 GEOMETRY_SANITY_CONFIDENCE_MARGIN = 0.05
 GEOMETRY_SANITY_MIN_Z_GAP = 0.15
 GEOMETRY_SANITY_MIN_POINT_RATIO = 2.0
+TRACE_REOBSERVE_POINT_FLOOR = 100.0
+TRACE_REOBSERVE_VIEW_FLOOR = 2
 
 
 def select_memory_target(
@@ -186,8 +188,12 @@ def build_selection_trace(
     ranked_pool = sorted(selection_pool, key=object_selection_sort_key)
     ranked_all = sorted(objects, key=object_selection_sort_key)
     candidate_labels = candidate_selection_labels(parsed_query)
+    query_attributes = parsed_query_attributes(parsed_query)
 
     selected_rank = _rank_for_object(ranked_pool, selected_id)
+    selected_attribute_coverage = (
+        None if selected is None else object_attribute_diagnostics(selected, parsed_query)["attribute_coverage"]
+    )
     if selected is None:
         reason = "No memory object was available for selection."
     elif selection_label is None:
@@ -213,6 +219,7 @@ def build_selection_trace(
             "raw_query": parsed_query.get("raw_query"),
             "normalized_prompt": parsed_query.get("normalized_prompt"),
             "target_name": parsed_query.get("target_name"),
+            "attributes": query_attributes,
             "candidate_selection_labels": candidate_labels,
         },
         "selection": {
@@ -220,6 +227,12 @@ def build_selection_trace(
             "selected_rank": selected_rank,
             "selection_pool_label": selection_label,
             "selection_pool_size": len(selection_pool),
+            "same_phrase_competitor_count": count_same_phrase_competitors(
+                objects=objects,
+                parsed_query=parsed_query,
+                selected_object_id=selected_id,
+            ),
+            "selected_attribute_coverage": selected_attribute_coverage,
             "fallback_to_all_objects": selected is not None and selection_label is None,
             "tie_break_order": [
                 "overall_confidence desc",
@@ -235,6 +248,7 @@ def build_selection_trace(
                 rank=index + 1,
                 selected_object_id=selected_id,
                 selection_label=selection_label,
+                parsed_query=parsed_query,
             )
             for index, obj in enumerate(ranked_pool)
         ],
@@ -244,6 +258,7 @@ def build_selection_trace(
                 rank=index + 1,
                 selected_object_id=selected_id,
                 selection_label=selection_label,
+                parsed_query=parsed_query,
             )
             for index, obj in enumerate(ranked_all)
         ],
@@ -255,11 +270,14 @@ def memory_object_trace_row(
     rank: int,
     selected_object_id: str | None,
     selection_label: str | None,
+    parsed_query: dict[str, Any],
 ) -> dict[str, Any]:
     """Return selection-relevant fields for one memory object."""
 
     num_points_history = obj.metadata.get("num_points_history", [])
     depth_valid_ratio_history = obj.metadata.get("depth_valid_ratio_history", [])
+    mean_num_points = _mean_floats(num_points_history)
+    attribute_diagnostics = object_attribute_diagnostics(obj, parsed_query)
     return {
         "rank": int(rank),
         "object_id": obj.object_id,
@@ -283,8 +301,16 @@ def memory_object_trace_row(
         "mean_det_score": _mean_floats(obj.det_scores),
         "mean_clip_score": _mean_floats(obj.clip_scores),
         "mean_fused_2d_score": _mean_floats(obj.fused_2d_scores),
-        "mean_num_points": _mean_floats(num_points_history),
+        "mean_num_points": mean_num_points,
         "mean_depth_valid_ratio": _mean_floats(depth_valid_ratio_history),
+        "has_full_prompt_label": attribute_diagnostics["has_full_prompt_label"],
+        "has_target_label": attribute_diagnostics["has_target_label"],
+        "query_attribute_hits": attribute_diagnostics["query_attribute_hits"],
+        "query_attribute_misses": attribute_diagnostics["query_attribute_misses"],
+        "labels_matching_all_query_attributes": attribute_diagnostics["labels_matching_all_query_attributes"],
+        "attribute_coverage": attribute_diagnostics["attribute_coverage"],
+        "below_default_reobserve_point_floor": mean_num_points < TRACE_REOBSERVE_POINT_FLOOR,
+        "below_default_reobserve_view_floor": len(obj.view_ids) < TRACE_REOBSERVE_VIEW_FLOOR,
         "selection_sort_key": {
             "overall_confidence_desc": float(obj.overall_confidence),
             "num_unique_views_desc": len(obj.view_ids),
@@ -304,17 +330,20 @@ def render_selection_trace_markdown(trace: dict[str, Any]) -> str:
         "",
         f"- Query: `{query.get('raw_query')}`",
         f"- Normalized prompt: `{query.get('normalized_prompt')}`",
+        f"- Attributes: `{_format_string_list(query.get('attributes', []))}`",
         f"- Candidate labels: `{', '.join(query.get('candidate_selection_labels', []))}`",
         f"- Selected object: `{selection.get('selected_object_id')}`",
         f"- Selection pool label: `{selection.get('selection_pool_label')}`",
         f"- Selection pool size: {selection.get('selection_pool_size')}",
+        f"- Same-phrase competitors: {selection.get('same_phrase_competitor_count')}",
+        f"- Selected attribute coverage: {_format_optional_float(selection.get('selected_attribute_coverage'))}",
         f"- Fallback to all objects: {selection.get('fallback_to_all_objects')}",
         f"- Reason: {selection.get('reason')}",
         "",
         "## Ranked Selection Pool",
         "",
-        "| rank | selected | object_id | top_label | overall | semantic | geometry | views | observations | label_votes | world_xyz |",
-        "| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+        "| rank | selected | object_id | top_label | overall | semantic | geometry | views | observations | attr_cov | attr_hits | low_points | low_views | label_votes | world_xyz |",
+        "| ---: | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- | --- |",
     ]
     for row in trace.get("ranked_selection_pool", []):
         lines.append(
@@ -330,6 +359,10 @@ def render_selection_trace_markdown(trace: dict[str, Any]) -> str:
                     _format_float(row["geometry_confidence"]),
                     str(row["num_unique_views"]),
                     str(row["num_observations"]),
+                    _format_float(row["attribute_coverage"]),
+                    _format_string_list(row["query_attribute_hits"]),
+                    str(row["below_default_reobserve_point_floor"]),
+                    str(row["below_default_reobserve_view_floor"]),
                     _format_label_votes(row["label_votes"]),
                     _format_vector(row["world_xyz"]),
                 ]
@@ -349,6 +382,59 @@ def candidate_selection_labels(parsed_query: dict[str, Any]) -> list[str]:
             parsed_query.get("target_name"),
             *list(parsed_query.get("synonyms", [])),
         ]
+    )
+
+
+def parsed_query_attributes(parsed_query: dict[str, Any]) -> list[str]:
+    """Return parsed query attributes in stable trace order."""
+
+    return _dedupe_strings(parsed_query.get("attributes", []))
+
+
+def object_attribute_diagnostics(
+    obj: MemoryObject3D,
+    parsed_query: dict[str, Any],
+) -> dict[str, Any]:
+    """Return diagnostic-only attribute evidence fields for one object."""
+
+    attributes = parsed_query_attributes(parsed_query)
+    label_votes = obj.label_votes
+    labels = sorted(label_votes)
+    matching_attribute_labels = [
+        label
+        for label in labels
+        if attributes and all(label_contains_attribute(label, attribute) for attribute in attributes)
+    ]
+    hits = [
+        attribute
+        for attribute in attributes
+        if any(label_contains_attribute(label, attribute) for label in labels)
+    ]
+    misses = [attribute for attribute in attributes if attribute not in hits]
+    return {
+        "has_full_prompt_label": object_has_label(obj, parsed_query.get("normalized_prompt")),
+        "has_target_label": object_has_label(obj, parsed_query.get("target_name")),
+        "query_attribute_hits": hits,
+        "query_attribute_misses": misses,
+        "labels_matching_all_query_attributes": matching_attribute_labels,
+        "attribute_coverage": 1.0 if not attributes else len(hits) / len(attributes),
+    }
+
+
+def count_same_phrase_competitors(
+    objects: Sequence[MemoryObject3D],
+    parsed_query: dict[str, Any],
+    selected_object_id: str | None,
+) -> int:
+    """Count non-selected objects carrying the full normalized query label."""
+
+    normalized_prompt = parsed_query.get("normalized_prompt")
+    if not str(normalized_prompt or "").strip():
+        return 0
+    return sum(
+        1
+        for obj in objects
+        if obj.object_id != selected_object_id and object_has_label(obj, normalized_prompt)
     )
 
 
@@ -413,6 +499,36 @@ def _dedupe_strings(values: Sequence[Any]) -> list[str]:
     return deduped
 
 
+def object_has_label(obj: MemoryObject3D, label: Any) -> bool:
+    """Return whether an object has a label after conservative normalization."""
+
+    normalized_label = normalize_label(label)
+    if not normalized_label:
+        return False
+    return any(normalize_label(candidate) == normalized_label for candidate in obj.label_votes)
+
+
+def label_contains_attribute(label: Any, attribute: Any) -> bool:
+    """Return whether a label contains one parsed attribute as a token."""
+
+    normalized_attribute = normalize_label(attribute)
+    if not normalized_attribute:
+        return False
+    return normalized_attribute in label_tokens(label)
+
+
+def label_tokens(label: Any) -> set[str]:
+    """Return simple lowercase alphanumeric-ish tokens for trace diagnostics."""
+
+    return set(normalize_label(label).replace("-", " ").replace("_", " ").split())
+
+
+def normalize_label(label: Any) -> str:
+    """Normalize labels for diagnostic comparisons without changing label votes."""
+
+    return " ".join(str(label or "").strip().lower().split())
+
+
 def _mean_floats(values: Sequence[Any]) -> float:
     values_list = [float(value) for value in values]
     if not values_list:
@@ -422,6 +538,19 @@ def _mean_floats(values: Sequence[Any]) -> float:
 
 def _format_float(value: Any) -> str:
     return f"{float(value):.4f}"
+
+
+def _format_optional_float(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    return _format_float(value)
+
+
+def _format_string_list(values: Sequence[Any]) -> str:
+    values_list = [str(value) for value in values if str(value)]
+    if not values_list:
+        return "n/a"
+    return ", ".join(values_list)
 
 
 def _format_label_votes(label_votes: dict[str, float]) -> str:

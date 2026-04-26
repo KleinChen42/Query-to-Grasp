@@ -104,6 +104,86 @@ def test_selection_trace_renders_ranked_pool_and_reason() -> None:
     assert selected.object_id in markdown
 
 
+def test_selection_trace_emits_attribute_residual_diagnostics_without_changing_selection() -> None:
+    memory = ObjectMemory3D()
+    expected_selected = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            label="red block",
+            det_score=0.99,
+            fused_2d_score=0.99,
+            view_id="front",
+            num_points=50,
+            depth_valid_ratio=1.0,
+        )
+    )
+    memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.3, 0.0, 0.0], dtype=np.float32),
+            label="red block",
+            det_score=0.4,
+            fused_2d_score=0.4,
+            view_id="left",
+            num_points=1000,
+            depth_valid_ratio=1.0,
+        )
+    )
+    memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.6, 0.0, 0.0], dtype=np.float32),
+            label="block",
+            det_score=0.95,
+            fused_2d_score=0.95,
+            view_id="right",
+            num_points=200,
+            depth_valid_ratio=1.0,
+        )
+    )
+    parsed_query = {
+        "raw_query": "red block",
+        "normalized_prompt": "red block",
+        "target_name": "block",
+        "attributes": ["red"],
+        "synonyms": ["block"],
+    }
+
+    selected, selection_label = select_memory_target(memory, parsed_query)
+    trace = build_selection_trace(
+        memory=memory,
+        selected=selected,
+        selection_label=selection_label,
+        parsed_query=parsed_query,
+    )
+    markdown = render_selection_trace_markdown(trace)
+
+    assert selected is not None
+    assert selected.object_id == expected_selected.object_id
+    assert selection_label == "red block"
+    assert trace["query"]["attributes"] == ["red"]
+    assert trace["selection"]["same_phrase_competitor_count"] == 1
+    assert trace["selection"]["selected_attribute_coverage"] == 1.0
+
+    selected_row = next(row for row in trace["all_memory_objects"] if row["object_id"] == selected.object_id)
+    assert selected_row["has_full_prompt_label"] is True
+    assert selected_row["has_target_label"] is False
+    assert selected_row["query_attribute_hits"] == ["red"]
+    assert selected_row["query_attribute_misses"] == []
+    assert selected_row["labels_matching_all_query_attributes"] == ["red block"]
+    assert selected_row["attribute_coverage"] == 1.0
+    assert selected_row["below_default_reobserve_point_floor"] is True
+    assert selected_row["below_default_reobserve_view_floor"] is True
+
+    target_only_row = next(row for row in trace["all_memory_objects"] if row["top_label"] == "block")
+    assert target_only_row["has_full_prompt_label"] is False
+    assert target_only_row["has_target_label"] is True
+    assert target_only_row["query_attribute_hits"] == []
+    assert target_only_row["query_attribute_misses"] == ["red"]
+    assert target_only_row["labels_matching_all_query_attributes"] == []
+    assert target_only_row["attribute_coverage"] == 0.0
+    assert "Same-phrase competitors: 1" in markdown
+    assert "Attributes: `red`" in markdown
+
+
 def test_select_memory_target_falls_back_to_best_object_without_label_match() -> None:
     memory = ObjectMemory3D()
     selected_object = memory.add_observation(
