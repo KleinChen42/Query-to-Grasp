@@ -4,7 +4,7 @@ import numpy as np
 
 from src.perception.clip_rerank import rerank_candidates_with_clip
 from src.perception.grounding_dino import DetectionCandidate
-from src.perception.mask_projector import lift_box_to_3d
+from src.perception.mask_projector import estimate_workspace_low_z_grasp_candidate, lift_box_to_3d
 
 
 def test_lift_box_to_3d_uses_synthetic_depth_center() -> None:
@@ -101,11 +101,71 @@ def test_lift_box_to_3d_adds_workspace_grasp_candidate_when_supported() -> None:
     assert candidate.grasp_camera_xyz is not None
     assert candidate.grasp_metadata["applied"] is True
     assert candidate.grasp_metadata["reason"] == "workspace_filter_passed"
+    assert candidate.grasp_metadata["fallback_reason"] == "too_few_elevated_points"
     np.testing.assert_allclose(candidate.grasp_world_xyz, candidate.world_xyz)
     json_dict = candidate.to_json_dict()
     assert json_dict["grasp_world_xyz"] is not None
     assert json_dict["grasp_camera_xyz"] is not None
-    assert json_dict["grasp_metadata"]["strategy"] == "workspace_low_z"
+    assert json_dict["grasp_metadata"]["strategy"] == "workspace_elevated_xy_low_z"
+
+
+def test_workspace_grasp_candidate_uses_elevated_object_xy_with_low_support_z() -> None:
+    table_x, table_y = np.meshgrid(np.linspace(-0.15, 0.15, 12), np.linspace(-0.15, 0.15, 12))
+    table = np.stack([table_x.reshape(-1), table_y.reshape(-1), np.zeros(table_x.size)], axis=1)
+    local_support_x, local_support_y = np.meshgrid(np.linspace(0.04, 0.08, 4), np.linspace(-0.06, -0.02, 4))
+    local_support = np.stack(
+        [local_support_x.reshape(-1), local_support_y.reshape(-1), np.zeros(local_support_x.size)],
+        axis=1,
+    )
+    elevated_x, elevated_y = np.meshgrid(np.linspace(0.055, 0.075, 4), np.linspace(-0.052, -0.032, 4))
+    elevated = np.stack(
+        [elevated_x.reshape(-1), elevated_y.reshape(-1), np.full(elevated_x.size, 0.035)],
+        axis=1,
+    )
+    world_points = np.concatenate([table, local_support, elevated], axis=0).astype(np.float32)
+
+    candidate = estimate_workspace_low_z_grasp_candidate(
+        camera_points=world_points,
+        world_points=world_points,
+        min_points=20,
+        min_elevated_points=8,
+    )
+
+    assert candidate["grasp_world_xyz"] is not None
+    np.testing.assert_allclose(candidate["grasp_world_xyz"], np.array([0.065, -0.042, 0.0]), atol=0.01)
+    assert candidate["grasp_num_points"] == 16
+    assert candidate["grasp_metadata"]["applied"] is True
+    assert candidate["grasp_metadata"]["reason"] == "elevated_xy_with_local_support_z"
+    assert candidate["grasp_metadata"]["elevated_point_count"] == 16
+    assert candidate["grasp_metadata"]["local_support_point_count"] > 0
+
+
+def test_workspace_grasp_candidate_falls_back_when_elevated_support_is_sparse() -> None:
+    table_x, table_y = np.meshgrid(np.linspace(-0.15, 0.15, 8), np.linspace(-0.15, 0.15, 8))
+    table = np.stack([table_x.reshape(-1), table_y.reshape(-1), np.zeros(table_x.size)], axis=1)
+    elevated = np.array(
+        [
+            [0.06, -0.04, 0.035],
+            [0.07, -0.04, 0.035],
+            [0.06, -0.03, 0.035],
+        ],
+        dtype=np.float32,
+    )
+    world_points = np.concatenate([table, elevated], axis=0).astype(np.float32)
+
+    candidate = estimate_workspace_low_z_grasp_candidate(
+        camera_points=world_points,
+        world_points=world_points,
+        min_points=20,
+        min_elevated_points=8,
+    )
+
+    assert candidate["grasp_world_xyz"] is not None
+    np.testing.assert_allclose(candidate["grasp_world_xyz"], np.median(world_points, axis=0), atol=1e-6)
+    assert candidate["grasp_num_points"] == world_points.shape[0]
+    assert candidate["grasp_metadata"]["reason"] == "workspace_filter_passed"
+    assert candidate["grasp_metadata"]["fallback_reason"] == "too_few_elevated_points"
+    assert candidate["grasp_metadata"]["elevated_point_count"] == 3
 
 
 def test_lift_box_to_3d_leaves_grasp_candidate_empty_when_unsupported() -> None:

@@ -23,6 +23,11 @@ DEFAULT_GRASP_WORKSPACE_XY_LIMIT = 0.20
 DEFAULT_GRASP_WORKSPACE_Z_MIN = -0.02
 DEFAULT_GRASP_WORKSPACE_Z_MAX = 0.08
 DEFAULT_MIN_GRASP_WORKSPACE_POINTS = 20
+DEFAULT_GRASP_SUPPORT_Z_PERCENTILE = 10.0
+DEFAULT_GRASP_ELEVATED_Z_OFFSET = 0.015
+DEFAULT_MIN_GRASP_ELEVATED_POINTS = 12
+DEFAULT_GRASP_LOCAL_SUPPORT_RADIUS = 0.04
+DEFAULT_GRASP_LOCAL_SUPPORT_Z_MARGIN = 0.012
 
 
 @dataclass
@@ -258,11 +263,16 @@ def estimate_workspace_low_z_grasp_candidate(
     xy_limit: float = DEFAULT_GRASP_WORKSPACE_XY_LIMIT,
     z_min: float = DEFAULT_GRASP_WORKSPACE_Z_MIN,
     z_max: float = DEFAULT_GRASP_WORKSPACE_Z_MAX,
+    support_z_percentile: float = DEFAULT_GRASP_SUPPORT_Z_PERCENTILE,
+    elevated_z_offset: float = DEFAULT_GRASP_ELEVATED_Z_OFFSET,
+    min_elevated_points: int = DEFAULT_MIN_GRASP_ELEVATED_POINTS,
+    local_support_radius: float = DEFAULT_GRASP_LOCAL_SUPPORT_RADIUS,
+    local_support_z_margin: float = DEFAULT_GRASP_LOCAL_SUPPORT_Z_MARGIN,
 ) -> dict[str, Any]:
-    """Estimate a conservative grasp point from points in the tabletop workspace."""
+    """Estimate a conservative grasp point from object-like geometry in the workspace."""
 
     metadata = {
-        "strategy": "workspace_low_z",
+        "strategy": "workspace_elevated_xy_low_z",
         "workspace_bounds": {
             "abs_x_max": float(xy_limit),
             "abs_y_max": float(xy_limit),
@@ -270,6 +280,11 @@ def estimate_workspace_low_z_grasp_candidate(
             "z_max": float(z_max),
         },
         "min_points": int(min_points),
+        "support_z_percentile": float(support_z_percentile),
+        "elevated_z_offset": float(elevated_z_offset),
+        "min_elevated_points": int(min_elevated_points),
+        "local_support_radius": float(local_support_radius),
+        "local_support_z_margin": float(local_support_z_margin),
         "applied": False,
         "reason": None,
     }
@@ -301,14 +316,62 @@ def estimate_workspace_low_z_grasp_candidate(
             "grasp_metadata": metadata,
         }
 
+    workspace_world = world_array[mask]
+    workspace_camera = camera_array[mask]
+    support_z = float(np.percentile(workspace_world[:, 2], float(support_z_percentile)))
+    elevated_mask = workspace_world[:, 2] >= support_z + float(elevated_z_offset)
+    elevated_count = int(np.count_nonzero(elevated_mask))
+    metadata["support_z"] = support_z
+    metadata["elevated_point_count"] = elevated_count
+    if elevated_count >= int(min_elevated_points):
+        elevated_world = workspace_world[elevated_mask]
+        elevated_xy = np.median(elevated_world[:, :2], axis=0).astype(np.float32)
+        xy_delta = workspace_world[:, :2] - elevated_xy.reshape(1, 2)
+        local_support_mask = (
+            (np.linalg.norm(xy_delta, axis=1) <= float(local_support_radius))
+            & (workspace_world[:, 2] <= support_z + float(local_support_z_margin))
+        )
+        local_support_count = int(np.count_nonzero(local_support_mask))
+        metadata["local_support_point_count"] = local_support_count
+        grasp_z = (
+            float(np.median(workspace_world[local_support_mask, 2]))
+            if local_support_count > 0
+            else support_z
+        )
+        metadata["applied"] = True
+        metadata["reason"] = "elevated_xy_with_local_support_z"
+        metadata["fallback_reason"] = None if local_support_count > 0 else "no_local_support_points"
+        grasp_world = np.asarray([elevated_xy[0], elevated_xy[1], grasp_z], dtype=np.float32)
+        return {
+            "grasp_world_xyz": grasp_world,
+            "grasp_camera_xyz": _nearest_camera_point_for_world_point(
+                grasp_world=grasp_world,
+                world_points=workspace_world,
+                camera_points=workspace_camera,
+            ),
+            "grasp_num_points": elevated_count,
+            "grasp_metadata": metadata,
+        }
+
     metadata["applied"] = True
     metadata["reason"] = "workspace_filter_passed"
+    metadata["fallback_reason"] = "too_few_elevated_points"
+    metadata["local_support_point_count"] = 0
     return {
-        "grasp_world_xyz": np.median(world_array[mask], axis=0).astype(np.float32),
-        "grasp_camera_xyz": np.median(camera_array[mask], axis=0).astype(np.float32),
+        "grasp_world_xyz": np.median(workspace_world, axis=0).astype(np.float32),
+        "grasp_camera_xyz": np.median(workspace_camera, axis=0).astype(np.float32),
         "grasp_num_points": num_workspace_points,
         "grasp_metadata": metadata,
     }
+
+
+def _nearest_camera_point_for_world_point(
+    grasp_world: np.ndarray,
+    world_points: np.ndarray,
+    camera_points: np.ndarray,
+) -> np.ndarray:
+    distances = np.linalg.norm(world_points.astype(np.float32) - grasp_world.reshape(1, 3).astype(np.float32), axis=1)
+    return np.asarray(camera_points[int(np.argmin(distances))], dtype=np.float32)
 
 
 def _project_crop_to_camera_points(
