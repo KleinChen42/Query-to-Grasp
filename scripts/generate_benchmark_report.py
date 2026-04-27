@@ -22,7 +22,10 @@ METRIC_KEYS = [
     "mean_num_ranked_candidates",
     "mean_num_3d_points",
     "fraction_with_3d_target",
+    "grasp_attempted_rate",
     "pick_success_rate",
+    "task_success_rate",
+    "is_grasped_rate",
     "fraction_top1_changed_by_rerank",
     "mean_runtime_seconds",
 ]

@@ -28,6 +28,9 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
     num_3d_points = _as_int(summary.get("num_3d_points"), default=0)
     pick_success = _as_bool(summary.get("pick_success", pick_result.get("success", False)))
     pick_stage = str(summary.get("pick_stage") or pick_result.get("stage") or "unknown")
+    grasp_attempted = _as_bool(summary.get("grasp_attempted", pick_result.get("grasp_attempted", False)))
+    task_success = _as_bool(summary.get("task_success", pick_result.get("task_success", False)))
+    is_grasped = _as_bool(summary.get("is_grasped", pick_result.get("is_grasped", False)))
     runtime_seconds = _as_float(summary.get("runtime_seconds"), default=0.0)
     num_detections = _as_int(summary.get("num_detections"), default=0)
     raw_num_detections = _as_int(summary.get("raw_num_detections"), default=num_detections)
@@ -41,7 +44,10 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
         "final_top_phrase": _as_optional_str(summary.get("final_top_phrase")),
         "has_3d_target": _has_3d_target(summary, pick_result, num_3d_points),
         "num_3d_points": num_3d_points,
+        "grasp_attempted": grasp_attempted,
         "pick_success": pick_success,
+        "task_success": task_success,
+        "is_grasped": is_grasped,
         "pick_stage": pick_stage,
         "runtime_seconds": runtime_seconds,
         "artifacts": str(summary.get("artifacts") or ""),
@@ -60,7 +66,10 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "mean_num_ranked_candidates": 0.0,
             "mean_num_3d_points": 0.0,
             "fraction_with_3d_target": 0.0,
+            "grasp_attempted_rate": 0.0,
             "pick_success_rate": 0.0,
+            "task_success_rate": 0.0,
+            "is_grasped_rate": 0.0,
             "fraction_top1_changed_by_rerank": 0.0,
             "mean_runtime_seconds": 0.0,
             "pick_stage_counts": {},
@@ -74,7 +83,10 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_num_ranked_candidates": _mean(_as_int(row.get("num_ranked_candidates"), 0) for row in rows),
         "mean_num_3d_points": _mean(_as_int(row.get("num_3d_points"), 0) for row in rows),
         "fraction_with_3d_target": _mean(1 if _as_bool(row.get("has_3d_target")) else 0 for row in rows),
+        "grasp_attempted_rate": _mean(1 if _as_bool(row.get("grasp_attempted")) else 0 for row in rows),
         "pick_success_rate": _mean(1 if _as_bool(row.get("pick_success")) else 0 for row in rows),
+        "task_success_rate": _mean(1 if _as_bool(row.get("task_success")) else 0 for row in rows),
+        "is_grasped_rate": _mean(1 if _as_bool(row.get("is_grasped")) else 0 for row in rows),
         "fraction_top1_changed_by_rerank": _mean(1 if _as_bool(row.get("top1_changed_by_rerank")) else 0 for row in rows),
         "mean_runtime_seconds": _mean(_as_float(row.get("runtime_seconds"), 0.0) for row in rows),
         "pick_stage_counts": dict(sorted(stage_counts.items())),

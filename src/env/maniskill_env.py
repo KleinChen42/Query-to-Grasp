@@ -188,16 +188,20 @@ class ManiSkillScene:
         self.last_raw_observation = observation
         return observation
 
-    def execute_pick(self, target_xyz: np.ndarray) -> dict[str, Any]:
+    def execute_pick(self, target_xyz: np.ndarray, executor: str = "placeholder") -> dict[str, Any]:
         """Execute a minimal pick attempt for a 3D target.
 
         The current default is a safe placeholder that validates the target and
         returns a structured result without sending simulator actions.
         """
 
-        from src.manipulation.pick_executor import execute_pick_placeholder
+        from src.manipulation.pick_executor import execute_pick_placeholder, execute_pick_sim_topdown
 
-        return execute_pick_placeholder(self.env, target_xyz)
+        if executor == "placeholder":
+            return execute_pick_placeholder(self.env, target_xyz)
+        if executor == "sim_topdown":
+            return execute_pick_sim_topdown(self.env, target_xyz)
+        raise ValueError(f"Unknown pick executor '{executor}'. Expected 'placeholder' or 'sim_topdown'.")
 
     def close(self) -> None:
         """Close the wrapped simulator environment."""

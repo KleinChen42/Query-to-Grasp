@@ -15,7 +15,10 @@ def test_summarize_run_with_complete_input() -> None:
         "camera_xyz": [0.1, 0.2, 0.3],
         "world_xyz": None,
         "num_3d_points": 42,
+        "grasp_attempted": True,
         "pick_success": False,
+        "task_success": True,
+        "is_grasped": True,
         "pick_stage": "placeholder_not_executed",
         "runtime_seconds": 1.25,
         "artifacts": "outputs/run",
@@ -33,7 +36,10 @@ def test_summarize_run_with_complete_input() -> None:
     assert row["final_top_phrase"] == "red cube"
     assert row["has_3d_target"] is True
     assert row["num_3d_points"] == 42
+    assert row["grasp_attempted"] is True
     assert row["pick_success"] is False
+    assert row["task_success"] is True
+    assert row["is_grasped"] is True
     assert row["pick_stage"] == "placeholder_not_executed"
     assert row["runtime_seconds"] == 1.25
     assert row["artifacts"] == "outputs/run"
@@ -51,7 +57,10 @@ def test_summarize_run_with_missing_fields() -> None:
     assert row["final_top_phrase"] is None
     assert row["has_3d_target"] is False
     assert row["num_3d_points"] == 0
+    assert row["grasp_attempted"] is False
     assert row["pick_success"] is False
+    assert row["task_success"] is False
+    assert row["is_grasped"] is False
     assert row["pick_stage"] == "unknown"
     assert row["runtime_seconds"] == 0.0
     assert row["artifacts"] == ""
@@ -88,7 +97,10 @@ def test_aggregate_runs_computes_means_and_rates() -> None:
             "top1_changed_by_rerank": False,
             "has_3d_target": True,
             "num_3d_points": 20,
+            "grasp_attempted": True,
             "pick_success": True,
+            "task_success": True,
+            "is_grasped": True,
             "pick_stage": "success",
             "runtime_seconds": 2.0,
         },
@@ -102,7 +114,10 @@ def test_aggregate_runs_computes_means_and_rates() -> None:
     assert metrics["mean_num_ranked_candidates"] == 1.0
     assert metrics["mean_num_3d_points"] == 10.0
     assert metrics["fraction_with_3d_target"] == 2 / 3
+    assert metrics["grasp_attempted_rate"] == 1 / 3
     assert metrics["pick_success_rate"] == 1 / 3
+    assert metrics["task_success_rate"] == 1 / 3
+    assert metrics["is_grasped_rate"] == 1 / 3
     assert metrics["fraction_top1_changed_by_rerank"] == 1 / 3
     assert metrics["mean_runtime_seconds"] == 1.0
     assert metrics["pick_stage_counts"] == {

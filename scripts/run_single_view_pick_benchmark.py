@@ -32,7 +32,10 @@ CSV_COLUMNS = [
     "final_top_phrase",
     "has_3d_target",
     "num_3d_points",
+    "grasp_attempted",
     "pick_success",
+    "task_success",
+    "is_grasped",
     "pick_stage",
     "runtime_seconds",
     "artifacts",
@@ -57,6 +60,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--depth-scale", type=float, default=1000.0)
     parser.add_argument("--env-id", default="PickCube-v1")
     parser.add_argument("--obs-mode", default="rgbd")
+    parser.add_argument("--control-mode", default=None)
+    parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown"])
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
 
@@ -91,6 +96,8 @@ def main() -> None:
         "detector_backend": args.detector_backend,
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),
+        "control_mode": args.control_mode,
+        "pick_executor": args.pick_executor,
         "aggregate_metrics": aggregate_runs(rows),
         "per_query_metrics": aggregate_runs_by_query(rows),
     }
@@ -194,6 +201,8 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         args.env_id,
         "--obs-mode",
         args.obs_mode,
+        "--pick-executor",
+        args.pick_executor,
         "--detector-backend",
         args.detector_backend,
         "--mock-box-position",
@@ -203,6 +212,8 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         "--output-dir",
         str(output_dir),
     ]
+    if args.control_mode is not None:
+        command.extend(["--control-mode", args.control_mode])
     if args.skip_clip:
         command.append("--skip-clip")
     return command
@@ -244,7 +255,10 @@ def failed_row(
         "final_top_phrase": None,
         "has_3d_target": False,
         "num_3d_points": 0,
+        "grasp_attempted": False,
         "pick_success": False,
+        "task_success": False,
+        "is_grasped": False,
         "pick_stage": "run_failed",
         "runtime_seconds": 0.0,
         "artifacts": artifacts,

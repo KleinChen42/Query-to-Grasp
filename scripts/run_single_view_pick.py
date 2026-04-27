@@ -33,6 +33,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--env-id", default="PickCube-v1", help="ManiSkill environment id.")
     parser.add_argument("--obs-mode", default="rgbd", help="ManiSkill observation mode.")
     parser.add_argument("--control-mode", default=None, help="Optional ManiSkill control mode.")
+    parser.add_argument(
+        "--pick-executor",
+        default="placeholder",
+        choices=["placeholder", "sim_topdown"],
+        help="Pick execution backend. sim_topdown sends ManiSkill pd_ee_delta_pos actions.",
+    )
     parser.add_argument("--camera-name", default=None, help="Optional camera key to prefer.")
     parser.add_argument("--seed", type=int, default=0, help="Environment reset seed.")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs") / "single_view_pick")
@@ -68,6 +74,9 @@ def main() -> None:
     args = parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
     pipeline_start_time = time.perf_counter()
+    if args.pick_executor == "sim_topdown" and args.control_mode is None:
+        args.control_mode = "pd_ee_delta_pos"
+        LOGGER.info("Using control_mode=pd_ee_delta_pos for sim_topdown pick executor.")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = args.output_dir / f"{timestamp}_{_slug(args.query)}"
@@ -183,10 +192,13 @@ def main() -> None:
             target_xyz, coordinate_frame = choose_pick_target(candidate_3d)
             if target_xyz is None:
                 pick_result = _pick_not_attempted("Top candidate had no valid 3D target point.")
+            elif args.pick_executor == "sim_topdown" and coordinate_frame != "world":
+                pick_result = _pick_not_attempted("Simulated top-down pick requires a world-frame target.")
             else:
-                pick_result = scene.execute_pick(target_xyz)
+                pick_result = scene.execute_pick(target_xyz, executor=args.pick_executor)
                 pick_result.setdefault("metadata", {})
                 pick_result["metadata"]["target_coordinate_frame"] = coordinate_frame
+                pick_result["metadata"]["pick_executor_cli"] = args.pick_executor
 
         write_json(pick_result, run_dir / "pick_result.json")
 
@@ -247,6 +259,9 @@ def build_summary(
         "world_xyz": None if candidate_3d is None or candidate_3d.world_xyz is None else candidate_3d.world_xyz.tolist(),
         "num_3d_points": 0 if candidate_3d is None else candidate_3d.num_points,
         "pick_success": bool(pick_result.get("success", False)),
+        "grasp_attempted": bool(pick_result.get("grasp_attempted", False)),
+        "task_success": pick_result.get("task_success"),
+        "is_grasped": pick_result.get("is_grasped"),
         "pick_stage": pick_result.get("stage"),
         "pick_message": pick_result.get("message"),
         "runtime_seconds": float(runtime_seconds),
@@ -266,6 +281,8 @@ def print_pick_summary(summary: dict[str, Any]) -> None:
     print(f"  Camera XYZ:   {summary['camera_xyz']}")
     print(f"  World XYZ:    {summary['world_xyz']}")
     print(f"  Pick success: {summary['pick_success']}")
+    print(f"  Attempted:    {summary.get('grasp_attempted', False)}")
+    print(f"  Task success: {summary.get('task_success')}")
     print(f"  Pick stage:   {summary['pick_stage']}")
     print(f"  Runtime:      {summary.get('runtime_seconds', 0.0):.3f}s")
     print(f"  Artifacts:    {summary['artifacts']}")
@@ -274,6 +291,10 @@ def print_pick_summary(summary: dict[str, Any]) -> None:
 def _pick_not_attempted(message: str) -> dict[str, Any]:
     return {
         "success": False,
+        "pick_success": False,
+        "grasp_attempted": False,
+        "task_success": None,
+        "is_grasped": None,
         "stage": "not_attempted",
         "target_xyz": [],
         "message": message,
