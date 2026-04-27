@@ -3,7 +3,12 @@
 ## 1. Role
 You are an autonomous coding agent building a research-grade but fast-to-ship prototype for a conference-style demo and paper.
 
-Your goal is to implement a **language-queryable 3D semantic target retrieval and grasping system** in simulation, with strong AI involvement and a clean path to experiments, demo videos, and a paper draft.
+Your goal is to implement a **language-queryable 3D semantic target retrieval system for grasp preparation** in simulation, with strong AI involvement and a clean path to experiments, diagnostic reports, and a paper draft.
+
+Current scope reset, 2026-04-27:
+- The stable paper v1 is a perception/retrieval/re-observation system, not a full grasp-control paper.
+- `SafePlaceholderPickExecutor` is expected in the current mainline and must not be reported as real grasp success.
+- The next quality-upgrade phase is a minimal simulated grasp execution baseline, after the retrieval/re-observation metrics are frozen.
 
 You must optimize for:
 1. **Fast end-to-end demo delivery**
@@ -29,7 +34,7 @@ Given a natural-language query such as:
 - `banana`
 - `small green block near the cup`
 
-The system should:
+The current paper-v1 system should:
 1. Parse the query into structured semantic constraints
 2. Observe a ManiSkill scene using RGB + depth (+ segmentation if available)
 3. Propose candidate 2D object regions using an open-vocabulary detector
@@ -38,13 +43,22 @@ The system should:
 6. Fuse multi-view evidence into a persistent 3D object memory
 7. If confidence is low, trigger one or more extra viewpoints
 8. Select the best target in 3D
-9. Execute a simple scripted or planner-assisted grasp
-10. Return visualizations, logs, and metrics through a web demo
+9. Validate the selected target with a safe placeholder pick executor
+10. Return visualizations, logs, benchmark rows, reports, and paper artifacts
+
+The next grasp-upgrade system should additionally:
+1. Convert the selected 3D target into a minimal scripted or planner-assisted simulated grasp attempt
+2. Report real ManiSkill grasp-attempt and pick-success metrics separately from retrieval metrics
+3. Compare single-view, multi-view, and closed-loop re-observation on downstream grasp success
 
 ---
 
 ## 4. Research hypothesis
-A **confidence-aware multi-view 3D semantic fusion pipeline** will improve end-to-end **query-to-grasp success** in cluttered scenes compared with a single-view or non-fusion baseline.
+A **confidence-aware multi-view 3D semantic fusion pipeline** will improve language-conditioned **3D target retrieval and grasp-preparation diagnostics** in cluttered scenes compared with a single-view or non-fusion baseline.
+
+Follow-up hypothesis after adding minimal simulated grasp control:
+
+> Better language-conditioned 3D target retrieval and re-observation should improve downstream simulated grasp-attempt success, even with a simple non-learned grasp executor.
 
 ---
 
@@ -56,11 +70,19 @@ A **confidence-aware multi-view 3D semantic fusion pipeline** will improve end-t
 - Natural language object queries
 - Multi-view 3D fusion
 - Confidence-based re-observation policy
-- Web demo
 - Evaluation scripts and ablations
+- Paper-ready reports and artifact packs
+
+### Next-stage must do for a stronger grasp paper
+- Minimal simulated scripted or planner-assisted grasp attempt
+- Downstream `grasp_attempted`, `pick_success`, and query-to-grasp metrics
+- Ablations showing whether retrieval/re-observation improves grasp outcomes
 
 ### Must NOT do in v1
 - Real robot deployment
+- Real low-level robot-control claim
+- Treat placeholder pick success as real grasp success
+- Web demo unless the paper/debug artifacts are already frozen
 - Large-scale model training
 - Full relation-heavy language reasoning
 - Multi-step task chains
@@ -80,7 +102,7 @@ Use these as the primary stack unless there is a very strong implementation reas
 - **3D processing / point clouds / RGBD:** Open3D
 - **Open-vocabulary proposal model:** GroundingDINO
 - **Image-text reranking:** CLIP or OpenCLIP
-- **Web demo:** Gradio Blocks + Model3D
+- **Optional web demo:** Gradio Blocks + Model3D
 - **Language query parser:** lightweight LLM prompt wrapper with deterministic fallback rules
 - **Core language / infra:** Python 3.10+
 - **Deep learning runtime:** PyTorch
@@ -301,13 +323,19 @@ Required behavior:
 ### 7.10 Grasp execution
 File: `src/manipulation/pick_executor.py`
 
-v1 requirements:
+Current paper-v1 requirements:
+- validate selected target coordinates
+- return structured placeholder pick output
+- keep `pick_success=False` explicit and expected
+- do not claim robot-control success from the placeholder executor
+
+Next-stage simulated grasp baseline:
 - simple scripted pick pipeline is acceptable
 - move above target
 - descend
 - close gripper
 - lift
-- return success/failure and trajectory summary
+- return `grasp_attempted`, `pick_success`, and trajectory summary
 
 No need to do grasp-learning research in v1.
 
@@ -406,9 +434,9 @@ Deliverables:
 ### Phase 3 — End-to-end single-view pick
 Deliverables:
 - target selection
-- scripted pick executor
-- success/failure logging
-- video export
+- safe placeholder pick executor
+- retrieval and target-validation logging
+- per-run JSON artifacts
 
 ### Phase 4 — Multi-view fusion
 Deliverables:
@@ -425,11 +453,18 @@ Deliverables:
 
 ### Phase 6 — Demo and evaluation
 Deliverables:
-- Gradio app
 - benchmark runner
 - ablation configs
 - CSV / JSON result dumps
 - plots and tables
+- paper reports and figure pack
+
+### Phase 7 - Minimal simulated grasp execution baseline
+Deliverables:
+- scripted or planner-assisted ManiSkill grasp attempt from selected 3D target
+- `grasp_attempted`, `pick_success`, and trajectory summary fields
+- query-to-grasp benchmark mode that keeps retrieval and grasp metrics separate
+- ablation showing whether multi-view/re-observation improves grasp outcomes
 
 ---
 
@@ -439,10 +474,14 @@ Implement these in `src/eval/metrics.py`.
 ### Core metrics
 - `query_grounding_success`
 - `target_localization_error_3d`
-- `grasp_success_rate`
-- `end_to_end_query_to_grasp_success`
+- `target_retrieval_success`
 - `mean_num_views_used`
 - `mean_runtime_seconds`
+
+### Next-stage grasp metrics
+- `grasp_attempted_rate`
+- `grasp_success_rate`
+- `end_to_end_query_to_grasp_success`
 
 ### Useful diagnostics
 - detector top-1 accuracy
@@ -649,10 +688,17 @@ The v1 system is considered successful if it can:
 1. accept a query like `red cube`
 2. retrieve candidate detections from one or more views
 3. choose a 3D target hypothesis
-4. execute a grasp attempt in ManiSkill
-5. produce a web-demo visualization
-6. log end-to-end outputs and metrics
-7. run at least one ablation comparing single-view and multi-view
+4. optionally run a safe placeholder pick validator without claiming real grasp success
+5. log benchmark rows, summaries, selection traces, re-observation diagnostics, and paper reports
+6. run ablations comparing single-view, multi-view, CLIP/no-CLIP, and re-observation variants
+7. clearly document limitations around placeholder grasp execution
+
+The stronger grasp-paper stage is considered successful if it can:
+
+1. convert the selected 3D target into a real simulated grasp attempt
+2. execute that attempt in ManiSkill with a scripted or planner-assisted controller
+3. report downstream pick success separately from retrieval success
+4. show whether multi-view/re-observation improves grasp outcomes
 
 ---
 
@@ -661,6 +707,7 @@ The v1 system is considered successful if it can:
 - VLM-based failure explanation
 - learned re-observation policy
 - learned grasp ranking
+- minimal simulated scripted grasp baseline
 - segment-anything refinement
 - simple sim-to-real export utilities
 - paper figure generation scripts

@@ -1,6 +1,6 @@
 # Query-to-Grasp Paper Milestone Log
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 
 Purpose: keep a concise, paper-oriented record of key implementation milestones,
 experiment reports, quantitative findings, and next decisions. This file is
@@ -21,6 +21,16 @@ Current evidence supports the following narrower near-term claim:
 > can reduce object-memory fragmentation when camera-frame conventions are
 > handled explicitly. CLIP reranking remains optional until detector candidate
 > multiplicity improves.
+
+Scope update:
+
+- The current publishable v1 is a target-retrieval and active re-observation
+  system for grasp preparation. It should not claim real grasp execution.
+- Placeholder pick remains useful as a target-validation artifact, but
+  `pick_success_rate = 0.0` is expected and should not be interpreted as a
+  manipulation result.
+- The next major quality upgrade is a minimal simulated ManiSkill grasp
+  baseline, with retrieval and grasp-control metrics reported separately.
 
 ## Artifact Map
 
@@ -1027,17 +1037,35 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
    view planning or robot motion.
 8. Real robot control is still intentionally absent; placeholder pick success is
    not an end-to-end grasp metric.
+9. To raise the paper ceiling, the next phase should add a minimal simulated
+   grasp baseline from the selected 3D target, then test whether multi-view and
+   re-observation improvements transfer to downstream pick success.
 
 ## Next Recommended Milestone
 
-Prepare the smallest benchmark-backed follow-up from the trace-field diagnosis:
+Finish the current no-code extra-view diagnostic, then plan the grasp baseline:
 
-1. Prefer one small same-phrase fragmentation or point/view-support experiment;
-   do not retune broad attribute handling.
-2. Recheck only the targeted residual cases on H200, with timed polling, before
-   launching another full benchmark.
-3. Keep detector backends, fusion weights, web demo, training, and real robot
-   control out of scope.
+1. Record the targeted `closed-loop-max-extra-views=2` residual result as an
+   ablation unless it clearly motivates one small policy patch.
+2. Freeze the current retrieval/re-observation metrics and reports before
+   starting control work.
+3. Add a minimal simulated ManiSkill grasp baseline that reports
+   `target_retrieval_success`, `grasp_attempted`, `pick_success`, and
+   `end_to_end_query_to_grasp_success` separately.
+4. Keep detector backends, fusion weights, training, web demo, and real robot
+   deployment out of scope for this grasp-baseline phase.
+
+Publication-level expectation:
+
+- Current retrieval/re-observation version: arXiv, workshop, or diagnostic
+  perception-for-manipulation submission.
+- With a reliable minimal simulated grasp baseline and clean ablations:
+  stronger ICRA/IROS workshop candidate and a possible full-conference story if
+  the downstream grasp metric improves.
+- With robust simulated grasp control, stronger baselines, and broader tasks:
+  closer to RA-L/ICRA/IROS full-paper expectations.
+- Real-robot validation would raise the ceiling further, but it is a separate
+  project phase.
 
 Candidate paper framing:
 
@@ -1051,4 +1079,7 @@ Candidate paper framing:
 > Full ambiguity validation confirms stable execution across broader query
 > coverage. Targeted trace diagnostics show that those residuals retain full
 > parsed-attribute coverage; the next bottleneck is same-phrase memory
-> fragmentation and point/view support, not benchmark reliability.
+> fragmentation and point/view support, not benchmark reliability. The next
+> larger step is to connect the selected 3D target to a minimal simulated grasp
+> executor so retrieval improvements can be evaluated against downstream pick
+> outcomes.

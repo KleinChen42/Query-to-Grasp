@@ -17,6 +17,16 @@ This project currently supports a focused systems claim:
 > substantially reduces object-memory fragmentation compared with an uncorrected
 > or single-view-only baseline.
 
+Updated paper positioning:
+
+- The near-term paper is a target-retrieval and active re-observation paper for
+  grasp preparation, not a full end-to-end grasp-execution paper.
+- The current placeholder pick path is valid infrastructure, but it should be
+  framed as target validation rather than robot-control evidence.
+- To raise the submission ceiling, the next major engineering phase should add a
+  minimal simulated grasp baseline and report grasp outcomes separately from
+  retrieval outcomes.
+
 What we should not claim yet:
 
 - Real grasp execution success.
@@ -24,6 +34,18 @@ What we should not claim yet:
 - Learned re-observation.
 - CLIP as the main source of retrieval improvement.
 - Robust relation-heavy language grounding.
+
+Submission-level expectation:
+
+- Current retrieval/re-observation version: suitable for an arXiv systems paper,
+  workshop paper, or perception-for-manipulation diagnostic submission.
+- With a reliable minimal simulated grasp baseline and grasp-success ablations:
+  substantially stronger for ICRA/IROS workshop or a possible conference paper
+  if the experimental story is clean.
+- With robust simulated grasp control, stronger baselines, and broader tasks:
+  closer to RA-L/ICRA/IROS full-paper expectations.
+- With real-robot validation: materially higher ceiling, but that is a new
+  project phase rather than a small extension.
 
 ## Abstract Skeleton
 
@@ -219,6 +241,15 @@ Paper framing:
 
 Use `pick_success_rate = 0.0` as expected placeholder behavior, not as a failed
 real grasp metric.
+
+Next-stage upgrade:
+
+- Replace the placeholder-only path with a minimal simulated ManiSkill grasp
+  attempt after the selected 3D target is available.
+- Keep retrieval and control metrics separate: `target_retrieval_success`,
+  `grasp_attempted`, `pick_success`, and `end_to_end_query_to_grasp_success`.
+- Use the same single-view, multi-view, and closed-loop re-observation settings
+  to test whether better target retrieval improves downstream grasp outcomes.
 
 ## Experiment Plan
 
@@ -642,6 +673,9 @@ Paper assets:
 Be explicit:
 
 - Real low-level ManiSkill robot control is not implemented.
+- Therefore, the current paper should not claim end-to-end grasp success.
+- A minimal simulated grasp baseline is now the planned next phase for raising
+  the paper ceiling beyond retrieval/re-observation diagnostics.
 - Web demo is not implemented.
 - Re-observation is implemented as a minimal opt-in virtual-view loop. It now
   resolves compact ambiguity triggers in the accepted H200 diagnostic benchmark,
@@ -678,16 +712,19 @@ Important for a stronger v1:
 - [x] Full ambiguity absorber-aware H200 validation, seeds `0..4`.
 - [x] Small paper/demo architecture diagram.
 - [x] README cleanup and current quickstart refresh.
-- [ ] Optional Gradio demo shell.
-- [ ] Optional real ManiSkill scripted pick only after control API is verified.
+- [ ] Minimal simulated ManiSkill grasp baseline from selected 3D target.
+- [ ] Grasp-success ablation comparing single-view, multi-view, and
+  closed-loop re-observation.
+- [ ] Optional Gradio demo shell only after paper metrics are frozen.
 
 ## Next Coding Milestone
 
-Make one small, benchmark-backed follow-up from the trace-field diagnosis:
+Complete the running no-code extra-view diagnostic, then move toward a grasp
+baseline:
 
-1. Prefer a same-phrase fragmentation or point/view-support experiment; do not
-   retune broad attribute handling.
-2. If behavior changes, keep it narrowly scoped to one classified failure mode
-   and validate only the targeted residual cases first with timed H200 polling.
-3. Keep detector backends, fusion weights, demo UI, training, and real control
-   out of scope.
+1. Finish and record the targeted `closed-loop-max-extra-views=2` residual
+   diagnostic; treat it as an ablation unless it motivates a small policy patch.
+2. Design the minimal simulated grasp baseline only after the current
+   retrieval/re-observation artifacts are recorded.
+3. Keep detector backends, fusion weights, training, web demo, and real-robot
+   deployment out of scope for the grasp-baseline phase.
