@@ -706,6 +706,8 @@ Current status, 2026-04-27:
 - Items 1-3 are implemented for the opt-in single-view `sim_topdown` path.
 - H200 oracle and exact `red cube` smoke tests can grasp successfully.
 - The first compact query benchmark is stable but low-success (`pick_success_rate = 0.1000`), so item 4 should wait until target-center/grasp-point diagnosis is complete.
+- The first grasp-point diagnosis is complete: exact successes choose target points within about `0.017 m` of the oracle cube pose, while compact failures average about `0.333 m` from oracle and usually place the target high above the object.
+- Next action: add one small grasp-point refinement for broad detections before rerunning compact grasp-success ablations.
 
 ---
 

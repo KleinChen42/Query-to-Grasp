@@ -506,6 +506,26 @@ top-down grasp point. The next manipulation-side code should therefore diagnose
 or refine grasp-point selection before claiming that better retrieval improves
 downstream grasp success.
 
+Follow-up grasp-point diagnosis:
+
+| group | runs | pick success | target-oracle distance | xy error | z error | high-z rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| exact `red cube` | 3 | 1.0000 | 0.0171 | 0.0058 | -0.0160 | 0.0000 |
+| compact failures | 36 | 0.0000 | 0.3329 | 0.1864 | 0.2714 | 0.9444 |
+| compact successes | 4 | 1.0000 | 0.0169 | 0.0052 | -0.0160 | 0.0000 |
+
+Artifact:
+
+- `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/grasp_point_diagnosis.md`
+
+Interpretation:
+
+The first compact failure mode is not primarily a controller timing issue.
+Successful runs choose target points close to the oracle cube pose; failed
+compact runs usually choose points high above and far away from the object. The
+next behavior patch should target grasp-point refinement for broad detections,
+not detector backend changes or low-level action retuning.
+
 ### Experiment 5: Re-Observation Decision Smoke
 
 Question:
@@ -763,12 +783,11 @@ Important for a stronger v1:
 Improve the new simulated grasp baseline without changing detector/fusion
 backends:
 
-1. Diagnose why exact `red cube` succeeds while broad `cube`/`object` compact
-   targets do not: compare lifted target center, point support, final TCP, and
-   object pose.
-2. Add one small grasp-point refinement or oracle/control diagnostic if the
-   traces show a consistent offset or height issue.
-3. Rerun the compact simulated grasp benchmark only after the control-side
-   diagnosis is clear.
+1. Add one small grasp-point refinement for broad detections whose lifted median
+   lands far outside the plausible tabletop/object workspace.
+2. Validate it on the compact simulated-grasp benchmark before touching
+   detector, fusion, or re-observation logic.
+3. Rerun the compact simulated grasp benchmark only after the target-point
+   refinement has a clear targeted smoke result.
 4. Keep detector backends, fusion weights, training, web demo, and real-robot
    deployment out of scope for the grasp-baseline phase.

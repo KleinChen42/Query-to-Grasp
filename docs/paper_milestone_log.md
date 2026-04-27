@@ -67,6 +67,7 @@ Scope update:
 | Attribute trace-field targeted validation | Targeted H200 rerun confirming additive attribute/point/support trace fields | `outputs/h200_60071_attribute_trace_fields_targeted/trace_exports/trace_field_validation.json` |
 | Simulated top-down grasp smoke | Oracle, mock-query, and HF `red cube` sanity checks for opt-in ManiSkill low-level control | `outputs/h200_hf_sim_pick_red_cube_seed012/benchmark_summary.json` |
 | Simulated top-down compact grasp baseline | Compact query set, seeds 0-4, no-CLIP and with-CLIP, with real simulated grasp attempts | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/sim_topdown_singleview_report.md` |
+| Simulated grasp-point diagnosis | Target-vs-oracle pose analysis for exact successes and compact failures | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/grasp_point_diagnosis.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -109,6 +110,7 @@ Scope update:
 | Attribute trace-field validation | Done | `outputs/h200_60071_attribute_trace_fields_targeted/trace_exports/trace_field_validation.json` | Targeted H200 traces confirm all new diagnostic fields are present. Residual attribute-style queries have `attribute_coverage = 1.0`, so the next bottleneck is same-phrase memory fragmentation and point/view support, not missing parsed color evidence. |
 | Minimal simulated grasp executor | Done | `e453d1f` and H200 oracle/mock/HF smoke outputs | `SimulatedTopDownPickExecutor` executes opt-in `pd_ee_delta_pos` actions and reports `grasp_attempted`, `pick_success`, `task_success`, and raw trajectory diagnostics while preserving placeholder as the default. |
 | Simulated top-down compact grasp baseline | Done | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/sim_topdown_singleview_report.md` | The compact single-view benchmark completes `20/20` runs per mode with zero failures and `grasp_attempted_rate = 1.0`, but `pick_success_rate = 0.1000`, exposing grasp-point/target-center alignment as the next bottleneck. |
+| Simulated grasp-point diagnosis | Done | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/grasp_point_diagnosis.md` | Exact `red cube` successes have mean target-oracle distance `0.0171 m`, while compact failures average `0.3329 m` from oracle and almost always have high/far target points. |
 
 ## Key Quantitative Results
 
@@ -862,6 +864,28 @@ single-view detections often lift a semantic object region whose median/center
 is not a reliable top-down grasp point. CLIP does not change this outcome in the
 current compact setting.
 
+Follow-up grasp-point diagnosis:
+
+Source:
+`outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/grasp_point_diagnosis.md`
+
+| group | runs | pick success | mean target-oracle distance | mean xy error | mean z error | high-z rate | far-xy rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| exact_red_cube | 3 | 1.0000 | 0.0171 | 0.0058 | -0.0160 | 0.0000 | 0.0000 |
+| compact failures | 36 | 0.0000 | 0.3329 | 0.1864 | 0.2714 | 0.9444 | 1.0000 |
+| compact successes | 4 | 1.0000 | 0.0169 | 0.0052 | -0.0160 | 0.0000 | 0.0000 |
+
+Interpretation:
+
+The controller is not the main failure source in the compact simulated-grasp
+baseline. Successful runs, including exact `red cube` and compact `block` seeds
+1/2, choose target points close to the oracle cube pose. Failed compact runs
+usually select points far from the cube and high above it. The next patch should
+therefore diagnose or refine 3D target selection for graspability, such as
+filtering broad-box points to a plausible tabletop workspace or adding an
+explicit grasp-point candidate stage, before changing low-level controller
+timings.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -1116,10 +1140,10 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 Improve the new simulated grasp baseline without destabilizing the retrieval
 stack:
 
-1. Diagnose why broad `cube`/`object` targets lift to non-grasp-confirmed
-   top-down points despite successful exact `red cube` smoke tests.
-2. Add a small grasp-point refinement or oracle/control diagnostic before
-   changing detector, fusion, or re-observation logic.
+1. Add a small grasp-point refinement for broad detections whose lifted median
+   is far outside the tabletop/object workspace.
+2. Validate it first on compact `cube`, `container`, `object`, and `block`
+   seeds `0..4` without changing detector, fusion, or re-observation logic.
 3. Then run a grasp-success ablation comparing exact single-view, compact
    single-view, and later multi-view/re-observation target sources.
 4. Keep detector backends, fusion weights, training, web demo, and real robot
