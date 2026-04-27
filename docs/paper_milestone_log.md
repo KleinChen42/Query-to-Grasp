@@ -1131,23 +1131,41 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
    view planning or robot motion.
 8. Real robot control is still intentionally absent; simulated pick success and
    ManiSkill task success must be reported separately from any real-robot claim.
-9. The opt-in simulated grasp executor is now connected, but compact broad-query
-   success is low. The next bottleneck is choosing a graspable point from the
-   lifted target region, not simply executing more low-level steps.
+9. The opt-in simulated grasp executor is now connected. The first broad-query
+   compact baseline was low, but the accepted geometry-only refined grasp target
+   improves compact success from `0.1000` to `0.3500`; remaining failures are
+   still dominated by lateral target error rather than TCP tracking.
 
 ## Next Recommended Milestone
 
 Improve the new simulated grasp baseline without destabilizing the retrieval
 stack:
 
-1. Add a small grasp-point refinement for broad detections whose lifted median
-   is far outside the tabletop/object workspace.
-2. Validate it first on compact `cube`, `container`, `object`, and `block`
-   seeds `0..4` without changing detector, fusion, or re-observation logic.
-3. Then run a grasp-success ablation comparing exact single-view, compact
+1. Add a component-aware grasp-point refinement for broad detections whose
+   elevated workspace points still span multiple object-like clusters.
+2. Validate it first on targeted compact `cube`, `container`, `object`, and
+   `block` cases before touching detector, fusion, or re-observation logic.
+3. If it improves lateral pose, rerun compact no-CLIP and with-CLIP simulated
+   grasp benchmarks and compare against the accepted refined target baseline.
+4. Then run a grasp-success ablation comparing exact single-view, compact
    single-view, and later multi-view/re-observation target sources.
-4. Keep detector backends, fusion weights, training, web demo, and real robot
+5. Keep detector backends, fusion weights, training, web demo, and real robot
    deployment out of scope for this grasp-baseline phase.
+
+Latest accepted simulated grasp refinement:
+
+| benchmark | runs | failed | pick success | mean XY error | far-XY rate | high-Z rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Exact red cube refined sim top-down | 3 | 0 | 1.0000 | 0.0049 | 0.0000 | 0.0000 |
+| Compact no CLIP refined sim top-down | 20 | 0 | 0.3500 | 0.1005 | 0.6500 | 0.0000 |
+| Compact with CLIP refined sim top-down | 20 | 0 | 0.3500 | 0.1005 | 0.6500 | 0.0000 |
+
+Compared with the previous compact refined baseline, mean XY error improved
+from `0.1239 m` to `0.1005 m`, far-XY rate improved from `0.9000` to `0.6500`,
+and high-Z rate stayed at `0.0000`. The remaining failure rows have large
+target-to-oracle XY error while the final TCP remains close to the requested
+target, so the next experiment should focus on choosing a better object-like
+component inside broad detections rather than retuning controller timing.
 
 Publication-level expectation:
 
@@ -1177,4 +1195,7 @@ Candidate paper framing:
 > opt-in simulated grasp executor connects selected 3D targets to real ManiSkill
 > actions; its compact baseline shows that downstream success now depends on
 > producing graspable target points, not only semantically correct object
-> centers.
+> centers. The accepted geometry-only refined target reduces the broad-query
+> high-Z failure and lifts compact simulated pick success to `0.3500`, but the
+> remaining failures are still lateral target-selection errors inside broad
+> detections; the next grasp milestone is component-aware grasp-point selection.

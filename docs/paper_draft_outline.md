@@ -722,7 +722,9 @@ Paper assets:
    full-validation cases.
 12. Attribute trace-field validation: targeted residual traces with parsed
    attributes, same-phrase competitors, and point/view support flags.
-13. Limitation box: placeholder pick, low detector multiplicity, and no real
+13. Simulated grasp baseline: exact/oracle `PickCube-v1` success and compact
+   broad-query refined-target comparison.
+14. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
 ## Limitations
@@ -748,9 +750,11 @@ Be explicit:
 - Attribute diagnostics show full attribute coverage in the residual red-object
   traces, so future changes should avoid claiming a missing-color-evidence fix
   unless new data contradicts this targeted result.
-- The first simulated compact grasp baseline has low broad-query success
-  (`0.1000`), so downstream manipulation is now a bottleneck rather than a
-  solved contribution.
+- The accepted refined simulated grasp target improves compact broad-query
+  success from `0.1000` to `0.3500`, but downstream manipulation remains a
+  bottleneck rather than a solved contribution.
+- Remaining simulated-grasp failures are dominated by lateral target error in
+  broad detections, not by target height or TCP tracking to the requested point.
 - Experiments are small and use `PickCube-v1` plus virtual camera poses.
 - CLIP did not change top-1 in current benchmarks.
 - Query parser supports simple attributes and conservative relations, not full
@@ -778,16 +782,29 @@ Important for a stronger v1:
   closed-loop re-observation.
 - [ ] Optional Gradio demo shell only after paper metrics are frozen.
 
+## Latest Simulated Grasp Result
+
+The opt-in `sim_topdown` executor is now connected to query-driven single-view
+targets. The latest accepted H200 refinement keeps the exact `red cube` smoke
+at `3/3` pick success and improves compact simulated grasp success to `0.3500`
+for both no-CLIP and with-CLIP runs. Mean compact target XY error improves from
+`0.1239 m` to `0.1005 m`, far-XY rate improves from `0.9000` to `0.6500`, and
+high-Z rate remains `0.0000`.
+
+This result should be reported as an initial simulated grasp baseline, not as
+robust manipulation. The next experiment is component-aware grasp-point
+selection inside broad detections.
+
 ## Next Coding Milestone
 
 Improve the new simulated grasp baseline without changing detector/fusion
 backends:
 
-1. Add one small grasp-point refinement for broad detections whose lifted median
-   lands far outside the plausible tabletop/object workspace.
-2. Validate it on the compact simulated-grasp benchmark before touching
+1. Add one component-aware grasp-point refinement for broad detections whose
+   elevated workspace points still span multiple object-like clusters.
+2. Validate it on targeted compact simulated-grasp cases before touching
    detector, fusion, or re-observation logic.
-3. Rerun the compact simulated grasp benchmark only after the target-point
-   refinement has a clear targeted smoke result.
+3. Rerun the compact simulated grasp benchmark only after the component-aware
+   target-point refinement has a clear targeted smoke result.
 4. Keep detector backends, fusion weights, training, web demo, and real-robot
    deployment out of scope for the grasp-baseline phase.
