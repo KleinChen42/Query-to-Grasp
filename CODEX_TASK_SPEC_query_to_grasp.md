@@ -8,7 +8,8 @@ Your goal is to implement a **language-queryable 3D semantic target retrieval sy
 Current scope reset, 2026-04-27:
 - The stable paper v1 is a perception/retrieval/re-observation system, not a full grasp-control paper.
 - `SafePlaceholderPickExecutor` is expected in the current mainline and must not be reported as real grasp success.
-- The next quality-upgrade phase is a minimal simulated grasp execution baseline, after the retrieval/re-observation metrics are frozen.
+- The minimal simulated grasp execution baseline now exists as an opt-in `sim_topdown` path.
+- The next quality-upgrade phase is grasp-point/control diagnosis: explain why exact/oracle targets grasp while broad compact queries often lift to non-grasp-confirmed target centers.
 
 You must optimize for:
 1. **Fast end-to-end demo delivery**
@@ -699,6 +700,12 @@ The stronger grasp-paper stage is considered successful if it can:
 2. execute that attempt in ManiSkill with a scripted or planner-assisted controller
 3. report downstream pick success separately from retrieval success
 4. show whether multi-view/re-observation improves grasp outcomes
+
+Current status, 2026-04-27:
+
+- Items 1-3 are implemented for the opt-in single-view `sim_topdown` path.
+- H200 oracle and exact `red cube` smoke tests can grasp successfully.
+- The first compact query benchmark is stable but low-success (`pick_success_rate = 0.1000`), so item 4 should wait until target-center/grasp-point diagnosis is complete.
 
 ---
 

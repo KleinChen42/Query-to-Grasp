@@ -25,12 +25,13 @@ Current evidence supports the following narrower near-term claim:
 Scope update:
 
 - The current publishable v1 is a target-retrieval and active re-observation
-  system for grasp preparation. It should not claim real grasp execution.
+  system for grasp preparation. It should not claim real-robot execution.
 - Placeholder pick remains useful as a target-validation artifact, but
   `pick_success_rate = 0.0` is expected and should not be interpreted as a
   manipulation result.
-- The next major quality upgrade is a minimal simulated ManiSkill grasp
-  baseline, with retrieval and grasp-control metrics reported separately.
+- The next quality-upgrade phase has started: an opt-in simulated ManiSkill
+  grasp baseline now executes real low-level simulated actions, while keeping
+  retrieval and grasp-control metrics reported separately.
 
 ## Artifact Map
 
@@ -64,6 +65,8 @@ Scope update:
 | Full ambiguity absorber-aware validation | Full ambiguity query file, seeds 0-4, no-CLIP and with-CLIP | `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234/reports/reobserve_policy_report.md` |
 | Attribute residual diagnosis | Trace-level diagnosis of full-validation residuals without rerunning benchmarks | `outputs/h200_60071_attribute_residual_diagnostics_existing/reports/residual_diagnosis.md` |
 | Attribute trace-field targeted validation | Targeted H200 rerun confirming additive attribute/point/support trace fields | `outputs/h200_60071_attribute_trace_fields_targeted/trace_exports/trace_field_validation.json` |
+| Simulated top-down grasp smoke | Oracle, mock-query, and HF `red cube` sanity checks for opt-in ManiSkill low-level control | `outputs/h200_hf_sim_pick_red_cube_seed012/benchmark_summary.json` |
+| Simulated top-down compact grasp baseline | Compact query set, seeds 0-4, no-CLIP and with-CLIP, with real simulated grasp attempts | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/sim_topdown_singleview_report.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -104,6 +107,8 @@ Scope update:
 | Full ambiguity absorber-aware validation | Done | `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234/reports/reobserve_policy_report.md` | The accepted policy completes the full ambiguity file with `55/55` successful runs in both modes. Residual uncertainty concentrates in attribute-style queries such as `red block` and `red cube`, so the next step is diagnostic, not immediate tuning. |
 | Attribute-query residual diagnosis | Done | `outputs/h200_60071_attribute_residual_diagnostics_existing/reports/residual_diagnosis.md` | Existing full-run traces isolate three residual types: 3D point insufficiency for `red cube` seed 3, selected-view support conflict for `red block` seed 3, and same-phrase attribute ambiguity plus third-object absorption for `red block` seed 0. |
 | Attribute trace-field validation | Done | `outputs/h200_60071_attribute_trace_fields_targeted/trace_exports/trace_field_validation.json` | Targeted H200 traces confirm all new diagnostic fields are present. Residual attribute-style queries have `attribute_coverage = 1.0`, so the next bottleneck is same-phrase memory fragmentation and point/view support, not missing parsed color evidence. |
+| Minimal simulated grasp executor | Done | `e453d1f` and H200 oracle/mock/HF smoke outputs | `SimulatedTopDownPickExecutor` executes opt-in `pd_ee_delta_pos` actions and reports `grasp_attempted`, `pick_success`, `task_success`, and raw trajectory diagnostics while preserving placeholder as the default. |
+| Simulated top-down compact grasp baseline | Done | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/sim_topdown_singleview_report.md` | The compact single-view benchmark completes `20/20` runs per mode with zero failures and `grasp_attempted_rate = 1.0`, but `pick_success_rate = 0.1000`, exposing grasp-point/target-center alignment as the next bottleneck. |
 
 ## Key Quantitative Results
 
@@ -806,6 +811,57 @@ objects trade off view count against point support. The next behavior patch
 should therefore target same-phrase fragmentation or point/view support
 accounting, not broad attribute-aware selection.
 
+### Simulated Top-Down Grasp Baseline
+
+Source:
+`outputs/h200_60071_sim_topdown_singleview_compact_seed01234`
+
+Setup:
+
+- Environment: `PickCube-v1`
+- Executor: opt-in `SimulatedTopDownPickExecutor`
+- Control mode: `pd_ee_delta_pos`
+- Queries: `cube`, `block`, `container`, `object`
+- Seeds: `0 1 2 3 4`
+- Conditions: HF no-CLIP and HF with-CLIP
+
+Smoke validation:
+
+| check | result |
+| --- | --- |
+| H200 focused unit tests | `21 passed` |
+| oracle target, seed 0 | `pick_success = true` |
+| mock query smoke | completed with `grasp_attempted = true` |
+| HF `red cube`, seeds 0-2 | `pick_success_rate = 1.0000` |
+| placeholder regression smoke | `placeholder_not_executed`, `grasp_attempted = false` |
+
+Compact baseline:
+
+| setting | runs | failed | 3D target | grasp attempted | pick success | task success | mean 3D points |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| sim_topdown_no_clip | 20 | 0 | 1.0000 | 1.0000 | 0.1000 | 0.0000 | 2778.6000 |
+| sim_topdown_with_clip | 20 | 0 | 1.0000 | 1.0000 | 0.1000 | 0.0000 | 2778.6000 |
+
+Per-query pick success:
+
+| query | no-CLIP | with-CLIP | note |
+| --- | ---: | ---: | --- |
+| `block` | 0.4000 | 0.4000 | Success only in seeds 1 and 2, where lifted point support is small and centered. |
+| `cube` | 0.0000 | 0.0000 | Broad `cube` detections lift many points but the top-down target is not grasp-confirmed. |
+| `container` | 0.0000 | 0.0000 | Query is runnable but does not produce successful grasp confirmation. |
+| `object` | 0.0000 | 0.0000 | Generic target is runnable but not yet a reliable grasp point. |
+
+Interpretation:
+
+This is the first honest downstream control baseline. The system now converts a
+selected 3D target into real ManiSkill low-level actions and logs grasp metrics
+separately from task placement success. The positive oracle and exact
+`red cube` smoke tests show that the controller can grasp when the target point
+is suitable. The compact query result shows the next bottleneck: broad
+single-view detections often lift a semantic object region whose median/center
+is not a reliable top-down grasp point. CLIP does not change this outcome in the
+current compact setting.
+
 ## Commands Worth Preserving
 
 HF single-view no-CLIP:
@@ -818,6 +874,20 @@ PYTHONPATH=$PWD python scripts/run_single_view_pick_benchmark.py \
   --skip-clip \
   --depth-scale 1000 \
   --output-dir outputs/benchmark_hf_no_clip
+```
+
+Simulated top-down single-view compact benchmark:
+
+```bash
+PYTHONPATH=$PWD python scripts/run_single_view_pick_benchmark.py \
+  --queries-file configs/ambiguity_queries_compact.txt \
+  --seeds 0 1 2 3 4 \
+  --detector-backend hf \
+  --skip-clip \
+  --depth-scale 1000 \
+  --control-mode pd_ee_delta_pos \
+  --pick-executor sim_topdown \
+  --output-dir outputs/sim_topdown_singleview_compact_no_clip
 ```
 
 HF ambiguity benchmark:
@@ -1035,23 +1105,23 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
    support tradeoffs as the next bottleneck.
 7. Re-observation remains a virtual-camera perception loop rather than learned
    view planning or robot motion.
-8. Real robot control is still intentionally absent; placeholder pick success is
-   not an end-to-end grasp metric.
-9. To raise the paper ceiling, the next phase should add a minimal simulated
-   grasp baseline from the selected 3D target, then test whether multi-view and
-   re-observation improvements transfer to downstream pick success.
+8. Real robot control is still intentionally absent; simulated pick success and
+   ManiSkill task success must be reported separately from any real-robot claim.
+9. The opt-in simulated grasp executor is now connected, but compact broad-query
+   success is low. The next bottleneck is choosing a graspable point from the
+   lifted target region, not simply executing more low-level steps.
 
 ## Next Recommended Milestone
 
-Finish the current no-code extra-view diagnostic, then plan the grasp baseline:
+Improve the new simulated grasp baseline without destabilizing the retrieval
+stack:
 
-1. Record the targeted `closed-loop-max-extra-views=2` residual result as an
-   ablation unless it clearly motivates one small policy patch.
-2. Freeze the current retrieval/re-observation metrics and reports before
-   starting control work.
-3. Add a minimal simulated ManiSkill grasp baseline that reports
-   `target_retrieval_success`, `grasp_attempted`, `pick_success`, and
-   `end_to_end_query_to_grasp_success` separately.
+1. Diagnose why broad `cube`/`object` targets lift to non-grasp-confirmed
+   top-down points despite successful exact `red cube` smoke tests.
+2. Add a small grasp-point refinement or oracle/control diagnostic before
+   changing detector, fusion, or re-observation logic.
+3. Then run a grasp-success ablation comparing exact single-view, compact
+   single-view, and later multi-view/re-observation target sources.
 4. Keep detector backends, fusion weights, training, web demo, and real robot
    deployment out of scope for this grasp-baseline phase.
 
@@ -1078,8 +1148,9 @@ Candidate paper framing:
 > memory association and post-reobserve continuity are explicitly instrumented.
 > Full ambiguity validation confirms stable execution across broader query
 > coverage. Targeted trace diagnostics show that those residuals retain full
-> parsed-attribute coverage; the next bottleneck is same-phrase memory
-> fragmentation and point/view support, not benchmark reliability. The next
-> larger step is to connect the selected 3D target to a minimal simulated grasp
-> executor so retrieval improvements can be evaluated against downstream pick
-> outcomes.
+> parsed-attribute coverage; the next retrieval bottleneck is same-phrase memory
+> fragmentation and point/view support, not benchmark reliability. The new
+> opt-in simulated grasp executor connects selected 3D targets to real ManiSkill
+> actions; its compact baseline shows that downstream success now depends on
+> producing graspable target points, not only semantically correct object
+> centers.
