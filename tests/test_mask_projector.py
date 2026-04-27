@@ -30,6 +30,9 @@ def test_lift_box_to_3d_uses_synthetic_depth_center() -> None:
     assert candidate.depth_valid_ratio == 1.0
     np.testing.assert_allclose(candidate.camera_xyz, np.array([0.0, 0.0, 2.0], dtype=np.float32))
     assert candidate.world_xyz is None
+    assert candidate.grasp_world_xyz is None
+    assert candidate.to_json_dict()["grasp_world_xyz"] is None
+    assert candidate.to_json_dict()["grasp_num_points"] == 0
 
 
 def test_lift_box_to_3d_handles_invalid_depth() -> None:
@@ -71,6 +74,65 @@ def test_lift_box_to_3d_converts_cam2world_gl_from_opencv_points() -> None:
     np.testing.assert_allclose(converted.world_xyz, np.array([0.0, 0.0, -2.0], dtype=np.float32))
     assert converted.metadata["extrinsics_source"] == "sensor_param.base_camera.cam2world_gl"
     assert converted.metadata["camera_frame_conversion"] == "opencv_to_opengl"
+
+
+def test_lift_box_to_3d_adds_workspace_grasp_candidate_when_supported() -> None:
+    rgb = np.zeros((8, 8, 3), dtype=np.uint8)
+    depth = np.full((8, 8), 0.04, dtype=np.float32)
+    intrinsic = np.array(
+        [
+            [100.0, 0.0, 3.5],
+            [0.0, 100.0, 3.5],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
+
+    candidate = lift_box_to_3d(
+        rgb=rgb,
+        depth=depth,
+        box_xyxy=np.array([0, 0, 8, 8], dtype=np.float32),
+        intrinsic=intrinsic,
+        extrinsic=np.eye(4, dtype=np.float32),
+    )
+
+    assert candidate.grasp_num_points == 64
+    assert candidate.grasp_world_xyz is not None
+    assert candidate.grasp_camera_xyz is not None
+    assert candidate.grasp_metadata["applied"] is True
+    assert candidate.grasp_metadata["reason"] == "workspace_filter_passed"
+    np.testing.assert_allclose(candidate.grasp_world_xyz, candidate.world_xyz)
+    json_dict = candidate.to_json_dict()
+    assert json_dict["grasp_world_xyz"] is not None
+    assert json_dict["grasp_camera_xyz"] is not None
+    assert json_dict["grasp_metadata"]["strategy"] == "workspace_low_z"
+
+
+def test_lift_box_to_3d_leaves_grasp_candidate_empty_when_unsupported() -> None:
+    rgb = np.zeros((4, 4, 3), dtype=np.uint8)
+    depth = np.full((4, 4), 0.04, dtype=np.float32)
+    intrinsic = np.array(
+        [
+            [100.0, 0.0, 1.5],
+            [0.0, 100.0, 1.5],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
+
+    candidate = lift_box_to_3d(
+        rgb=rgb,
+        depth=depth,
+        box_xyxy=np.array([0, 0, 4, 4], dtype=np.float32),
+        intrinsic=intrinsic,
+        extrinsic=np.eye(4, dtype=np.float32),
+    )
+
+    assert candidate.grasp_world_xyz is None
+    assert candidate.grasp_camera_xyz is None
+    assert candidate.grasp_num_points == 16
+    assert candidate.grasp_metadata["applied"] is False
+    assert candidate.grasp_metadata["reason"] == "too_few_workspace_points"
 
 
 def test_lift_box_to_3d_can_use_segmentation_id() -> None:

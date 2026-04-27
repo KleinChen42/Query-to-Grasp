@@ -39,6 +39,12 @@ def parse_args() -> argparse.Namespace:
         choices=["placeholder", "sim_topdown"],
         help="Pick execution backend. sim_topdown sends ManiSkill pd_ee_delta_pos actions.",
     )
+    parser.add_argument(
+        "--grasp-target-mode",
+        default="semantic",
+        choices=["semantic", "refined"],
+        help="Target point used for pick execution. refined uses an opt-in workspace-filtered point when available.",
+    )
     parser.add_argument("--camera-name", default=None, help="Optional camera key to prefer.")
     parser.add_argument("--seed", type=int, default=0, help="Environment reset seed.")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs") / "single_view_pick")
@@ -189,7 +195,10 @@ def main() -> None:
                 },
                 run_dir / "top_candidate_3d.json",
             )
-            target_xyz, coordinate_frame = choose_pick_target(candidate_3d)
+            target_xyz, coordinate_frame, target_source = choose_pick_target(
+                candidate_3d,
+                grasp_target_mode=args.grasp_target_mode,
+            )
             if target_xyz is None:
                 pick_result = _pick_not_attempted("Top candidate had no valid 3D target point.")
             elif args.pick_executor == "sim_topdown" and coordinate_frame != "world":
@@ -198,7 +207,12 @@ def main() -> None:
                 pick_result = scene.execute_pick(target_xyz, executor=args.pick_executor)
                 pick_result.setdefault("metadata", {})
                 pick_result["metadata"]["target_coordinate_frame"] = coordinate_frame
+                pick_result["metadata"]["target_used_for_pick"] = target_source
                 pick_result["metadata"]["pick_executor_cli"] = args.pick_executor
+                pick_result["metadata"]["grasp_target_mode"] = args.grasp_target_mode
+                pick_result["metadata"]["semantic_world_xyz"] = _array_to_list(candidate_3d.world_xyz)
+                pick_result["metadata"]["grasp_world_xyz"] = _array_to_list(candidate_3d.grasp_world_xyz)
+                pick_result["metadata"]["grasp_metadata"] = candidate_3d.grasp_metadata
 
         write_json(pick_result, run_dir / "pick_result.json")
 
@@ -221,14 +235,21 @@ def main() -> None:
         scene.close()
 
 
-def choose_pick_target(candidate_3d: Candidate3D) -> tuple[np.ndarray | None, str | None]:
-    """Choose world coordinates when available, otherwise camera coordinates."""
+def choose_pick_target(
+    candidate_3d: Candidate3D,
+    grasp_target_mode: str = "semantic",
+) -> tuple[np.ndarray | None, str | None, str | None]:
+    """Choose the point used for pick execution without changing semantic 3D reporting."""
 
+    if grasp_target_mode not in {"semantic", "refined"}:
+        raise ValueError(f"Unknown grasp target mode: {grasp_target_mode}")
+    if grasp_target_mode == "refined" and candidate_3d.grasp_world_xyz is not None:
+        return np.asarray(candidate_3d.grasp_world_xyz, dtype=np.float32), "world", "grasp_world_xyz"
     if candidate_3d.world_xyz is not None:
-        return np.asarray(candidate_3d.world_xyz, dtype=np.float32), "world"
+        return np.asarray(candidate_3d.world_xyz, dtype=np.float32), "world", "world_xyz"
     if candidate_3d.camera_xyz is not None:
-        return np.asarray(candidate_3d.camera_xyz, dtype=np.float32), "camera"
-    return None, None
+        return np.asarray(candidate_3d.camera_xyz, dtype=np.float32), "camera", "camera_xyz"
+    return None, None, None
 
 
 def build_summary(
@@ -246,9 +267,11 @@ def build_summary(
 ) -> dict[str, Any]:
     """Build a concise run summary."""
 
+    metadata = pick_result.get("metadata") if isinstance(pick_result.get("metadata"), dict) else {}
     return {
         "query": args.query,
         "normalized_prompt": parsed_query["normalized_prompt"],
+        "grasp_target_mode": getattr(args, "grasp_target_mode", "semantic"),
         "raw_num_detections": num_detections,
         "num_detections": num_detections,
         "num_ranked_candidates": num_ranked,
@@ -257,6 +280,14 @@ def build_summary(
         "final_top_phrase": final_top_phrase,
         "camera_xyz": None if candidate_3d is None or candidate_3d.camera_xyz is None else candidate_3d.camera_xyz.tolist(),
         "world_xyz": None if candidate_3d is None or candidate_3d.world_xyz is None else candidate_3d.world_xyz.tolist(),
+        "semantic_world_xyz": (
+            None if candidate_3d is None or candidate_3d.world_xyz is None else candidate_3d.world_xyz.tolist()
+        ),
+        "grasp_world_xyz": (
+            None if candidate_3d is None or candidate_3d.grasp_world_xyz is None else candidate_3d.grasp_world_xyz.tolist()
+        ),
+        "target_used_for_pick": metadata.get("target_used_for_pick"),
+        "grasp_metadata": {} if candidate_3d is None else candidate_3d.grasp_metadata,
         "num_3d_points": 0 if candidate_3d is None else candidate_3d.num_points,
         "pick_success": bool(pick_result.get("success", False)),
         "grasp_attempted": bool(pick_result.get("grasp_attempted", False)),
@@ -280,6 +311,8 @@ def print_pick_summary(summary: dict[str, Any]) -> None:
     print(f"  Rerank top-1: {summary['top1_changed_by_rerank']}")
     print(f"  Camera XYZ:   {summary['camera_xyz']}")
     print(f"  World XYZ:    {summary['world_xyz']}")
+    print(f"  Grasp mode:   {summary.get('grasp_target_mode', 'semantic')}")
+    print(f"  Grasp XYZ:    {summary.get('grasp_world_xyz')}")
     print(f"  Pick success: {summary['pick_success']}")
     print(f"  Attempted:    {summary.get('grasp_attempted', False)}")
     print(f"  Task success: {summary.get('task_success')}")
@@ -301,6 +334,12 @@ def _pick_not_attempted(message: str) -> dict[str, Any]:
         "trajectory_summary": {"planned_stages": [], "executed_stages": [], "num_env_steps": 0},
         "metadata": {"executor": None},
     }
+
+
+def _array_to_list(value: Any) -> list[float] | None:
+    if value is None:
+        return None
+    return np.asarray(value, dtype=float).tolist()
 
 
 def _top_phrase(candidates: list[Any]) -> str | None:

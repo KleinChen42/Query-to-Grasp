@@ -68,6 +68,8 @@ def test_single_view_pick_benchmark_writes_outputs(monkeypatch, tmp_path) -> Non
             "--skip-clip",
             "--depth-scale",
             "1000",
+            "--grasp-target-mode",
+            "refined",
             "--output-dir",
             str(output_dir),
         ],
@@ -90,11 +92,14 @@ def test_single_view_pick_benchmark_writes_outputs(monkeypatch, tmp_path) -> Non
     assert rows[0]["runtime_seconds"] == 1.5
     assert summary["total_runs"] == 4
     assert summary["skip_clip"] is True
+    assert summary["grasp_target_mode"] == "refined"
     assert summary["aggregate_metrics"]["total_runs"] == 4
     assert summary["aggregate_metrics"]["mean_runtime_seconds"] == 1.5
     assert "red cube" in summary["per_query_metrics"]
     assert "runtime_seconds" in rows_csv.read_text(encoding="utf-8").splitlines()[0]
     assert all("--skip-clip" in command for command in seen_commands)
+    assert all("--grasp-target-mode" in command for command in seen_commands)
+    assert all("refined" in command for command in seen_commands)
 
 
 def test_single_view_pick_benchmark_defaults_to_clip_enabled(monkeypatch, tmp_path) -> None:

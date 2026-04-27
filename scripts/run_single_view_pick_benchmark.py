@@ -62,6 +62,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--obs-mode", default="rgbd")
     parser.add_argument("--control-mode", default=None)
     parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown"])
+    parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
 
@@ -98,6 +99,7 @@ def main() -> None:
         "depth_scale": float(args.depth_scale),
         "control_mode": args.control_mode,
         "pick_executor": args.pick_executor,
+        "grasp_target_mode": args.grasp_target_mode,
         "aggregate_metrics": aggregate_runs(rows),
         "per_query_metrics": aggregate_runs_by_query(rows),
     }
@@ -203,6 +205,8 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         args.obs_mode,
         "--pick-executor",
         args.pick_executor,
+        "--grasp-target-mode",
+        args.grasp_target_mode,
         "--detector-backend",
         args.detector_backend,
         "--mock-box-position",

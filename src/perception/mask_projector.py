@@ -19,6 +19,10 @@ from src.geometry.rgbd_to_pointcloud import (
 LOGGER = logging.getLogger(__name__)
 
 OPENCV_TO_OPENGL_CAMERA = np.diag([1.0, -1.0, -1.0, 1.0]).astype(np.float32)
+DEFAULT_GRASP_WORKSPACE_XY_LIMIT = 0.20
+DEFAULT_GRASP_WORKSPACE_Z_MIN = -0.02
+DEFAULT_GRASP_WORKSPACE_Z_MAX = 0.08
+DEFAULT_MIN_GRASP_WORKSPACE_POINTS = 20
 
 
 @dataclass
@@ -34,6 +38,10 @@ class Candidate3D:
     segmentation_id: int | None = None
     box_area: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
+    grasp_world_xyz: np.ndarray | None = None
+    grasp_camera_xyz: np.ndarray | None = None
+    grasp_num_points: int = 0
+    grasp_metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_json_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable representation."""
@@ -48,6 +56,14 @@ class Candidate3D:
             "segmentation_id": self.segmentation_id,
             "box_area": int(self.box_area),
             "metadata": self.metadata,
+            "grasp_world_xyz": (
+                None if self.grasp_world_xyz is None else np.asarray(self.grasp_world_xyz, dtype=float).tolist()
+            ),
+            "grasp_camera_xyz": (
+                None if self.grasp_camera_xyz is None else np.asarray(self.grasp_camera_xyz, dtype=float).tolist()
+            ),
+            "grasp_num_points": int(self.grasp_num_points),
+            "grasp_metadata": self.grasp_metadata,
         }
 
 
@@ -68,6 +84,7 @@ def lift_box_to_3d(
     fallback_fov_degrees: float = 60.0,
     center_strategy: str = "median",
     background_segmentation_ids: Sequence[int] = (0, -1),
+    min_grasp_workspace_points: int = DEFAULT_MIN_GRASP_WORKSPACE_POINTS,
 ) -> Candidate3D:
     """Lift a candidate box to camera/world coordinates using valid depth pixels."""
 
@@ -146,6 +163,11 @@ def lift_box_to_3d(
     )
     camera_center = _estimate_center(camera_points, strategy=center_strategy)
     world_center = _estimate_center(world_points, strategy=center_strategy) if world_points is not None else None
+    grasp_candidate = estimate_workspace_low_z_grasp_candidate(
+        camera_points=camera_points,
+        world_points=world_points,
+        min_points=min_grasp_workspace_points,
+    )
 
     point_cloud_path = None
     if output_point_cloud_path is not None:
@@ -169,6 +191,10 @@ def lift_box_to_3d(
             "camera_frame_conversion": camera_frame_conversion_for_source(extrinsic_source),
             "center_strategy": center_strategy,
         },
+        grasp_world_xyz=grasp_candidate["grasp_world_xyz"],
+        grasp_camera_xyz=grasp_candidate["grasp_camera_xyz"],
+        grasp_num_points=grasp_candidate["grasp_num_points"],
+        grasp_metadata=grasp_candidate["grasp_metadata"],
     )
 
 
@@ -223,6 +249,66 @@ def camera_frame_conversion_for_source(extrinsic_source: str | None) -> str:
     if extrinsic_source and "cam2world_gl" in extrinsic_source.lower():
         return "opencv_to_opengl"
     return "none"
+
+
+def estimate_workspace_low_z_grasp_candidate(
+    camera_points: np.ndarray,
+    world_points: np.ndarray | None,
+    min_points: int = DEFAULT_MIN_GRASP_WORKSPACE_POINTS,
+    xy_limit: float = DEFAULT_GRASP_WORKSPACE_XY_LIMIT,
+    z_min: float = DEFAULT_GRASP_WORKSPACE_Z_MIN,
+    z_max: float = DEFAULT_GRASP_WORKSPACE_Z_MAX,
+) -> dict[str, Any]:
+    """Estimate a conservative grasp point from points in the tabletop workspace."""
+
+    metadata = {
+        "strategy": "workspace_low_z",
+        "workspace_bounds": {
+            "abs_x_max": float(xy_limit),
+            "abs_y_max": float(xy_limit),
+            "z_min": float(z_min),
+            "z_max": float(z_max),
+        },
+        "min_points": int(min_points),
+        "applied": False,
+        "reason": None,
+    }
+    if world_points is None or world_points.size == 0:
+        metadata["reason"] = "missing_world_points"
+        return {
+            "grasp_world_xyz": None,
+            "grasp_camera_xyz": None,
+            "grasp_num_points": 0,
+            "grasp_metadata": metadata,
+        }
+
+    world_array = np.asarray(world_points, dtype=np.float32).reshape(-1, 3)
+    camera_array = np.asarray(camera_points, dtype=np.float32).reshape(-1, 3)
+    mask = (
+        (np.abs(world_array[:, 0]) <= float(xy_limit))
+        & (np.abs(world_array[:, 1]) <= float(xy_limit))
+        & (world_array[:, 2] >= float(z_min))
+        & (world_array[:, 2] <= float(z_max))
+    )
+    num_workspace_points = int(np.count_nonzero(mask))
+    metadata["num_workspace_points"] = num_workspace_points
+    if num_workspace_points < int(min_points):
+        metadata["reason"] = "too_few_workspace_points"
+        return {
+            "grasp_world_xyz": None,
+            "grasp_camera_xyz": None,
+            "grasp_num_points": num_workspace_points,
+            "grasp_metadata": metadata,
+        }
+
+    metadata["applied"] = True
+    metadata["reason"] = "workspace_filter_passed"
+    return {
+        "grasp_world_xyz": np.median(world_array[mask], axis=0).astype(np.float32),
+        "grasp_camera_xyz": np.median(camera_array[mask], axis=0).astype(np.float32),
+        "grasp_num_points": num_workspace_points,
+        "grasp_metadata": metadata,
+    }
 
 
 def _project_crop_to_camera_points(
