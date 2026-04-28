@@ -558,6 +558,38 @@ that made compact single-view picks reliable. The next behavior patch should
 add or propagate a grasp-specific target in fused memory rather than retuning
 the controller, CLIP, detector, or re-observation policy.
 
+### Experiment 11: Fused-Memory Grasp Point Path
+
+Question:
+
+Does preserving per-view refined grasp points in fused memory make multi-view
+and closed-loop selected objects usable as downstream simulated grasp targets?
+
+Current result:
+
+| setting | runs | failed | grasp attempted | pick success | task success | target source | closed-loop resolution | still-needed |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| targeted exact `red cube` tabletop_3 no CLIP | 3 | 0 | 1.0000 | 1.0000 | 0.3333 | `memory_grasp_world_xyz` | 0.0000 | 0.0000 |
+| targeted compact broad tabletop_3 no CLIP | 20 | 0 | 1.0000 | 1.0000 | 0.1500 | `memory_grasp_world_xyz` | 0.0000 | 0.6500 |
+| compact tabletop_3 no CLIP | 20 | 0 | 1.0000 | 1.0000 | 0.1500 | `memory_grasp_world_xyz` | 0.0000 | 0.6500 |
+| compact tabletop_3 with CLIP | 20 | 0 | 1.0000 | 1.0000 | 0.1500 | `memory_grasp_world_xyz` | 0.0000 | 0.6500 |
+| compact closed-loop no CLIP | 20 | 0 | 1.0000 | 1.0000 | 0.1500 | `memory_grasp_world_xyz` | 0.6500 | 0.0000 |
+| compact closed-loop with CLIP | 20 | 0 | 1.0000 | 1.0000 | 0.1500 | `memory_grasp_world_xyz` | 0.6500 | 0.0000 |
+
+Artifacts:
+
+- `outputs/h200_60071_multiview_memory_grasp_point_targeted`
+- `outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234`
+
+Interpretation:
+
+The fused-memory grasp point path changes the multi-view simulated-grasp result
+from a stable-but-negative bridge to a successful compact PickCube baseline.
+Semantic fused centers remain unchanged for retrieval and confidence, while
+`sim_topdown --grasp-target-mode refined` uses `memory_grasp_world_xyz` as the
+execution target. This should be framed as strong simulated PickCube evidence,
+not as robust multi-task or real-robot manipulation.
+
 ### Experiment 5: Re-Observation Decision Smoke
 
 Question:
@@ -758,7 +790,9 @@ Paper assets:
    broad-query refined-target comparison.
 14. Multi-view sim-grasp bridge: tabletop_3 and closed-loop selected-object
    pick metrics with target-source diagnostics.
-15. Limitation box: placeholder pick, low detector multiplicity, and no real
+15. Fused-memory grasp point ablation: compact multi-view and closed-loop
+   simulated grasp success using `memory_grasp_world_xyz`.
+16. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
 ## Limitations
@@ -787,6 +821,9 @@ Be explicit:
 - The accepted shifted-crop refined simulated grasp target improves compact
   broad-query success from `0.1000` to `1.0000` on `PickCube-v1`, but broader
   task coverage is still needed before claiming robust manipulation.
+- The accepted fused-memory grasp point path also reaches
+  `pick_success_rate = 1.0000` for compact multi-view and closed-loop
+  `PickCube-v1`, but this remains simulated single-task evidence.
 - The resolved simulated-grasp failures were dominated by detector boxes whose
   original upper region missed the graspable object support; the semantic target
   center is preserved while the opt-in refined grasp point can use a downward
@@ -816,6 +853,7 @@ Important for a stronger v1:
 - [x] README cleanup and current quickstart refresh.
 - [x] Grasp-success ablation comparing single-view, multi-view, and
   closed-loop re-observation.
+- [x] Fused-memory grasp point path for multi-view simulated picks.
 - [ ] Optional Gradio demo shell only after paper metrics are frozen.
 
 ## Latest Simulated Grasp Result
@@ -829,21 +867,22 @@ grasp target, far-XY rate improves from `0.6500` to `0.0000`, and high-Z rate
 remains `0.0000`.
 
 This result should be reported as an initial simulated grasp baseline, not as
-robust manipulation. The multi-view bridge ablation now shows that fused
-tabletop_3 and closed-loop target sources are executable and benchmarkable, but
-compact pick success remains `0.0000` when the pick target is only
-`selected_object_world_xyz`.
+robust manipulation. The multi-view bridge ablation first showed that fused
+tabletop_3 and closed-loop target sources are executable and benchmarkable. The
+accepted fused-memory grasp path then replaces semantic-center pick targets
+with `memory_grasp_world_xyz` for refined mode and improves compact multi-view
+and closed-loop pick success from `0.0000` to `1.0000`.
 
 ## Next Coding Milestone
 
-Improve the multi-view simulated grasp baseline without changing detector,
-fusion, or controller timing:
+Broaden the simulated grasp baseline without changing detector, fusion, or
+controller timing:
 
-1. Add or propagate a grasp-specific target in fused memory, separate from the
-   semantic `selected_object_world_xyz`.
-2. Use the single-view shifted-crop refined target as the reference behavior,
-   while preserving semantic centers for retrieval/reporting.
-3. Extend simulated grasp validation beyond `PickCube-v1` before claiming
+1. Refresh paper reports and the figure pack around the accepted fused-memory
+   grasp result.
+2. Extend simulated grasp validation beyond `PickCube-v1` before claiming
    robust manipulation.
+3. Keep semantic centers for retrieval/reporting and grasp points for execution
+   targets as separate diagnostics.
 4. Keep detector backends, fusion weights, training, web demo, controller
    timing, and real-robot deployment out of scope for the grasp-baseline phase.
