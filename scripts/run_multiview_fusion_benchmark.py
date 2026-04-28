@@ -163,6 +163,8 @@ def main() -> None:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_runs": len(rows),
         "unique_queries": sorted(set(queries)),
+        "env_id": args.env_id,
+        "obs_mode": args.obs_mode,
         "view_ids": [view_id for view_id in args.view_ids if view_id],
         "camera_name": args.camera_name,
         "view_preset": args.view_preset,

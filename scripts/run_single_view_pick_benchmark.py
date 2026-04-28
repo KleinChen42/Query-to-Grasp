@@ -94,6 +94,8 @@ def main() -> None:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_runs": len(rows),
         "unique_queries": sorted(set(query for query in queries)),
+        "env_id": args.env_id,
+        "obs_mode": args.obs_mode,
         "detector_backend": args.detector_backend,
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),

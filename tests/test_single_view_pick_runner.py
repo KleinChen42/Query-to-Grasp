@@ -91,6 +91,8 @@ def test_single_view_pick_benchmark_writes_outputs(monkeypatch, tmp_path) -> Non
     assert rows[0]["run_failed"] is False
     assert rows[0]["runtime_seconds"] == 1.5
     assert summary["total_runs"] == 4
+    assert summary["env_id"] == "PickCube-v1"
+    assert summary["obs_mode"] == "rgbd"
     assert summary["skip_clip"] is True
     assert summary["grasp_target_mode"] == "refined"
     assert summary["aggregate_metrics"]["total_runs"] == 4

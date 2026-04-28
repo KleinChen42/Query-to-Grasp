@@ -493,6 +493,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert rows[0]["selected_grasp_world_xyz"] == "0.01 0.02 0.03"
     assert rows[0]["pick_target_source"] == "memory_grasp_world_xyz"
     assert summary["total_runs"] == 4
+    assert summary["env_id"] == "PickCube-v1"
+    assert summary["obs_mode"] == "rgbd"
     assert summary["skip_clip"] is True
     assert summary["closed_loop_selected_object_continuity_enabled"] is True
     assert summary["selected_object_continuity_distance_scale"] == 1.25

@@ -42,6 +42,10 @@ def test_single_view_row_maps_detection_metrics(tmp_path: Path) -> None:
     row = single_view_row_from_benchmark("single", benchmark_dir)
 
     assert row["mean_raw_num_detections"] == 1.25
+    assert row["env_id"] == "PickCube-v1"
+    assert row["obs_mode"] == "rgbd"
+    assert row["pick_executor"] == "sim_topdown"
+    assert row["grasp_target_mode"] == "refined"
     assert row["mean_num_ranked_candidates"] == 1.0
     assert row["mean_num_views"] == 1.0
     assert row["mean_num_memory_objects"] == "n/a"
@@ -58,6 +62,10 @@ def test_fusion_row_maps_memory_metrics(tmp_path: Path) -> None:
     row = fusion_row_from_benchmark("fusion", benchmark_dir)
 
     assert row["mean_raw_num_detections"] == "n/a"
+    assert row["env_id"] == "PickCube-v1"
+    assert row["obs_mode"] == "rgbd"
+    assert row["pick_executor"] == "sim_topdown"
+    assert row["grasp_target_mode"] == "refined"
     assert row["mean_num_views"] == 2.0
     assert row["mean_num_memory_objects"] == 3.0
     assert row["mean_num_observations_added"] == 4.0
@@ -106,6 +114,10 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
         {
             "label": "HF fusion",
             "benchmark_type": "fusion_debug",
+            "env_id": "PickCube-v1",
+            "obs_mode": "rgbd",
+            "pick_executor": "sim_topdown",
+            "grasp_target_mode": "refined",
             "detector_backend": "hf",
             "skip_clip": "True",
             "total_runs": 2,
@@ -142,6 +154,9 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
 
     assert "# Single-View vs Fusion Comparison Table" in markdown
     assert "HF fusion" in markdown
+    assert "env_id" in markdown
+    assert "pick_executor" in markdown
+    assert "sim_topdown" in markdown
     assert "0.5000" in markdown
     assert "mean_same_label_pairwise_distance" in markdown
     assert "reobserve_trigger_rate" in markdown
@@ -166,6 +181,10 @@ def _write_single_summary(benchmark_dir: Path) -> None:
     benchmark_dir.mkdir(parents=True, exist_ok=True)
     summary = {
         "total_runs": 4,
+        "env_id": "PickCube-v1",
+        "obs_mode": "rgbd",
+        "pick_executor": "sim_topdown",
+        "grasp_target_mode": "refined",
         "detector_backend": "hf",
         "skip_clip": True,
         "aggregate_metrics": {
@@ -184,6 +203,10 @@ def _write_fusion_summary(benchmark_dir: Path) -> None:
     benchmark_dir.mkdir(parents=True, exist_ok=True)
     summary = {
         "total_runs": 2,
+        "env_id": "PickCube-v1",
+        "obs_mode": "rgbd",
+        "pick_executor": "sim_topdown",
+        "grasp_target_mode": "refined",
         "detector_backend": "hf",
         "skip_clip": True,
         "aggregate_metrics": {

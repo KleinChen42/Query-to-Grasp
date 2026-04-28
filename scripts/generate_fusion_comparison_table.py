@@ -26,6 +26,10 @@ except ModuleNotFoundError:  # pragma: no cover - supports direct script executi
 TABLE_COLUMNS = [
     "label",
     "benchmark_type",
+    "env_id",
+    "obs_mode",
+    "pick_executor",
+    "grasp_target_mode",
     "detector_backend",
     "skip_clip",
     "total_runs",
@@ -143,6 +147,10 @@ def single_view_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
     return {
         "label": label,
         "benchmark_type": "single_view_pick",
+        "env_id": _value(summary.get("env_id")),
+        "obs_mode": _value(summary.get("obs_mode")),
+        "pick_executor": _value(summary.get("pick_executor")),
+        "grasp_target_mode": _value(summary.get("grasp_target_mode")),
         "detector_backend": _value(summary.get("detector_backend")),
         "skip_clip": _value(summary.get("skip_clip")),
         "total_runs": _as_int(summary.get("total_runs", metrics.get("total_runs"))),
@@ -183,6 +191,10 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
     return {
         "label": label,
         "benchmark_type": "fusion_debug",
+        "env_id": _value(summary.get("env_id")),
+        "obs_mode": _value(summary.get("obs_mode")),
+        "pick_executor": _value(summary.get("pick_executor")),
+        "grasp_target_mode": _value(summary.get("grasp_target_mode")),
         "detector_backend": _value(summary.get("detector_backend")),
         "skip_clip": _value(summary.get("skip_clip")),
         "total_runs": _as_int(summary.get("total_runs", metrics.get("total_runs"))),
@@ -266,7 +278,7 @@ def render_markdown_table(rows: list[dict[str, Any]]) -> str:
         "# Single-View vs Fusion Comparison Table",
         "",
         "| " + " | ".join(TABLE_COLUMNS) + " |",
-        "| " + " | ".join(["---"] * 6 + ["---:"] * (len(TABLE_COLUMNS) - 6)) + " |",
+        "| " + " | ".join(["---"] * 10 + ["---:"] * (len(TABLE_COLUMNS) - 10)) + " |",
     ]
     for row in rows:
         lines.append("| " + " | ".join(_format_cell(row.get(column)) for column in TABLE_COLUMNS) + " |")

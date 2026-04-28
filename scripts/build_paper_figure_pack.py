@@ -206,6 +206,57 @@ DEFAULT_ARTIFACTS = (
             "with closed-loop resolution and downstream pick metrics."
         ),
     ),
+    ArtifactSpec(
+        label="stackcube_pick_smoke_no_clip_summary",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_single_view_red_cube_seed01234/"
+            "no_clip/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "StackCube-v1 query-driven red cube no-CLIP pick-only smoke. "
+            "Shows task-specific grasp detection without claiming stack placement."
+        ),
+    ),
+    ArtifactSpec(
+        label="stackcube_pick_smoke_with_clip_summary",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_single_view_red_cube_seed01234/"
+            "with_clip/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "StackCube-v1 query-driven red cube with-CLIP pick-only smoke. "
+            "Reports pick success separately from task success."
+        ),
+    ),
+    ArtifactSpec(
+        label="stackcube_pick_smoke_no_clip_rows",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_single_view_red_cube_seed01234/"
+            "no_clip/benchmark_rows.csv"
+        ),
+        category="grasp",
+        caption="Per-run StackCube-v1 no-CLIP pick-only smoke rows.",
+    ),
+    ArtifactSpec(
+        label="stackcube_pick_smoke_with_clip_rows",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_single_view_red_cube_seed01234/"
+            "with_clip/benchmark_rows.csv"
+        ),
+        category="grasp",
+        caption="Per-run StackCube-v1 with-CLIP pick-only smoke rows.",
+    ),
+    ArtifactSpec(
+        label="cross_task_sim_pick_table",
+        source_path=Path("outputs/h200_60071_cross_task_sim_pick_report/cross_task_pick_table.md"),
+        category="tables",
+        caption=(
+            "Cross-task simulated pick comparison table spanning PickCube-v1 "
+            "and the StackCube-v1 pick-only smoke."
+        ),
+    ),
 )
 
 
