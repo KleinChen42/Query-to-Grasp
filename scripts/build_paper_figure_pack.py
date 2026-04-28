@@ -155,6 +155,57 @@ DEFAULT_ARTIFACTS = (
         category="notes",
         caption="Running paper-oriented milestone log with quantitative findings and next decisions.",
     ),
+    ArtifactSpec(
+        label="paper_draft_outline",
+        source_path=Path("docs/paper_draft_outline.md"),
+        category="notes",
+        caption="Current paper outline with claims, experiment plan, limitations, and next milestones.",
+    ),
+    ArtifactSpec(
+        label="fused_memory_grasp_targeted_summary",
+        source_path=Path(
+            "outputs/h200_60071_multiview_memory_grasp_point_targeted/"
+            "compact_broad_no_clip/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "Targeted fused-memory grasp-point validation. Compact broad tabletop_3 "
+            "no-CLIP run reaches 20/20 simulated pick success using memory_grasp_world_xyz."
+        ),
+    ),
+    ArtifactSpec(
+        label="fused_memory_grasp_targeted_rows",
+        source_path=Path(
+            "outputs/h200_60071_multiview_memory_grasp_point_targeted/"
+            "compact_broad_no_clip/benchmark_rows.csv"
+        ),
+        category="grasp",
+        caption="Per-run targeted fused-memory grasp rows, including pick target source diagnostics.",
+    ),
+    ArtifactSpec(
+        label="fused_memory_grasp_ablation_no_clip",
+        source_path=Path(
+            "outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234/"
+            "tabletop_no_clip/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "Accepted compact tabletop_3 no-CLIP fused-memory grasp benchmark summary "
+            "with pick_success_rate = 1.0000."
+        ),
+    ),
+    ArtifactSpec(
+        label="fused_memory_grasp_ablation_closed_loop",
+        source_path=Path(
+            "outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234/"
+            "closed_loop_no_clip/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "Accepted compact closed-loop no-CLIP fused-memory grasp benchmark summary "
+            "with closed-loop resolution and downstream pick metrics."
+        ),
+    ),
 )
 
 

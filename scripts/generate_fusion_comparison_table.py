@@ -49,7 +49,10 @@ TABLE_COLUMNS = [
     "mean_closed_loop_delta_selected_num_views",
     "mean_closed_loop_delta_num_memory_objects",
     "reobserve_reason_counts",
+    "grasp_attempted_rate",
     "pick_success_rate",
+    "task_success_rate",
+    "pick_stage_counts",
 ]
 
 NA = "n/a"
@@ -163,7 +166,10 @@ def single_view_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "mean_closed_loop_delta_selected_num_views": NA,
         "mean_closed_loop_delta_num_memory_objects": NA,
         "reobserve_reason_counts": NA,
+        "grasp_attempted_rate": _optional_float(metrics.get("grasp_attempted_rate")),
         "pick_success_rate": _as_float(metrics.get("pick_success_rate")),
+        "task_success_rate": _optional_float(metrics.get("task_success_rate")),
+        "pick_stage_counts": format_reason_counts(metrics.get("pick_stage_counts")),
     }
 
 
@@ -208,7 +214,10 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
             metrics.get("mean_closed_loop_delta_num_memory_objects")
         ),
         "reobserve_reason_counts": format_reason_counts(metrics.get("reobserve_reason_counts")),
-        "pick_success_rate": NA,
+        "grasp_attempted_rate": _optional_float(metrics.get("grasp_attempted_rate")),
+        "pick_success_rate": _optional_float(metrics.get("pick_success_rate")),
+        "task_success_rate": _optional_float(metrics.get("task_success_rate")),
+        "pick_stage_counts": format_reason_counts(metrics.get("pick_stage_counts")),
     }
 
 

@@ -45,7 +45,10 @@ def test_single_view_row_maps_detection_metrics(tmp_path: Path) -> None:
     assert row["mean_num_ranked_candidates"] == 1.0
     assert row["mean_num_views"] == 1.0
     assert row["mean_num_memory_objects"] == "n/a"
+    assert row["grasp_attempted_rate"] == "n/a"
     assert row["pick_success_rate"] == 0.0
+    assert row["task_success_rate"] == "n/a"
+    assert row["pick_stage_counts"] == "n/a"
 
 
 def test_fusion_row_maps_memory_metrics(tmp_path: Path) -> None:
@@ -70,7 +73,10 @@ def test_fusion_row_maps_memory_metrics(tmp_path: Path) -> None:
     assert row["mean_closed_loop_delta_selected_num_views"] == 0.5
     assert row["mean_closed_loop_delta_num_memory_objects"] == 0.0
     assert row["reobserve_reason_counts"] == "ambiguous_top_candidates: 1; confident_enough: 1"
-    assert row["pick_success_rate"] == "n/a"
+    assert row["grasp_attempted_rate"] == 1.0
+    assert row["pick_success_rate"] == 0.5
+    assert row["task_success_rate"] == 0.25
+    assert row["pick_stage_counts"] == "grasp_not_confirmed: 1; success: 1"
 
 
 def test_build_table_rows_missing_behavior(tmp_path: Path) -> None:
@@ -123,7 +129,10 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
             "mean_closed_loop_delta_selected_num_views": 0.25,
             "mean_closed_loop_delta_num_memory_objects": 0.0,
             "reobserve_reason_counts": "ambiguous_top_candidates: 1; none: 3",
-            "pick_success_rate": "n/a",
+            "grasp_attempted_rate": 1.0,
+            "pick_success_rate": 0.5,
+            "task_success_rate": 0.25,
+            "pick_stage_counts": "success: 1; grasp_not_confirmed: 1",
         }
     ]
 
@@ -140,12 +149,17 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
     assert "closed_loop_execution_rate" in markdown
     assert "closed_loop_resolution_rate" in markdown
     assert "mean_closed_loop_delta_selected_num_views" in markdown
+    assert "grasp_attempted_rate" in markdown
+    assert "pick_stage_counts" in markdown
     assert "ambiguous_top_candidates: 1" in markdown
+    assert "grasp_not_confirmed: 1" in markdown
     csv_rows = list(csv.DictReader(csv_path.open("r", encoding="utf-8")))
     assert csv_rows[0]["label"] == "HF fusion"
     assert csv_rows[0]["mean_same_label_pairwise_distance"] == "0.12"
     assert csv_rows[0]["mean_selected_overall_confidence"] == "0.5"
     assert csv_rows[0]["reobserve_trigger_rate"] == "0.25"
+    assert csv_rows[0]["grasp_attempted_rate"] == "1.0"
+    assert csv_rows[0]["pick_success_rate"] == "0.5"
 
 
 def _write_single_summary(benchmark_dir: Path) -> None:
@@ -191,6 +205,13 @@ def _write_fusion_summary(benchmark_dir: Path) -> None:
             "reobserve_reason_counts": {
                 "ambiguous_top_candidates": 1,
                 "confident_enough": 1,
+            },
+            "grasp_attempted_rate": 1.0,
+            "pick_success_rate": 0.5,
+            "task_success_rate": 0.25,
+            "pick_stage_counts": {
+                "success": 1,
+                "grasp_not_confirmed": 1,
             },
             "mean_runtime_seconds": 20.0,
         },
