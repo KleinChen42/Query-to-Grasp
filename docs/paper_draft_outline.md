@@ -526,6 +526,38 @@ compact runs usually choose points high above and far away from the object. The
 next behavior patch should target grasp-point refinement for broad detections,
 not detector backend changes or low-level action retuning.
 
+### Experiment 10: Multi-View Sim-Grasp Ablation Bridge
+
+Question:
+
+Can final multi-view and closed-loop selected objects drive the same simulated
+pick executor and produce downstream grasp metrics?
+
+Current result:
+
+| setting | runs | failed | grasp attempted | pick success | closed-loop resolution | still-needed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| exact `red cube` tabletop_3 no CLIP | 3 | 0 | 1.0000 | 1.0000 | 0.0000 | 0.0000 |
+| compact tabletop_3 no CLIP | 20 | 0 | 1.0000 | 0.0000 | 0.0000 | 0.6500 |
+| compact tabletop_3 with CLIP | 20 | 0 | 1.0000 | 0.0000 | 0.0000 | 0.6500 |
+| compact closed-loop no CLIP | 20 | 0 | 1.0000 | 0.0000 | 0.6500 | 0.0000 |
+| compact closed-loop with CLIP | 20 | 0 | 1.0000 | 0.0000 | 0.6500 | 0.0000 |
+
+Artifacts:
+
+- `outputs/h200_60071_multiview_sim_pick_bridge_targeted`
+- `outputs/h200_60071_multiview_sim_pick_bridge_ablation_seed01234`
+
+Interpretation:
+
+The bridge is stable: multi-view and closed-loop final selections can execute
+`sim_topdown` and report pick metrics with `0` child failures. The negative
+compact pick result is also informative. The current fused memory exposes
+`selected_object_world_xyz`, a semantic center, not the shifted-crop grasp point
+that made compact single-view picks reliable. The next behavior patch should
+add or propagate a grasp-specific target in fused memory rather than retuning
+the controller, CLIP, detector, or re-observation policy.
+
 ### Experiment 5: Re-Observation Decision Smoke
 
 Question:
@@ -724,7 +756,9 @@ Paper assets:
    attributes, same-phrase competitors, and point/view support flags.
 13. Simulated grasp baseline: exact/oracle `PickCube-v1` success and compact
    broad-query refined-target comparison.
-14. Limitation box: placeholder pick, low detector multiplicity, and no real
+14. Multi-view sim-grasp bridge: tabletop_3 and closed-loop selected-object
+   pick metrics with target-source diagnostics.
+15. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
 ## Limitations
@@ -780,7 +814,7 @@ Important for a stronger v1:
 - [x] Minimal simulated ManiSkill grasp baseline from selected 3D target.
 - [x] Small paper/demo architecture diagram.
 - [x] README cleanup and current quickstart refresh.
-- [ ] Grasp-success ablation comparing single-view, multi-view, and
+- [x] Grasp-success ablation comparing single-view, multi-view, and
   closed-loop re-observation.
 - [ ] Optional Gradio demo shell only after paper metrics are frozen.
 
@@ -795,17 +829,21 @@ grasp target, far-XY rate improves from `0.6500` to `0.0000`, and high-Z rate
 remains `0.0000`.
 
 This result should be reported as an initial simulated grasp baseline, not as
-robust manipulation. The next experiment is a grasp-success ablation across
-exact, compact, and later multi-view/re-observation target sources.
+robust manipulation. The multi-view bridge ablation now shows that fused
+tabletop_3 and closed-loop target sources are executable and benchmarkable, but
+compact pick success remains `0.0000` when the pick target is only
+`selected_object_world_xyz`.
 
 ## Next Coding Milestone
 
-Improve the new simulated grasp baseline without changing detector/fusion
-backends:
+Improve the multi-view simulated grasp baseline without changing detector,
+fusion, or controller timing:
 
-1. Run the grasp-success ablation comparing exact single-view, compact
-   single-view, and later multi-view/re-observation target sources.
-2. Extend simulated grasp validation beyond `PickCube-v1` before claiming
+1. Add or propagate a grasp-specific target in fused memory, separate from the
+   semantic `selected_object_world_xyz`.
+2. Use the single-view shifted-crop refined target as the reference behavior,
+   while preserving semantic centers for retrieval/reporting.
+3. Extend simulated grasp validation beyond `PickCube-v1` before claiming
    robust manipulation.
-3. Keep detector backends, fusion weights, training, web demo, and real-robot
-   deployment out of scope for the grasp-baseline phase.
+4. Keep detector backends, fusion weights, training, web demo, controller
+   timing, and real-robot deployment out of scope for the grasp-baseline phase.

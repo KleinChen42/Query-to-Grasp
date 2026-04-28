@@ -1,6 +1,6 @@
 # Query-to-Grasp Paper Milestone Log
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 
 Purpose: keep a concise, paper-oriented record of key implementation milestones,
 experiment reports, quantitative findings, and next decisions. This file is
@@ -68,6 +68,8 @@ Scope update:
 | Simulated top-down grasp smoke | Oracle, mock-query, and HF `red cube` sanity checks for opt-in ManiSkill low-level control | `outputs/h200_hf_sim_pick_red_cube_seed012/benchmark_summary.json` |
 | Simulated top-down compact grasp baseline | Compact query set, seeds 0-4, no-CLIP and with-CLIP, with real simulated grasp attempts | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/sim_topdown_singleview_report.md` |
 | Simulated grasp-point diagnosis | Target-vs-oracle pose analysis for exact successes and compact failures | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/grasp_point_diagnosis.md` |
+| Single-view shifted-crop sim grasp | Accepted refined single-view grasp target with compact `PickCube-v1` success | `outputs/h200_60071_grasp_shifted_crop_compact_seed01234_v2/with_clip/benchmark_summary.json` |
+| Multi-view sim-grasp bridge ablation | Opt-in `sim_topdown` execution from fused tabletop_3 and closed-loop selected objects | `outputs/h200_60071_multiview_sim_pick_bridge_ablation_seed01234` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -111,6 +113,7 @@ Scope update:
 | Minimal simulated grasp executor | Done | `e453d1f` and H200 oracle/mock/HF smoke outputs | `SimulatedTopDownPickExecutor` executes opt-in `pd_ee_delta_pos` actions and reports `grasp_attempted`, `pick_success`, `task_success`, and raw trajectory diagnostics while preserving placeholder as the default. |
 | Simulated top-down compact grasp baseline | Done | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/sim_topdown_singleview_report.md` | The compact single-view benchmark completes `20/20` runs per mode with zero failures and `grasp_attempted_rate = 1.0`, but `pick_success_rate = 0.1000`, exposing grasp-point/target-center alignment as the next bottleneck. |
 | Simulated grasp-point diagnosis | Done | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/grasp_point_diagnosis.md` | Exact `red cube` successes have mean target-oracle distance `0.0171 m`, while compact failures average `0.3329 m` from oracle and almost always have high/far target points. |
+| Multi-view simulated pick bridge | Done | `493f63b` and `outputs/h200_60071_multiview_sim_pick_bridge_ablation_seed01234` | Fused tabletop_3 and closed-loop selected objects now drive `sim_topdown` metrics with `0` child failures, but compact pick success remains `0.0000` because fused memory currently exposes semantic object centers rather than shifted-crop grasp points. |
 
 ## Key Quantitative Results
 
@@ -1139,14 +1142,16 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 
 ## Next Recommended Milestone
 
-Improve the new simulated grasp baseline without destabilizing the retrieval
-stack:
+Add a multi-view/fused-memory grasp-point representation without destabilizing
+the retrieval stack:
 
-1. Run a grasp-success ablation comparing exact single-view, compact
-   single-view, and later multi-view/re-observation target sources.
-2. Extend validation beyond `PickCube-v1` before claiming robust manipulation.
-3. Keep detector backends, fusion weights, training, web demo, and real robot
-   deployment out of scope for this grasp-baseline phase.
+1. Propagate or estimate an explicit grasp point for `MemoryObject3D`, separate
+   from semantic `selected_object_world_xyz`.
+2. Use the existing single-view shifted-crop result as the reference behavior,
+   but keep fused semantic centers unchanged for retrieval and reporting.
+3. Extend validation beyond `PickCube-v1` before claiming robust manipulation.
+4. Keep detector backends, fusion weights, training, web demo, controller timing,
+   and real robot deployment out of scope for this grasp-baseline phase.
 
 Latest accepted simulated grasp refinements:
 
@@ -1167,6 +1172,23 @@ that broad single-view failures were caused by detector boxes whose upper region
 missed the graspable object support; the semantic center remains unchanged, but
 the refined grasp target can use a conservative downward crop when the original
 box has no elevated object-like support.
+
+Latest accepted multi-view sim-grasp bridge:
+
+| benchmark | runs | failed | grasp attempted | pick success | closed-loop resolution | still-needed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Exact red cube tabletop_3 no CLIP | 3 | 0 | 1.0000 | 1.0000 | 0.0000 | 0.0000 |
+| Compact tabletop_3 no CLIP | 20 | 0 | 1.0000 | 0.0000 | 0.0000 | 0.6500 |
+| Compact tabletop_3 with CLIP | 20 | 0 | 1.0000 | 0.0000 | 0.0000 | 0.6500 |
+| Compact closed-loop no CLIP | 20 | 0 | 1.0000 | 0.0000 | 0.6500 | 0.0000 |
+| Compact closed-loop with CLIP | 20 | 0 | 1.0000 | 0.0000 | 0.6500 | 0.0000 |
+
+The bridge result is a successful infrastructure checkpoint, not a manipulation
+success result. It shows that multi-view and closed-loop selected objects can
+drive the same simulated executor and emit stable downstream metrics with
+`0` child failures. It also isolates the next bottleneck: fused memory currently
+offers only semantic object centers for picking, while the successful
+single-view compact baseline depends on an explicit shifted-crop grasp point.
 
 Publication-level expectation:
 
@@ -1198,6 +1220,9 @@ Candidate paper framing:
 > producing graspable target points, not only semantically correct object
 > centers. The accepted geometry-only refined target reduces the broad-query
 > high-Z failure, and the shifted-crop fallback lifts compact simulated pick
-> success to `1.0000` for `PickCube-v1` compact queries. The next grasp milestone
-> is no longer point refinement inside this task, but ablation and broader-task
-> validation before making stronger manipulation claims.
+> success to `1.0000` for `PickCube-v1` compact queries. The multi-view
+> sim-grasp bridge confirms that fused and closed-loop target sources can now
+> produce stable downstream pick metrics, but their compact pick success remains
+> `0.0000` because fused memory does not yet carry a grasp-specific target.
+> The next grasp milestone is therefore a fused-memory grasp-point path and
+> broader-task validation before making stronger manipulation claims.
