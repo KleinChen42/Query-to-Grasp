@@ -112,6 +112,8 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["query"] == "red cube"
     assert row["has_selected_object"] is True
     assert row["selected_overall_confidence"] == 0.75
+    assert row["selected_world_xyz"] == ""
+    assert row["selected_grasp_world_xyz"] == ""
     assert row["should_reobserve"] is True
     assert row["reobserve_reason"] == "ambiguous_top_candidates"
     assert row["runtime_seconds"] == 0.0
@@ -381,6 +383,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "num_observations_added": 2,
             "selected_object_id": "obj_0000",
             "selected_top_label": query,
+            "selected_world_xyz": [0.0, 0.0, 0.02],
+            "selected_grasp_world_xyz": [0.01, 0.02, 0.03],
             "selection_label": query,
             "selected_overall_confidence": 0.7,
             "should_reobserve": False,
@@ -427,7 +431,7 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "is_grasped": True,
             "pick_stage": "success",
             "pick_target_xyz": [0.01, 0.02, 0.03],
-            "pick_target_source": "selected_object_world_xyz",
+            "pick_target_source": "memory_grasp_world_xyz",
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
@@ -485,6 +489,9 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert len(rows) == 4
     assert rows[0]["seed"] == 0
     assert rows[0]["has_selected_object"] is True
+    assert rows[0]["selected_world_xyz"] == "0.0 0.0 0.02"
+    assert rows[0]["selected_grasp_world_xyz"] == "0.01 0.02 0.03"
+    assert rows[0]["pick_target_source"] == "memory_grasp_world_xyz"
     assert summary["total_runs"] == 4
     assert summary["skip_clip"] is True
     assert summary["closed_loop_selected_object_continuity_enabled"] is True
@@ -521,6 +528,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["aggregate_metrics"]["pick_stage_counts"] == {"success": 4}
     assert summary["aggregate_metrics"]["mean_num_memory_objects"] == 2.0
     assert "selected_overall_confidence" in csv_header
+    assert "selected_world_xyz" in csv_header
+    assert "selected_grasp_world_xyz" in csv_header
     assert "should_reobserve" in csv_header
     assert "closed_loop_delta_selected_num_views" in csv_header
     assert "closed_loop_reobserve_resolved" in csv_header

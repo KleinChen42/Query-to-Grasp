@@ -53,6 +53,52 @@ def test_memory_merges_nearby_observations_across_views() -> None:
     assert obj.overall_confidence > 0.0
 
 
+def test_observation_json_includes_optional_grasp_fields() -> None:
+    observation = ObjectObservation3D(
+        world_xyz=np.array([1.0, 2.0, 3.0], dtype=np.float32),
+        label="red cube",
+        det_score=0.8,
+        fused_2d_score=0.8,
+        view_id="front",
+        num_points=500,
+        depth_valid_ratio=0.9,
+        grasp_world_xyz=np.array([0.1, 0.2, 0.3], dtype=np.float32),
+        grasp_camera_xyz=np.array([0.4, 0.5, 0.6], dtype=np.float32),
+        grasp_num_points=42,
+        grasp_metadata={"strategy": "shifted_crop"},
+    )
+
+    payload = observation.to_json_dict()
+
+    assert payload["grasp_world_xyz"] == pytest.approx([0.1, 0.2, 0.3])
+    assert payload["grasp_camera_xyz"] == pytest.approx([0.4, 0.5, 0.6])
+    assert payload["grasp_num_points"] == 42
+    assert payload["grasp_metadata"] == {"strategy": "shifted_crop"}
+
+
+def test_memory_median_fuses_grasp_points_separately_from_semantic_center() -> None:
+    memory = ObjectMemory3D(ObjectMemoryConfig(merge_distance=0.10))
+
+    memory.add_observation(
+        _obs([0.0, 0.0, 0.0], label="cube", det_score=0.8, grasp_world_xyz=[0.1, 0.0, 0.0])
+    )
+    memory.add_observation(
+        _obs([0.02, 0.0, 0.0], label="cube", det_score=0.8, grasp_world_xyz=[0.3, 0.0, 0.0])
+    )
+    memory.add_observation(
+        _obs([0.04, 0.0, 0.0], label="cube", det_score=0.8, grasp_world_xyz=[0.2, 0.0, 0.0])
+    )
+
+    obj = memory.objects[0]
+
+    np.testing.assert_allclose(obj.world_xyz, np.array([0.02, 0.0, 0.0], dtype=np.float32))
+    np.testing.assert_allclose(obj.grasp_world_xyz, np.array([0.2, 0.0, 0.0], dtype=np.float32))
+    assert len(obj.grasp_observation_xyzs) == 3
+    payload = obj.to_json_dict()
+    assert payload["grasp_world_xyz"] == pytest.approx([0.2, 0.0, 0.0])
+    assert len(payload["grasp_observation_xyzs"]) == 3
+
+
 def test_memory_keeps_distant_observations_separate() -> None:
     memory = ObjectMemory3D(ObjectMemoryConfig(merge_distance=0.05))
 
@@ -176,6 +222,10 @@ def test_observation_from_candidate_requires_world_coordinates() -> None:
         num_points=42,
         depth_valid_ratio=0.5,
         point_cloud_path="candidate.ply",
+        grasp_world_xyz=np.array([0.1, 0.2, 0.3], dtype=np.float32),
+        grasp_camera_xyz=np.array([0.4, 0.5, 0.6], dtype=np.float32),
+        grasp_num_points=24,
+        grasp_metadata={"strategy": "workspace_object_component"},
     )
     ranked = SimpleNamespace(phrase="red cube", det_score=0.7, clip_score=0.9, fused_2d_score=0.8)
 
@@ -186,6 +236,10 @@ def test_observation_from_candidate_requires_world_coordinates() -> None:
     assert observation.num_points == 42
     assert observation.depth_valid_ratio == 0.5
     np.testing.assert_allclose(observation.world_xyz, np.array([1.0, 2.0, 3.0], dtype=np.float32))
+    np.testing.assert_allclose(observation.grasp_world_xyz, np.array([0.1, 0.2, 0.3], dtype=np.float32))
+    np.testing.assert_allclose(observation.grasp_camera_xyz, np.array([0.4, 0.5, 0.6], dtype=np.float32))
+    assert observation.grasp_num_points == 24
+    assert observation.grasp_metadata == {"strategy": "workspace_object_component"}
 
     with pytest.raises(ValueError, match="world_xyz"):
         observation_from_candidate(SimpleNamespace(world_xyz=None), ranked)
@@ -196,6 +250,7 @@ def _obs(
     label: str,
     det_score: float,
     view_id: str = "front",
+    grasp_world_xyz: list[float] | None = None,
 ) -> ObjectObservation3D:
     return ObjectObservation3D(
         world_xyz=np.array(xyz, dtype=np.float32),
@@ -206,4 +261,5 @@ def _obs(
         view_id=view_id,
         num_points=1000,
         depth_valid_ratio=1.0,
+        grasp_world_xyz=None if grasp_world_xyz is None else np.array(grasp_world_xyz, dtype=np.float32),
     )

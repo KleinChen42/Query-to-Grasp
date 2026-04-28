@@ -34,9 +34,15 @@ class ObjectObservation3D:
     depth_valid_ratio: float = 0.0
     point_cloud_path: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    grasp_world_xyz: np.ndarray | None = None
+    grasp_camera_xyz: np.ndarray | None = None
+    grasp_num_points: int = 0
+    grasp_metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "world_xyz", _validate_xyz(self.world_xyz))
+        object.__setattr__(self, "grasp_world_xyz", _validate_optional_xyz(self.grasp_world_xyz))
+        object.__setattr__(self, "grasp_camera_xyz", _validate_optional_xyz(self.grasp_camera_xyz))
         object.__setattr__(self, "label", self.label.strip())
         if not self.label:
             raise ValueError("ObjectObservation3D.label must be non-empty.")
@@ -55,6 +61,14 @@ class ObjectObservation3D:
             "depth_valid_ratio": float(self.depth_valid_ratio),
             "point_cloud_path": self.point_cloud_path,
             "metadata": self.metadata,
+            "grasp_world_xyz": (
+                None if self.grasp_world_xyz is None else np.asarray(self.grasp_world_xyz, dtype=float).tolist()
+            ),
+            "grasp_camera_xyz": (
+                None if self.grasp_camera_xyz is None else np.asarray(self.grasp_camera_xyz, dtype=float).tolist()
+            ),
+            "grasp_num_points": int(self.grasp_num_points),
+            "grasp_metadata": self.grasp_metadata,
         }
 
 
@@ -77,6 +91,8 @@ class MemoryObject3D:
     score_terms: FusionScoreTerms = field(default_factory=FusionScoreTerms)
     fusion_trace: dict[str, Any] = field(default_factory=dict)
     observation_xyzs: list[np.ndarray] = field(default_factory=list)
+    grasp_world_xyz: np.ndarray | None = None
+    grasp_observation_xyzs: list[np.ndarray] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -107,6 +123,12 @@ class MemoryObject3D:
             "score_terms": self.score_terms.to_json_dict(),
             "fusion_trace": self.fusion_trace,
             "observation_xyzs": [np.asarray(xyz, dtype=float).tolist() for xyz in self.observation_xyzs],
+            "grasp_world_xyz": (
+                None if self.grasp_world_xyz is None else np.asarray(self.grasp_world_xyz, dtype=float).tolist()
+            ),
+            "grasp_observation_xyzs": [
+                np.asarray(xyz, dtype=float).tolist() for xyz in self.grasp_observation_xyzs
+            ],
             "metadata": self.metadata,
         }
 
@@ -265,6 +287,11 @@ class ObjectMemory3D:
             obj.view_ids.append(observation.view_id)
         if observation.point_cloud_path is not None:
             obj.point_cloud_path = observation.point_cloud_path
+        if observation.grasp_world_xyz is not None:
+            obj.grasp_observation_xyzs.append(observation.grasp_world_xyz.copy())
+            obj.grasp_world_xyz = np.median(np.asarray(obj.grasp_observation_xyzs, dtype=np.float32), axis=0).astype(
+                np.float32
+            )
         _append_observation_metadata(obj, observation)
 
     def _refresh_confidences(
@@ -381,18 +408,38 @@ def observation_from_candidate(
         num_points=int(getattr(candidate_3d, "num_points", 0)),
         depth_valid_ratio=float(getattr(candidate_3d, "depth_valid_ratio", 0.0)),
         point_cloud_path=getattr(candidate_3d, "point_cloud_path", None),
+        grasp_world_xyz=getattr(candidate_3d, "grasp_world_xyz", None),
+        grasp_camera_xyz=getattr(candidate_3d, "grasp_camera_xyz", None),
+        grasp_num_points=int(getattr(candidate_3d, "grasp_num_points", 0)),
+        grasp_metadata=dict(getattr(candidate_3d, "grasp_metadata", {}) or {}),
     )
 
 
 def _append_observation_metadata(obj: MemoryObject3D, observation: ObjectObservation3D) -> None:
     obj.metadata.setdefault("num_points_history", []).append(int(observation.num_points))
     obj.metadata.setdefault("depth_valid_ratio_history", []).append(float(observation.depth_valid_ratio))
+    obj.metadata.setdefault("grasp_num_points_history", []).append(int(observation.grasp_num_points))
+    if observation.grasp_camera_xyz is not None:
+        obj.metadata.setdefault("grasp_camera_xyz_history", []).append(
+            np.asarray(observation.grasp_camera_xyz, dtype=float).tolist()
+        )
+    if observation.grasp_metadata:
+        obj.metadata.setdefault("grasp_metadata_history", []).append(observation.grasp_metadata)
 
 
 def _validate_xyz(value: Any) -> np.ndarray:
     xyz = np.asarray(value, dtype=np.float32)
     if xyz.shape != (3,) or not np.all(np.isfinite(xyz)):
         raise ValueError(f"world_xyz must be a finite shape-(3,) vector, got shape {xyz.shape}.")
+    return xyz
+
+
+def _validate_optional_xyz(value: Any) -> np.ndarray | None:
+    if value is None:
+        return None
+    xyz = np.asarray(value, dtype=np.float32)
+    if xyz.shape != (3,) or not np.all(np.isfinite(xyz)):
+        raise ValueError(f"optional xyz must be a finite shape-(3,) vector, got shape {xyz.shape}.")
     return xyz
 
 

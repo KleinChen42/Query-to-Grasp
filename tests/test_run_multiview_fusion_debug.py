@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 import scripts.run_multiview_fusion_debug as multiview
 from src.memory.object_memory_3d import ObjectMemory3D, ObjectObservation3D
@@ -206,6 +207,10 @@ def test_lift_and_add_candidates_updates_memory(monkeypatch, tmp_path) -> None:
         world_xyz=np.array([1.0, 2.0, 3.0], dtype=np.float32),
         num_points=25,
         depth_valid_ratio=0.5,
+        grasp_world_xyz=np.array([0.11, 0.22, 0.33], dtype=np.float32),
+        grasp_camera_xyz=np.array([0.01, 0.02, 0.03], dtype=np.float32),
+        grasp_num_points=21,
+        grasp_metadata={"strategy": "unit_test"},
     )
 
     def fake_lift_box_to_3d(**kwargs):
@@ -241,9 +246,12 @@ def test_lift_and_add_candidates_updates_memory(monkeypatch, tmp_path) -> None:
     assert observations_added == 1
     assert observation_assignments[0]["object_id"] == memory.objects[0].object_id
     assert observation_assignments[0]["created_new_object"] is True
+    assert observation_assignments[0]["has_grasp_world_xyz"] is True
+    assert observation_assignments[0]["grasp_num_points"] == 21
     assert len(memory.objects) == 1
     assert memory.objects[0].top_label == "red cube"
     np.testing.assert_allclose(memory.objects[0].world_xyz, np.array([1.0, 2.0, 3.0], dtype=np.float32))
+    np.testing.assert_allclose(memory.objects[0].grasp_world_xyz, np.array([0.11, 0.22, 0.33], dtype=np.float32))
 
 
 def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
@@ -570,7 +578,84 @@ def test_execute_selected_memory_pick_records_selected_world_target_source() -> 
     assert result["metadata"]["grasp_target_mode"] == "refined"
     assert result["metadata"]["grasp_target_mode_effective"] == "selected_object_world_xyz"
     assert result["metadata"]["refined_grasp_point_available"] is False
+    assert result["metadata"]["semantic_world_xyz"] == [
+        0.009999999776482582,
+        -0.019999999552965164,
+        0.029999999329447746,
+    ]
+    assert result["metadata"]["memory_grasp_world_xyz"] is None
     assert result["metadata"]["selected_object_id"] == selected.object_id
+
+
+def test_execute_selected_memory_pick_uses_memory_grasp_target_in_refined_mode() -> None:
+    selected = ObjectMemory3D().add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.01, -0.02, 0.03], dtype=np.float32),
+            label="red cube",
+            det_score=0.9,
+            fused_2d_score=0.9,
+            view_id="front",
+            num_points=100,
+            depth_valid_ratio=1.0,
+            grasp_world_xyz=np.array([0.04, 0.05, 0.06], dtype=np.float32),
+        )
+    )
+
+    class FakeScene:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def execute_pick(self, target_xyz, executor="placeholder"):
+            self.calls.append((np.asarray(target_xyz, dtype=float).tolist(), executor))
+            return {
+                "success": False,
+                "pick_success": False,
+                "grasp_attempted": True,
+                "task_success": False,
+                "is_grasped": False,
+                "stage": "grasp_not_confirmed",
+                "target_xyz": np.asarray(target_xyz, dtype=float).tolist(),
+                "message": "attempted",
+                "trajectory_summary": {"planned_stages": [], "executed_stages": [], "num_env_steps": 0},
+                "metadata": {"executor": "SimulatedTopDownPickExecutor"},
+            }
+
+    scene = FakeScene()
+    result = multiview.execute_selected_memory_pick(
+        scene=scene,
+        selected=selected,
+        args=argparse.Namespace(pick_executor="sim_topdown", grasp_target_mode="refined"),
+    )
+
+    assert scene.calls == [([0.03999999910593033, 0.05000000074505806, 0.05999999865889549], "sim_topdown")]
+    assert result["metadata"]["target_used_for_pick"] == "memory_grasp_world_xyz"
+    assert result["metadata"]["grasp_target_mode_effective"] == "memory_grasp_world_xyz"
+    assert result["metadata"]["refined_grasp_point_available"] is True
+    assert result["metadata"]["memory_grasp_world_xyz"] == [
+        0.03999999910593033,
+        0.05000000074505806,
+        0.05999999865889549,
+    ]
+
+
+def test_choose_memory_pick_target_semantic_ignores_memory_grasp_point() -> None:
+    selected = ObjectMemory3D().add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.01, -0.02, 0.03], dtype=np.float32),
+            label="red cube",
+            det_score=0.9,
+            fused_2d_score=0.9,
+            view_id="front",
+            num_points=100,
+            depth_valid_ratio=1.0,
+            grasp_world_xyz=np.array([0.04, 0.05, 0.06], dtype=np.float32),
+        )
+    )
+
+    target, source = multiview.choose_memory_pick_target(selected, grasp_target_mode="semantic")
+
+    np.testing.assert_allclose(target, np.array([0.01, -0.02, 0.03], dtype=np.float32))
+    assert source == "selected_object_world_xyz"
 
 
 def test_build_summary_includes_pick_metrics() -> None:
@@ -584,6 +669,7 @@ def test_build_summary_includes_pick_metrics() -> None:
             view_id="front",
             num_points=100,
             depth_valid_ratio=1.0,
+            grasp_world_xyz=np.array([0.04, 0.05, 0.06], dtype=np.float32),
         )
     )
     pick_result = {
@@ -626,3 +712,4 @@ def test_build_summary_includes_pick_metrics() -> None:
     assert summary["is_grasped"] is True
     assert summary["pick_stage"] == "success"
     assert summary["pick_target_source"] == "selected_object_world_xyz"
+    assert summary["selected_grasp_world_xyz"] == pytest.approx([0.04, 0.05, 0.06])

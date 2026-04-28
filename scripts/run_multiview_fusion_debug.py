@@ -796,6 +796,10 @@ def lift_and_add_candidates(
                 num_points=candidate_3d.num_points,
                 depth_valid_ratio=candidate_3d.depth_valid_ratio,
                 point_cloud_path=candidate_3d.point_cloud_path,
+                grasp_world_xyz=candidate_3d.grasp_world_xyz,
+                grasp_camera_xyz=candidate_3d.grasp_camera_xyz,
+                grasp_num_points=candidate_3d.grasp_num_points,
+                grasp_metadata=candidate_3d.grasp_metadata,
                 metadata={
                     "rank": ranked.rank,
                     "box_xyxy": ranked.box_xyxy,
@@ -813,6 +817,8 @@ def lift_and_add_candidates(
                 "view_id": view_id,
                 "object_id": matched_object.object_id,
                 "num_points": int(candidate_3d.num_points),
+                "has_grasp_world_xyz": candidate_3d.grasp_world_xyz is not None,
+                "grasp_num_points": int(candidate_3d.grasp_num_points),
                 **assignment,
             }
         )
@@ -858,6 +864,10 @@ def build_reobserve_stage_snapshot(
         "selected_object_id": None if selected is None else selected.object_id,
         "selection_label": selection_label,
         "selected_top_label": None if selected is None else selected.top_label,
+        "selected_world_xyz": None if selected is None else selected.world_xyz.tolist(),
+        "selected_grasp_world_xyz": (
+            None if selected is None or selected.grasp_world_xyz is None else selected.grasp_world_xyz.tolist()
+        ),
         "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
         "selected_semantic_confidence": 0.0 if selected is None else float(selected.semantic_confidence),
         "selected_geometry_confidence": 0.0 if selected is None else float(selected.geometry_confidence),
@@ -1161,26 +1171,48 @@ def execute_selected_memory_pick(
     if selected is None:
         return _pick_not_attempted("No selected memory object was available for pick execution.")
 
-    target = np.asarray(selected.world_xyz, dtype=np.float32).reshape(-1)
+    target, target_source = choose_memory_pick_target(selected=selected, grasp_target_mode=args.grasp_target_mode)
     if target.shape != (3,) or not np.all(np.isfinite(target)):
         return _pick_not_attempted("Selected memory object had an invalid world-frame target.")
 
     result = scene.execute_pick(target, executor=args.pick_executor)
-    metadata = result.setdefault("metadata", {})
+    metadata = result.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        result["metadata"] = metadata
     metadata.update(
         {
             "target_coordinate_frame": "world",
-            "target_used_for_pick": "selected_object_world_xyz",
+            "target_used_for_pick": target_source,
             "pick_executor_cli": args.pick_executor,
             "grasp_target_mode": args.grasp_target_mode,
-            "grasp_target_mode_effective": "selected_object_world_xyz",
-            "refined_grasp_point_available": False,
+            "grasp_target_mode_effective": target_source,
+            "refined_grasp_point_available": selected.grasp_world_xyz is not None,
+            "semantic_world_xyz": np.asarray(selected.world_xyz, dtype=float).tolist(),
+            "memory_grasp_world_xyz": (
+                None
+                if selected.grasp_world_xyz is None
+                else np.asarray(selected.grasp_world_xyz, dtype=float).tolist()
+            ),
             "selected_object_id": selected.object_id,
             "selected_top_label": selected.top_label,
             "selected_overall_confidence": float(selected.overall_confidence),
         }
     )
     return result
+
+
+def choose_memory_pick_target(
+    selected: MemoryObject3D,
+    grasp_target_mode: str = "semantic",
+) -> tuple[np.ndarray, str]:
+    """Choose a multi-view pick target while preserving semantic target reporting."""
+
+    if grasp_target_mode not in {"semantic", "refined"}:
+        raise ValueError(f"Unknown grasp target mode: {grasp_target_mode}")
+    if grasp_target_mode == "refined" and selected.grasp_world_xyz is not None:
+        return np.asarray(selected.grasp_world_xyz, dtype=np.float32).reshape(-1), "memory_grasp_world_xyz"
+    return np.asarray(selected.world_xyz, dtype=np.float32).reshape(-1), "selected_object_world_xyz"
 
 
 def _pick_not_attempted(message: str) -> dict[str, Any]:
@@ -1227,6 +1259,9 @@ def build_summary(
         "selection_label": selection_label,
         "selected_top_label": None if selected is None else selected.top_label,
         "selected_world_xyz": None if selected is None else selected.world_xyz.tolist(),
+        "selected_grasp_world_xyz": (
+            None if selected is None or selected.grasp_world_xyz is None else selected.grasp_world_xyz.tolist()
+        ),
         "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
         "pick_target_xyz": pick_result.get("target_xyz", []),
         "pick_target_source": pick_metadata.get("target_used_for_pick"),
