@@ -153,12 +153,12 @@ class SimulatedTopDownPickExecutor:
             stage_infos = self._hold_action("close_gripper", goal_xyz=grasp, gripper=-1.0, max_steps=self.close_steps)
             executed_stages.append("close_gripper")
             all_infos.extend(stage_infos)
-            is_grasped = any(_info_bool(info, "is_grasped") for info in stage_infos)
+            is_grasped = any(_info_any_grasped(info) for info in stage_infos)
 
             stage_infos = self._step_to_goal("lift", lift, gripper=-1.0, max_steps=self.lift_steps)
             executed_stages.append("lift")
             all_infos.extend(stage_infos)
-            is_grasped = is_grasped or any(_info_bool(info, "is_grasped") for info in stage_infos)
+            is_grasped = is_grasped or any(_info_any_grasped(info) for info in stage_infos)
             task_success = any(_info_bool(info, "success") for info in all_infos)
         except Exception as exc:
             LOGGER.exception("Simulated top-down pick failed during stage execution.")
@@ -202,6 +202,7 @@ class SimulatedTopDownPickExecutor:
                     "close_gripper": self.close_steps,
                     "lift": self.lift_steps,
                 },
+                "grasp_info_keys": _grasp_info_keys(all_infos),
             },
             metadata={
                 "executor": "SimulatedTopDownPickExecutor",
@@ -388,3 +389,22 @@ def _info_bool(info: dict[str, Any], key: str) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "y"}
     return bool(value)
+
+
+def _info_any_grasped(info: dict[str, Any]) -> bool:
+    """Return true for standard or task-specific ManiSkill grasp flags."""
+
+    return any(_info_bool(info, key) for key in _grasp_info_keys([info]))
+
+
+def _grasp_info_keys(infos: list[dict[str, Any]]) -> list[str]:
+    keys: set[str] = set()
+    for info in infos:
+        if "is_grasped" in info:
+            keys.add("is_grasped")
+        keys.update(
+            key
+            for key in info
+            if key.startswith("is_") and key.endswith("_grasped") and key != "is_grasped"
+        )
+    return sorted(keys)

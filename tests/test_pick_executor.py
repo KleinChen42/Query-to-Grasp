@@ -85,6 +85,42 @@ def test_simulated_topdown_builds_four_dimensional_actions() -> None:
     json.dumps(result)
 
 
+def test_simulated_topdown_accepts_task_specific_grasp_flag() -> None:
+    env = _FakeDeltaPosEnv(grasp_info_key="is_cubeA_grasped")
+    executor = SimulatedTopDownPickExecutor(
+        env=env,
+        move_above_steps=2,
+        descend_steps=2,
+        close_steps=2,
+        lift_steps=2,
+    )
+
+    result = executor.execute(np.array([0.0, 0.0, 0.05], dtype=np.float32))
+
+    assert result["pick_success"] is True
+    assert result["is_grasped"] is True
+    assert result["stage"] == "success"
+    assert result["trajectory_summary"]["grasp_info_keys"] == ["is_cubeA_grasped"]
+
+
+def test_simulated_topdown_ignores_unrelated_info_flags() -> None:
+    env = _FakeDeltaPosEnv(grasp_info_key=None)
+    executor = SimulatedTopDownPickExecutor(
+        env=env,
+        move_above_steps=2,
+        descend_steps=2,
+        close_steps=2,
+        lift_steps=2,
+    )
+
+    result = executor.execute(np.array([0.0, 0.0, 0.05], dtype=np.float32))
+
+    assert result["pick_success"] is False
+    assert result["is_grasped"] is False
+    assert result["stage"] == "grasp_not_confirmed"
+    assert result["trajectory_summary"]["grasp_info_keys"] == []
+
+
 class _FakeActionSpace:
     shape = (4,)
 
@@ -103,10 +139,11 @@ class _FakeDeltaPosEnv:
     action_space = _FakeActionSpace()
     control_mode = "pd_ee_delta_pos"
 
-    def __init__(self) -> None:
+    def __init__(self, grasp_info_key: str | None = "is_grasped") -> None:
         self.unwrapped = self
         self.agent = _FakeAgent()
         self.actions: list[np.ndarray] = []
+        self.grasp_info_key = grasp_info_key
         self.num_steps = 0
 
     def step(self, action: np.ndarray):
@@ -116,8 +153,11 @@ class _FakeDeltaPosEnv:
         current = self.agent.tcp.pose.p.reshape(3)
         self.agent.tcp.pose.p = (current + action[:3] * 0.04).reshape(1, 3).astype(np.float32)
         info = {
-            "is_grasped": self.num_steps >= 5 and action[3] < 0,
             "success": False,
             "elapsed_steps": self.num_steps,
+            "is_obj_placed": True,
+            "is_robot_static": True,
         }
+        if self.grasp_info_key is not None:
+            info[self.grasp_info_key] = self.num_steps >= 5 and action[3] < 0
         return {}, 0.0, False, False, info
