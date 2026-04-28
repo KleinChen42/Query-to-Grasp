@@ -1214,6 +1214,20 @@ separately fused grasp point. The remaining paper limitation is breadth:
 results are still compact-query `PickCube-v1` simulated control, not robust
 multi-task manipulation or real-robot execution.
 
+Latest broader-task simulated pick smoke:
+
+| benchmark | env | query | runs | failed | 3D target | grasp attempted | pick success | task success | notes |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Single-view no CLIP | `StackCube-v1` | `red cube` | 5 | 0 | 1.0000 | 1.0000 | 1.0000 | 0.0000 | pick-only, not stack placement |
+| Single-view with CLIP | `StackCube-v1` | `red cube` | 5 | 0 | 1.0000 | 1.0000 | 1.0000 | 0.0000 | pick-only, not stack placement |
+
+This smoke validates the same query-driven RGB-D to HF detection to refined
+grasp target to `sim_topdown` control chain on a second ManiSkill task that
+uses a task-specific grasp flag (`is_cubeA_grasped`). It should be reported as
+broader task compatibility for picking, not as a completed stacking controller:
+raw ManiSkill task success remains `0.0000` because the current executor lifts
+the cube but does not place it on cubeB.
+
 Publication-level expectation:
 
 - Current retrieval/re-observation version: arXiv, workshop, or diagnostic

@@ -792,7 +792,9 @@ Paper assets:
    pick metrics with target-source diagnostics.
 15. Fused-memory grasp point ablation: compact multi-view and closed-loop
    simulated grasp success using `memory_grasp_world_xyz`.
-16. Limitation box: placeholder pick, low detector multiplicity, and no real
+16. Broader-task simulated pick smoke: `StackCube-v1` query-driven `red cube`
+   pick-only validation with no-CLIP and with-CLIP seeds `0..4`.
+17. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
 ## Limitations
@@ -801,7 +803,9 @@ Be explicit:
 
 - Real-robot control is not implemented.
 - Low-level ManiSkill simulated control is opt-in and currently limited to a
-  simple top-down executor for `PickCube-v1`.
+  simple top-down pick executor. It is strong on `PickCube-v1` compact queries
+  and has a `StackCube-v1` pick-only smoke, but it is not yet a general task
+  controller.
 - Therefore, the current paper may report an initial simulated grasp baseline,
   but should not claim robust end-to-end manipulation or real grasp success.
 - Web demo is not implemented.
@@ -824,11 +828,17 @@ Be explicit:
 - The accepted fused-memory grasp point path also reaches
   `pick_success_rate = 1.0000` for compact multi-view and closed-loop
   `PickCube-v1`, but this remains simulated single-task evidence.
+- The `StackCube-v1` smoke reaches `pick_success_rate = 1.0000` for query-driven
+  `red cube` seeds `0..4` in no-CLIP and with-CLIP modes, but
+  `task_success_rate` remains `0.0000` because the controller only picks/lifts
+  cubeA and does not perform stack placement.
 - The resolved simulated-grasp failures were dominated by detector boxes whose
   original upper region missed the graspable object support; the semantic target
   center is preserved while the opt-in refined grasp point can use a downward
   crop fallback.
-- Experiments are small and use `PickCube-v1` plus virtual camera poses.
+- Experiments are still small: the main benchmark uses `PickCube-v1` plus
+  virtual camera poses, with only an initial `StackCube-v1` pick-only
+  compatibility smoke.
 - CLIP did not change top-1 in current benchmarks.
 - Query parser supports simple attributes and conservative relations, not full
   language reasoning.
@@ -873,15 +883,20 @@ accepted fused-memory grasp path then replaces semantic-center pick targets
 with `memory_grasp_world_xyz` for refined mode and improves compact multi-view
 and closed-loop pick success from `0.0000` to `1.0000`.
 
+The first broader-task smoke on `StackCube-v1` also runs the query-driven
+single-view chain for `red cube` seeds `0..4`. Both no-CLIP and with-CLIP modes
+complete `5/5` runs with `pick_success_rate = 1.0000` and
+`task_success_rate = 0.0000`, validating task-specific grasp detection
+(`is_cubeA_grasped`) while keeping stack placement out of scope.
+
 ## Next Coding Milestone
 
-Broaden the simulated grasp baseline without changing detector, fusion, or
-controller timing:
+Turn the broader-task smoke into a real multi-task section without changing
+detector, fusion, or controller timing:
 
-1. Refresh paper reports and the figure pack around the accepted fused-memory
-   grasp result.
-2. Extend simulated grasp validation beyond `PickCube-v1` before claiming
-   robust manipulation.
+1. Add a small report/table path for cross-task pick-only results.
+2. Run one broader validation set beyond `PickCube-v1` before claiming robust
+   manipulation.
 3. Keep semantic centers for retrieval/reporting and grasp points for execution
    targets as separate diagnostics.
 4. Keep detector backends, fusion weights, training, web demo, controller
