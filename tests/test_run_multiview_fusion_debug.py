@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -507,3 +508,121 @@ def test_build_post_selection_continuity_trace_blocks_when_base_selected_absorbe
     assert trace["reason"] == "base_selected_absorbed_extra_view"
     assert trace["base_selected_absorbed_extra_view"] is True
     assert trace["selected_object_id_before"] == "obj_0000"
+
+
+def test_execute_selected_memory_pick_returns_not_attempted_without_selection() -> None:
+    class FakeScene:
+        def execute_pick(self, target_xyz, executor="placeholder"):
+            raise AssertionError("execute_pick should not be called without a selected object")
+
+    result = multiview.execute_selected_memory_pick(
+        scene=FakeScene(),
+        selected=None,
+        args=argparse.Namespace(pick_executor="placeholder", grasp_target_mode="semantic"),
+    )
+
+    assert result["grasp_attempted"] is False
+    assert result["stage"] == "not_attempted"
+    assert result["target_xyz"] == []
+
+
+def test_execute_selected_memory_pick_records_selected_world_target_source() -> None:
+    selected = ObjectMemory3D().add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.01, -0.02, 0.03], dtype=np.float32),
+            label="red cube",
+            det_score=0.9,
+            fused_2d_score=0.9,
+            view_id="front",
+            num_points=100,
+            depth_valid_ratio=1.0,
+        )
+    )
+
+    class FakeScene:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def execute_pick(self, target_xyz, executor="placeholder"):
+            self.calls.append((np.asarray(target_xyz, dtype=float).tolist(), executor))
+            return {
+                "success": False,
+                "pick_success": False,
+                "grasp_attempted": False,
+                "task_success": None,
+                "is_grasped": None,
+                "stage": "placeholder_not_executed",
+                "target_xyz": np.asarray(target_xyz, dtype=float).tolist(),
+                "message": "placeholder",
+                "trajectory_summary": {"planned_stages": [], "executed_stages": [], "num_env_steps": 0},
+                "metadata": {"executor": "SafePlaceholderPickExecutor"},
+            }
+
+    scene = FakeScene()
+    result = multiview.execute_selected_memory_pick(
+        scene=scene,
+        selected=selected,
+        args=argparse.Namespace(pick_executor="placeholder", grasp_target_mode="refined"),
+    )
+
+    assert scene.calls == [([0.009999999776482582, -0.019999999552965164, 0.029999999329447746], "placeholder")]
+    assert result["metadata"]["target_used_for_pick"] == "selected_object_world_xyz"
+    assert result["metadata"]["grasp_target_mode"] == "refined"
+    assert result["metadata"]["grasp_target_mode_effective"] == "selected_object_world_xyz"
+    assert result["metadata"]["refined_grasp_point_available"] is False
+    assert result["metadata"]["selected_object_id"] == selected.object_id
+
+
+def test_build_summary_includes_pick_metrics() -> None:
+    memory = ObjectMemory3D()
+    selected = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.01, 0.02, 0.03], dtype=np.float32),
+            label="cube",
+            det_score=0.9,
+            fused_2d_score=0.9,
+            view_id="front",
+            num_points=100,
+            depth_valid_ratio=1.0,
+        )
+    )
+    pick_result = {
+        "success": True,
+        "pick_success": True,
+        "grasp_attempted": True,
+        "task_success": False,
+        "is_grasped": True,
+        "stage": "success",
+        "target_xyz": [0.01, 0.02, 0.03],
+        "message": "ok",
+        "metadata": {"target_used_for_pick": "selected_object_world_xyz"},
+    }
+
+    summary = multiview.build_summary(
+        args=argparse.Namespace(
+            query="cube",
+            skip_clip=True,
+            detector_backend="mock",
+            view_preset="tabletop_3",
+            camera_name="base_camera",
+            pick_executor="sim_topdown",
+            grasp_target_mode="semantic",
+        ),
+        parsed_query={"normalized_prompt": "cube"},
+        view_ids=["front"],
+        memory=memory,
+        selected=selected,
+        selection_label="cube",
+        total_observations_added=1,
+        runtime_seconds=1.0,
+        run_dir=Path("outputs/test"),
+        pick_result=pick_result,
+    )
+
+    assert summary["pick_executor"] == "sim_topdown"
+    assert summary["grasp_attempted"] is True
+    assert summary["pick_success"] is True
+    assert summary["task_success"] is False
+    assert summary["is_grasped"] is True
+    assert summary["pick_stage"] == "success"
+    assert summary["pick_target_source"] == "selected_object_world_xyz"

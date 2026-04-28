@@ -42,6 +42,22 @@ def test_build_child_command_forwards_view_preset(tmp_path: Path) -> None:
     assert command[command.index("--view-preset") + 1] == "tabletop_3"
 
 
+def test_build_child_command_forwards_pick_flags(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+    args.control_mode = "pd_ee_delta_pos"
+    args.pick_executor = "sim_topdown"
+    args.grasp_target_mode = "refined"
+
+    command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
+
+    assert "--control-mode" in command
+    assert command[command.index("--control-mode") + 1] == "pd_ee_delta_pos"
+    assert "--pick-executor" in command
+    assert command[command.index("--pick-executor") + 1] == "sim_topdown"
+    assert "--grasp-target-mode" in command
+    assert command[command.index("--grasp-target-mode") + 1] == "refined"
+
+
 def test_build_child_command_forwards_closed_loop_reobserve(tmp_path: Path) -> None:
     args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
     args.enable_closed_loop_reobserve = True
@@ -114,6 +130,12 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["closed_loop_post_selection_continuity_eligible"] is False
     assert row["closed_loop_post_selection_continuity_applied"] is False
     assert row["closed_loop_post_selection_continuity_reason"] is None
+    assert row["grasp_attempted"] is False
+    assert row["pick_success"] is False
+    assert row["task_success"] is False
+    assert row["is_grasped"] is False
+    assert row["pick_stage"] == "not_attempted"
+    assert row["pick_target_source"] is None
 
 
 def test_aggregate_rows_by_query() -> None:
@@ -158,6 +180,11 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_delta_selected_overall_confidence": 0.2,
             "closed_loop_delta_selected_num_views": 1,
             "closed_loop_delta_selected_num_observations": 1,
+            "grasp_attempted": True,
+            "pick_success": True,
+            "task_success": False,
+            "is_grasped": True,
+            "pick_stage": "success",
             "runtime_seconds": 10.0,
             "run_failed": False,
         },
@@ -201,6 +228,11 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_delta_selected_overall_confidence": 0.0,
             "closed_loop_delta_selected_num_views": 0,
             "closed_loop_delta_selected_num_observations": 0,
+            "grasp_attempted": False,
+            "pick_success": False,
+            "task_success": False,
+            "is_grasped": False,
+            "pick_stage": "run_failed",
             "runtime_seconds": 4.0,
             "run_failed": True,
         },
@@ -244,6 +276,11 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_delta_selected_overall_confidence": -0.1,
             "closed_loop_delta_selected_num_views": 0,
             "closed_loop_delta_selected_num_observations": 0,
+            "grasp_attempted": True,
+            "pick_success": False,
+            "task_success": False,
+            "is_grasped": False,
+            "pick_stage": "grasp_not_confirmed",
             "runtime_seconds": 12.0,
             "run_failed": False,
         },
@@ -290,6 +327,15 @@ def test_aggregate_rows_by_query() -> None:
         "kept_preferred_object_within_margin": 1,
         "none": 1,
     }
+    assert aggregate["grasp_attempted_rate"] == 2 / 3
+    assert aggregate["pick_success_rate"] == 1 / 3
+    assert aggregate["task_success_rate"] == 0.0
+    assert aggregate["is_grasped_rate"] == 1 / 3
+    assert aggregate["pick_stage_counts"] == {
+        "grasp_not_confirmed": 1,
+        "run_failed": 1,
+        "success": 1,
+    }
     assert aggregate["mean_selected_overall_confidence"] == (0.6 + 0.0 + 0.8) / 3
     assert per_query["red cube"]["total_runs"] == 2
     assert per_query["red cube"]["fraction_run_failed"] == 0.5
@@ -314,6 +360,8 @@ def test_failed_row_preserves_requested_benchmark_context(tmp_path: Path) -> Non
     assert row["skip_clip"] is True
     assert row["view_preset"] == "tabletop_3"
     assert row["camera_name"] == "base_camera"
+    assert row["pick_stage"] == "run_failed"
+    assert row["grasp_attempted"] is False
 
 
 def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) -> None:
@@ -373,6 +421,13 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "closed_loop_post_selection_continuity_eligible": True,
             "closed_loop_post_selection_continuity_applied": True,
             "closed_loop_post_selection_continuity_reason": "kept_preferred_object_within_margin",
+            "grasp_attempted": True,
+            "pick_success": True,
+            "task_success": False,
+            "is_grasped": True,
+            "pick_stage": "success",
+            "pick_target_xyz": [0.01, 0.02, 0.03],
+            "pick_target_source": "selected_object_world_xyz",
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
@@ -403,6 +458,12 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "--skip-clip",
             "--depth-scale",
             "1000",
+            "--control-mode",
+            "pd_ee_delta_pos",
+            "--pick-executor",
+            "sim_topdown",
+            "--grasp-target-mode",
+            "refined",
             "--enable-closed-loop-reobserve",
             "--enable-selected-object-continuity",
             "--selected-object-continuity-distance-scale",
@@ -430,6 +491,9 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["selected_object_continuity_distance_scale"] == 1.25
     assert summary["closed_loop_post_selection_continuity_enabled"] is True
     assert summary["post_reobserve_selection_margin"] == 0.04
+    assert summary["control_mode"] == "pd_ee_delta_pos"
+    assert summary["pick_executor"] == "sim_topdown"
+    assert summary["grasp_target_mode"] == "refined"
     assert summary["aggregate_metrics"]["fraction_with_selected_object"] == 1.0
     assert summary["aggregate_metrics"]["reobserve_trigger_rate"] == 0.0
     assert summary["aggregate_metrics"]["initial_reobserve_trigger_rate"] == 1.0
@@ -450,6 +514,11 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["aggregate_metrics"]["mean_closed_loop_before_selected_delta_num_views"] == 1.0
     assert summary["aggregate_metrics"]["mean_closed_loop_extra_view_absorber_count"] == 1.0
     assert summary["aggregate_metrics"]["reobserve_reason_counts"] == {"confident_enough": 4}
+    assert summary["aggregate_metrics"]["grasp_attempted_rate"] == 1.0
+    assert summary["aggregate_metrics"]["pick_success_rate"] == 1.0
+    assert summary["aggregate_metrics"]["task_success_rate"] == 0.0
+    assert summary["aggregate_metrics"]["is_grasped_rate"] == 1.0
+    assert summary["aggregate_metrics"]["pick_stage_counts"] == {"success": 4}
     assert summary["aggregate_metrics"]["mean_num_memory_objects"] == 2.0
     assert "selected_overall_confidence" in csv_header
     assert "should_reobserve" in csv_header
@@ -460,7 +529,13 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert "closed_loop_selected_object_continuity_enabled" in csv_header
     assert "closed_loop_preferred_merge_rate" in csv_header
     assert "closed_loop_post_selection_continuity_applied" in csv_header
+    assert "grasp_attempted" in csv_header
+    assert "pick_success" in csv_header
+    assert "pick_target_source" in csv_header
     assert all("--skip-clip" in command for command in seen_commands)
+    assert all("--control-mode" in command for command in seen_commands)
+    assert all("--pick-executor" in command for command in seen_commands)
+    assert all("--grasp-target-mode" in command for command in seen_commands)
     assert all("--enable-closed-loop-reobserve" in command for command in seen_commands)
     assert all("--enable-selected-object-continuity" in command for command in seen_commands)
     assert all("--selected-object-continuity-distance-scale" in command for command in seen_commands)
@@ -521,6 +596,9 @@ def _args(
         {
             "env_id": "PickCube-v1",
             "obs_mode": "rgbd",
+            "control_mode": None,
+            "pick_executor": "placeholder",
+            "grasp_target_mode": "semantic",
             "detector_backend": "mock",
             "mock_box_position": "center",
             "depth_scale": 1000.0,

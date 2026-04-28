@@ -71,6 +71,13 @@ CSV_COLUMNS = [
     "closed_loop_post_selection_continuity_eligible",
     "closed_loop_post_selection_continuity_applied",
     "closed_loop_post_selection_continuity_reason",
+    "grasp_attempted",
+    "pick_success",
+    "task_success",
+    "is_grasped",
+    "pick_stage",
+    "pick_target_xyz",
+    "pick_target_source",
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
@@ -103,6 +110,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--depth-scale", type=float, default=1000.0)
     parser.add_argument("--env-id", default="PickCube-v1")
     parser.add_argument("--obs-mode", default="rgbd")
+    parser.add_argument("--control-mode", default=None)
+    parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown"])
+    parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
     parser.add_argument("--merge-distance", type=float, default=0.08)
     parser.add_argument("--enable-closed-loop-reobserve", action="store_true")
     parser.add_argument("--closed-loop-max-extra-views", type=int, default=1)
@@ -117,6 +127,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.pick_executor == "sim_topdown" and args.control_mode is None:
+        args.control_mode = "pd_ee_delta_pos"
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
 
     queries = load_queries(args.queries_file, args.queries)
@@ -152,6 +164,9 @@ def main() -> None:
         "view_ids": [view_id for view_id in args.view_ids if view_id],
         "camera_name": args.camera_name,
         "view_preset": args.view_preset,
+        "control_mode": args.control_mode,
+        "pick_executor": args.pick_executor,
+        "grasp_target_mode": args.grasp_target_mode,
         "detector_backend": args.detector_backend,
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),
@@ -253,6 +268,10 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         args.env_id,
         "--obs-mode",
         args.obs_mode,
+        "--pick-executor",
+        args.pick_executor,
+        "--grasp-target-mode",
+        args.grasp_target_mode,
         "--detector-backend",
         args.detector_backend,
         "--mock-box-position",
@@ -264,6 +283,8 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         "--output-dir",
         str(output_dir),
     ]
+    if args.control_mode:
+        command.extend(["--control-mode", args.control_mode])
     if args.camera_name:
         command.extend(["--camera-name", args.camera_name])
     if args.view_preset and args.view_preset != "none":
@@ -396,6 +417,13 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "closed_loop_post_selection_continuity_reason": _optional_str(
             summary.get("closed_loop_post_selection_continuity_reason")
         ),
+        "grasp_attempted": _as_bool(summary.get("grasp_attempted")),
+        "pick_success": _as_bool(summary.get("pick_success")),
+        "task_success": _as_bool(summary.get("task_success")),
+        "is_grasped": _as_bool(summary.get("is_grasped")),
+        "pick_stage": _optional_str(summary.get("pick_stage")) or "not_attempted",
+        "pick_target_xyz": _join_sequence(summary.get("pick_target_xyz")),
+        "pick_target_source": _optional_str(summary.get("pick_target_source")),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
@@ -448,6 +476,11 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "initial_reobserve_reason_counts": {},
             "final_reobserve_reason_counts": {},
             "closed_loop_post_selection_continuity_reason_counts": {},
+            "grasp_attempted_rate": 0.0,
+            "pick_success_rate": 0.0,
+            "task_success_rate": 0.0,
+            "is_grasped_rate": 0.0,
+            "pick_stage_counts": {},
             "mean_selected_overall_confidence": 0.0,
             "mean_runtime_seconds": 0.0,
         }
@@ -543,6 +576,11 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             row.get("closed_loop_post_selection_continuity_reason") or "none"
             for row in rows
         ),
+        "grasp_attempted_rate": _mean(1 if _as_bool(row.get("grasp_attempted")) else 0 for row in rows),
+        "pick_success_rate": _mean(1 if _as_bool(row.get("pick_success")) else 0 for row in rows),
+        "task_success_rate": _mean(1 if _as_bool(row.get("task_success")) else 0 for row in rows),
+        "is_grasped_rate": _mean(1 if _as_bool(row.get("is_grasped")) else 0 for row in rows),
+        "pick_stage_counts": count_values(row.get("pick_stage") or "unknown" for row in rows),
         "mean_selected_overall_confidence": _mean(_as_float(row.get("selected_overall_confidence"), 0.0) for row in rows),
         "mean_runtime_seconds": _mean(_as_float(row.get("runtime_seconds"), 0.0) for row in rows),
     }
@@ -617,6 +655,13 @@ def failed_row(
         "closed_loop_post_selection_continuity_eligible": False,
         "closed_loop_post_selection_continuity_applied": False,
         "closed_loop_post_selection_continuity_reason": None,
+        "grasp_attempted": False,
+        "pick_success": False,
+        "task_success": False,
+        "is_grasped": False,
+        "pick_stage": "run_failed",
+        "pick_target_xyz": "",
+        "pick_target_source": None,
         "runtime_seconds": 0.0,
         "detector_backend": "" if args is None else str(args.detector_backend),
         "skip_clip": False if args is None else bool(args.skip_clip),
@@ -663,6 +708,7 @@ def print_benchmark_summary(benchmark_summary: dict[str, Any], output_dir: Path)
     print(f"  Objects/run:   {metrics['mean_num_memory_objects']:.3f}")
     print(f"  Confidence:    {metrics['mean_selected_overall_confidence']:.3f}")
     print(f"  Reobserve:     {metrics['reobserve_trigger_rate']:.3f}")
+    print(f"  Pick success:  {metrics.get('pick_success_rate', 0.0):.3f}")
     print(f"  Runtime:       {metrics['mean_runtime_seconds']:.3f}s")
     print(f"  Artifacts:     {output_dir}")
 
@@ -696,6 +742,14 @@ def _optional_str(value: Any) -> str | None:
         return None
     text = str(value)
     return text if text else None
+
+
+def _join_sequence(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return " ".join(str(item) for item in value)
+    return str(value)
 
 
 def _mean(values: Any) -> float:

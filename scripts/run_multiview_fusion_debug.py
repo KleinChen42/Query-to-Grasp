@@ -11,6 +11,8 @@ import sys
 import time
 from typing import Any, Sequence
 
+import numpy as np
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -102,6 +104,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--env-id", default="PickCube-v1", help="ManiSkill environment id.")
     parser.add_argument("--obs-mode", default="rgbd", help="ManiSkill observation mode.")
     parser.add_argument("--control-mode", default=None, help="Optional ManiSkill control mode.")
+    parser.add_argument(
+        "--pick-executor",
+        default="placeholder",
+        choices=["placeholder", "sim_topdown"],
+        help="Optional pick executor for the final selected fused object.",
+    )
+    parser.add_argument(
+        "--grasp-target-mode",
+        default="semantic",
+        choices=["semantic", "refined"],
+        help=(
+            "Target mode for pick execution. Multi-view currently uses the selected fused "
+            "object world_xyz for both modes and records that source explicitly."
+        ),
+    )
     parser.add_argument("--camera-name", default=None, help="Camera key to extract or recapture for preset views.")
     parser.add_argument("--seed", type=int, default=0, help="Environment reset seed.")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs") / "multiview_fusion_debug")
@@ -184,6 +201,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.pick_executor == "sim_topdown" and args.control_mode is None:
+        args.control_mode = "pd_ee_delta_pos"
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
     start_time = time.perf_counter()
 
@@ -405,6 +424,10 @@ def main() -> None:
         reobserve_decision_path = run_dir / "reobserve_decision.json"
         write_json(final_decision.to_json_dict(), reobserve_decision_path)
 
+        pick_result = execute_selected_memory_pick(scene=scene, selected=selected, args=args)
+        pick_result_path = run_dir / "pick_result.json"
+        write_json(pick_result, pick_result_path)
+
         summary = build_summary(
             args=args,
             parsed_query=parsed_query,
@@ -415,10 +438,12 @@ def main() -> None:
             total_observations_added=total_observations_added,
             runtime_seconds=time.perf_counter() - start_time,
             run_dir=run_dir,
+            pick_result=pick_result,
         )
         summary["selection_trace_json"] = str(selection_trace_json)
         summary["selection_trace_md"] = str(selection_trace_md)
         summary["reobserve_decision_json"] = str(reobserve_decision_path)
+        summary["pick_result_json"] = str(pick_result_path)
         summary["should_reobserve"] = bool(final_decision.should_reobserve)
         summary["reobserve_reason"] = final_decision.reason
         summary["initial_should_reobserve"] = bool(initial_decision.should_reobserve)
@@ -1126,6 +1151,53 @@ def write_closed_loop_reobserve_artifacts(
     write_json(report, run_dir / "closed_loop_reobserve.json")
 
 
+def execute_selected_memory_pick(
+    scene: ManiSkillScene,
+    selected: MemoryObject3D | None,
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    """Execute the requested pick mode against the final selected memory object."""
+
+    if selected is None:
+        return _pick_not_attempted("No selected memory object was available for pick execution.")
+
+    target = np.asarray(selected.world_xyz, dtype=np.float32).reshape(-1)
+    if target.shape != (3,) or not np.all(np.isfinite(target)):
+        return _pick_not_attempted("Selected memory object had an invalid world-frame target.")
+
+    result = scene.execute_pick(target, executor=args.pick_executor)
+    metadata = result.setdefault("metadata", {})
+    metadata.update(
+        {
+            "target_coordinate_frame": "world",
+            "target_used_for_pick": "selected_object_world_xyz",
+            "pick_executor_cli": args.pick_executor,
+            "grasp_target_mode": args.grasp_target_mode,
+            "grasp_target_mode_effective": "selected_object_world_xyz",
+            "refined_grasp_point_available": False,
+            "selected_object_id": selected.object_id,
+            "selected_top_label": selected.top_label,
+            "selected_overall_confidence": float(selected.overall_confidence),
+        }
+    )
+    return result
+
+
+def _pick_not_attempted(message: str) -> dict[str, Any]:
+    return {
+        "success": False,
+        "pick_success": False,
+        "grasp_attempted": False,
+        "task_success": None,
+        "is_grasped": None,
+        "stage": "not_attempted",
+        "target_xyz": [],
+        "message": message,
+        "trajectory_summary": {"planned_stages": [], "executed_stages": [], "num_env_steps": 0},
+        "metadata": {"executor": None},
+    }
+
+
 def build_summary(
     args: argparse.Namespace,
     parsed_query: dict[str, Any],
@@ -1136,12 +1208,17 @@ def build_summary(
     total_observations_added: int,
     runtime_seconds: float,
     run_dir: Path,
+    pick_result: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a compact run summary."""
 
+    pick_result = pick_result or _pick_not_attempted("Pick execution was not requested.")
+    pick_metadata = pick_result.get("metadata") if isinstance(pick_result.get("metadata"), dict) else {}
     return {
         "query": args.query,
         "normalized_prompt": parsed_query["normalized_prompt"],
+        "pick_executor": getattr(args, "pick_executor", "placeholder"),
+        "grasp_target_mode": getattr(args, "grasp_target_mode", "semantic"),
         "view_ids": view_ids,
         "num_views": len(view_ids),
         "num_memory_objects": len(memory.objects),
@@ -1151,6 +1228,15 @@ def build_summary(
         "selected_top_label": None if selected is None else selected.top_label,
         "selected_world_xyz": None if selected is None else selected.world_xyz.tolist(),
         "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
+        "pick_target_xyz": pick_result.get("target_xyz", []),
+        "pick_target_source": pick_metadata.get("target_used_for_pick"),
+        "target_used_for_pick": pick_metadata.get("target_used_for_pick"),
+        "grasp_attempted": bool(pick_result.get("grasp_attempted", False)),
+        "pick_success": bool(pick_result.get("pick_success", pick_result.get("success", False))),
+        "task_success": pick_result.get("task_success"),
+        "is_grasped": pick_result.get("is_grasped"),
+        "pick_stage": pick_result.get("stage"),
+        "pick_message": pick_result.get("message"),
         "runtime_seconds": float(runtime_seconds),
         "skip_clip": bool(args.skip_clip),
         "detector_backend": args.detector_backend,
@@ -1172,6 +1258,8 @@ def print_summary(summary: dict[str, Any]) -> None:
     print(f"  Selected:       {summary['selected_object_id']}")
     print(f"  Confidence:     {summary['selected_overall_confidence']:.3f}")
     print(f"  Reobserve:      {summary.get('should_reobserve')} ({summary.get('reobserve_reason')})")
+    print(f"  Pick executor:  {summary.get('pick_executor', 'placeholder')}")
+    print(f"  Pick success:   {summary.get('pick_success', False)} ({summary.get('pick_stage')})")
     print(f"  Runtime:        {summary['runtime_seconds']:.3f}s")
     print(f"  Artifacts:      {summary['artifacts']}")
 
