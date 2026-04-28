@@ -1132,40 +1132,41 @@ PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
 8. Real robot control is still intentionally absent; simulated pick success and
    ManiSkill task success must be reported separately from any real-robot claim.
 9. The opt-in simulated grasp executor is now connected. The first broad-query
-   compact baseline was low, but the accepted geometry-only refined grasp target
-   improves compact success from `0.1000` to `0.3500`; remaining failures are
-   still dominated by lateral target error rather than TCP tracking.
+   compact baseline was low, but the accepted shifted-crop refined grasp target
+   improves compact success from `0.1000` to `1.0000`; the current compact
+   simulated-grasp bottleneck is no longer target height or lateral point
+   selection for `PickCube-v1`.
 
 ## Next Recommended Milestone
 
 Improve the new simulated grasp baseline without destabilizing the retrieval
 stack:
 
-1. Add a component-aware grasp-point refinement for broad detections whose
-   elevated workspace points still span multiple object-like clusters.
-2. Validate it first on targeted compact `cube`, `container`, `object`, and
-   `block` cases before touching detector, fusion, or re-observation logic.
-3. If it improves lateral pose, rerun compact no-CLIP and with-CLIP simulated
-   grasp benchmarks and compare against the accepted refined target baseline.
-4. Then run a grasp-success ablation comparing exact single-view, compact
+1. Run a grasp-success ablation comparing exact single-view, compact
    single-view, and later multi-view/re-observation target sources.
-5. Keep detector backends, fusion weights, training, web demo, and real robot
+2. Extend validation beyond `PickCube-v1` before claiming robust manipulation.
+3. Keep detector backends, fusion weights, training, web demo, and real robot
    deployment out of scope for this grasp-baseline phase.
 
-Latest accepted simulated grasp refinement:
+Latest accepted simulated grasp refinements:
 
 | benchmark | runs | failed | pick success | mean XY error | far-XY rate | high-Z rate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Exact red cube refined sim top-down | 3 | 0 | 1.0000 | 0.0049 | 0.0000 | 0.0000 |
 | Compact no CLIP refined sim top-down | 20 | 0 | 0.3500 | 0.1005 | 0.6500 | 0.0000 |
 | Compact with CLIP refined sim top-down | 20 | 0 | 0.3500 | 0.1005 | 0.6500 | 0.0000 |
+| Compact no CLIP shifted-crop refined sim top-down | 20 | 0 | 1.0000 | 0.0065 | 0.0000 | 0.0000 |
+| Compact with CLIP shifted-crop refined sim top-down | 20 | 0 | 1.0000 | 0.0065 | 0.0000 | 0.0000 |
 
 Compared with the previous compact refined baseline, mean XY error improved
 from `0.1239 m` to `0.1005 m`, far-XY rate improved from `0.9000` to `0.6500`,
-and high-Z rate stayed at `0.0000`. The remaining failure rows have large
-target-to-oracle XY error while the final TCP remains close to the requested
-target, so the next experiment should focus on choosing a better object-like
-component inside broad detections rather than retuning controller timing.
+and high-Z rate stayed at `0.0000`. The shifted-crop fallback then reduced mean
+XY error to `0.0065 m`, far-XY rate to `0.0000`, and compact pick success to
+`1.0000` for both no-CLIP and with-CLIP compact runs. This is strong evidence
+that broad single-view failures were caused by detector boxes whose upper region
+missed the graspable object support; the semantic center remains unchanged, but
+the refined grasp target can use a conservative downward crop when the original
+box has no elevated object-like support.
 
 Publication-level expectation:
 
@@ -1196,6 +1197,7 @@ Candidate paper framing:
 > actions; its compact baseline shows that downstream success now depends on
 > producing graspable target points, not only semantically correct object
 > centers. The accepted geometry-only refined target reduces the broad-query
-> high-Z failure and lifts compact simulated pick success to `0.3500`, but the
-> remaining failures are still lateral target-selection errors inside broad
-> detections; the next grasp milestone is component-aware grasp-point selection.
+> high-Z failure, and the shifted-crop fallback lifts compact simulated pick
+> success to `1.0000` for `PickCube-v1` compact queries. The next grasp milestone
+> is no longer point refinement inside this task, but ablation and broader-task
+> validation before making stronger manipulation claims.
