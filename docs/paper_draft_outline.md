@@ -792,9 +792,11 @@ Paper assets:
    pick metrics with target-source diagnostics.
 15. Fused-memory grasp point ablation: compact multi-view and closed-loop
    simulated grasp success using `memory_grasp_world_xyz`.
-16. Broader-task simulated pick smoke: `StackCube-v1` query-driven `red cube`
-   pick-only validation with no-CLIP and with-CLIP seeds `0..4`.
-17. Limitation box: placeholder pick, low detector multiplicity, and no real
+16. Full ambiguity simulated grasp validation: 55-run `PickCube-v1`
+   fused-memory tabletop_3 and closed-loop pick-success results.
+17. Broader-task simulated pick validation: `StackCube-v1` query-driven
+   `red cube` single-view and tabletop_3 pick-only seeds `0..19`.
+18. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
 ## Limitations
@@ -826,19 +828,20 @@ Be explicit:
   broad-query success from `0.1000` to `1.0000` on `PickCube-v1`, but broader
   task coverage is still needed before claiming robust manipulation.
 - The accepted fused-memory grasp point path also reaches
-  `pick_success_rate = 1.0000` for compact multi-view and closed-loop
-  `PickCube-v1`, but this remains simulated single-task evidence.
-- The `StackCube-v1` smoke reaches `pick_success_rate = 1.0000` for query-driven
-  `red cube` seeds `0..4` in no-CLIP and with-CLIP modes, but
-  `task_success_rate` remains `0.0000` because the controller only picks/lifts
-  cubeA and does not perform stack placement.
+  `pick_success_rate = 1.0000` for compact and full-ambiguity multi-view and
+  closed-loop `PickCube-v1`, but this remains simulated single-task evidence.
+- The `StackCube-v1` validation reaches `pick_success_rate = 1.0000` for
+  query-driven single-view `red cube` seeds `0..19` in no-CLIP and with-CLIP
+  modes, but tabletop_3 and closed-loop multi-view stay at `0.5500`.
+- `StackCube-v1` `task_success_rate` remains `0.0000` because the controller
+  only picks/lifts cubeA and does not perform stack placement.
 - The resolved simulated-grasp failures were dominated by detector boxes whose
   original upper region missed the graspable object support; the semantic target
   center is preserved while the opt-in refined grasp point can use a downward
   crop fallback.
-- Experiments are still small: the main benchmark uses `PickCube-v1` plus
-  virtual camera poses, with only an initial `StackCube-v1` pick-only
-  compatibility smoke.
+- Experiments are still simulated: the strongest benchmark is full-query
+  `PickCube-v1`, while `StackCube-v1` is a pick-only generalization diagnostic
+  rather than a complete stacking task.
 - CLIP did not change top-1 in current benchmarks.
 - Query parser supports simple attributes and conservative relations, not full
   language reasoning.
@@ -889,14 +892,28 @@ complete `5/5` runs with `pick_success_rate = 1.0000` and
 `task_success_rate = 0.0000`, validating task-specific grasp detection
 (`is_cubeA_grasped`) while keeping stack placement out of scope.
 
+The overnight full validation extends this result. On `PickCube-v1`, full
+ambiguity tabletop_3 and closed-loop fused-memory grasp runs complete `55/55`
+with `0` failures and `pick_success_rate = 1.0000` in both no-CLIP and with-CLIP
+modes. Closed-loop still improves uncertainty diagnostics: still-needed falls
+from `0.4182` to `0.0909` without CLIP and from `0.3818` to `0.0545` with CLIP.
+
+On `StackCube-v1`, single-view `red cube` seeds `0..19` remain fully successful
+for pick-only control, but tabletop_3 and closed-loop multi-view runs reach only
+`pick_success_rate = 0.5500`. Closed-loop reduces still-needed uncertainty from
+`0.8000` to `0.5000` with `closed_loop_resolution_rate = 0.3000`, but it does
+not improve pick success. This marks task-general multi-view grasp target
+quality as the next bottleneck.
+
 ## Next Coding Milestone
 
-Turn the broader-task smoke into a real multi-task section without changing
-detector, fusion, or controller timing:
+Turn the broader-task diagnostic into a real multi-task section without changing
+detector, fusion weights, or controller timing:
 
-1. Add a small report/table path for cross-task pick-only results.
-2. Run one broader validation set beyond `PickCube-v1` before claiming robust
-   manipulation.
+1. Record the full ambiguity PickCube and StackCube overnight results in the
+   paper pack.
+2. Diagnose why StackCube tabletop_3 fused grasp targets fail on 9/20 seeds
+   despite single-view success.
 3. Keep semantic centers for retrieval/reporting and grasp points for execution
    targets as separate diagnostics.
 4. Keep detector backends, fusion weights, training, web demo, controller

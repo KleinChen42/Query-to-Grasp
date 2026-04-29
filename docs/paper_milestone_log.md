@@ -1228,6 +1228,35 @@ broader task compatibility for picking, not as a completed stacking controller:
 raw ManiSkill task success remains `0.0000` because the current executor lifts
 the cube but does not place it on cubeB.
 
+Latest overnight full-grasp validation:
+
+| benchmark | env | runs | failed | grasp attempted | pick success | task success | closed-loop resolution | still-needed |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Full ambiguity tabletop_3 no CLIP | `PickCube-v1` | 55 | 0 | 1.0000 | 1.0000 | 0.1455 | 0.0000 | 0.4182 |
+| Full ambiguity tabletop_3 with CLIP | `PickCube-v1` | 55 | 0 | 1.0000 | 1.0000 | 0.1455 | 0.0000 | 0.3818 |
+| Full ambiguity closed-loop no CLIP | `PickCube-v1` | 55 | 0 | 1.0000 | 1.0000 | 0.1455 | 0.3273 | 0.0909 |
+| Full ambiguity closed-loop with CLIP | `PickCube-v1` | 55 | 0 | 1.0000 | 1.0000 | 0.1455 | 0.3273 | 0.0545 |
+| StackCube single-view no CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 1.0000 | 0.0000 | 0.0000 | 0.0000 |
+| StackCube single-view with CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 1.0000 | 0.0000 | 0.0000 | 0.0000 |
+| StackCube tabletop_3 no CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.5500 | 0.0000 | 0.0000 | 0.8000 |
+| StackCube tabletop_3 with CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.5500 | 0.0000 | 0.0000 | 0.8000 |
+| StackCube closed-loop no CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.5500 | 0.0000 | 0.3000 | 0.5000 |
+| StackCube closed-loop with CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.5500 | 0.0000 | 0.3000 | 0.5000 |
+
+This overnight validation upgrades the PickCube simulated grasp story from
+compact-only to full ambiguity coverage: all four 55-run full-query multi-view
+and closed-loop modes complete with `0` failures and `pick_success_rate =
+1.0000`. The low `task_success_rate` is expected because `sim_topdown` measures
+grasp/lift success, while ManiSkill task success can require additional task
+completion conditions.
+
+The same run also clarifies the broader-task boundary. `StackCube-v1` is stable
+for query-driven single-view pick-only control across seeds `0..19`, but
+tabletop_3 and closed-loop multi-view runs remain at `pick_success_rate =
+0.5500`. Closed-loop reduces uncertainty triggers but does not improve grasp
+success on this task, so the next technical bottleneck is task-general
+multi-view fused grasp target quality, not CLIP or the top-down controller.
+
 Publication-level expectation:
 
 - Current retrieval/re-observation version: arXiv, workshop, or diagnostic
@@ -1262,6 +1291,7 @@ Candidate paper framing:
 > sim-grasp bridge confirms that fused and closed-loop target sources can now
 > produce stable downstream pick metrics. The accepted fused-memory grasp-point
 > path then separates semantic object centers from downstream grasp targets and
-> lifts compact multi-view and closed-loop simulated pick success to `1.0000`.
-> The next grasp milestone is broader-task validation before making stronger
-> manipulation claims.
+> lifts compact and full-ambiguity PickCube multi-view and closed-loop simulated
+> pick success to `1.0000`. The first StackCube validation shows that the same
+> single-view pick-only chain transfers across tasks, while multi-view StackCube
+> remains a diagnostic failure mode for task-general fused grasp targets.

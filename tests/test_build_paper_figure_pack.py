@@ -49,6 +49,9 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "stackcube_pick_smoke_no_clip_rows" in labels
     assert "stackcube_pick_smoke_with_clip_rows" in labels
     assert "cross_task_sim_pick_table" in labels
+    assert "full_ambiguity_grasp_comparison" in labels
+    assert "stackcube_broader_pick_summary" in labels
+    assert "overnight_followup_summary" in labels
 
 
 def test_build_paper_figure_pack_copies_artifacts_and_writes_readme(tmp_path: Path) -> None:

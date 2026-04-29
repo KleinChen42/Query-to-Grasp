@@ -257,6 +257,39 @@ DEFAULT_ARTIFACTS = (
             "and the StackCube-v1 pick-only smoke."
         ),
     ),
+    ArtifactSpec(
+        label="full_ambiguity_grasp_comparison",
+        source_path=Path(
+            "outputs/h200_60071_multiview_memory_grasp_point_full_ambiguity_seed01234/"
+            "reports/full_ambiguity_grasp_comparison.md"
+        ),
+        category="grasp",
+        caption=(
+            "Full ambiguity PickCube-v1 fused-memory grasp comparison. Shows "
+            "55-run tabletop_3 and closed-loop pick metrics for no-CLIP and with-CLIP."
+        ),
+    ),
+    ArtifactSpec(
+        label="stackcube_broader_pick_summary",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_broader_pick_seed0_19/"
+            "reports/stackcube_broader_summary.md"
+        ),
+        category="grasp",
+        caption=(
+            "StackCube-v1 broader pick-only validation summary across seeds 0-19, "
+            "including single-view and tabletop_3 results."
+        ),
+    ),
+    ArtifactSpec(
+        label="overnight_followup_summary",
+        source_path=Path("outputs/h200_60071_overnight_followup_queue/reports/overnight_summary.md"),
+        category="grasp",
+        caption=(
+            "Overnight H200 follow-up summary covering full PickCube ambiguity "
+            "grasp validation and StackCube closed-loop diagnostics."
+        ),
+    ),
 )
 
 
