@@ -905,16 +905,28 @@ for pick-only control, but tabletop_3 and closed-loop multi-view runs reach only
 not improve pick success. This marks task-general multi-view grasp target
 quality as the next bottleneck.
 
+The latest compact StackCube guard result shows that this bottleneck is
+task-dependent rather than a global failure of fused-memory grasp points. For
+`StackCube-v1`, using the selected object's semantic fused center as the
+effective refined multi-view pick target reaches `pick_success_rate = 0.7000`
+for tabletop_3 seeds `0..19` in both no-CLIP and with-CLIP modes. Closed-loop
+remains at `0.5500`, so the guard improves the static multi-view target source
+but does not yet convert re-observation into better StackCube grasp success. A
+PickCube regression remains `3/3` successful and continues to use
+`memory_grasp_world_xyz`. This should be reported as a StackCube pick-only
+compatibility guard, not as stack-placement success.
+
 ## Next Coding Milestone
 
-Turn the broader-task diagnostic into a real multi-task section without changing
-detector, fusion weights, or controller timing:
+Turn the validated StackCube guard into a paper-ready multi-task section without
+changing detector, fusion weights, or controller timing:
 
-1. Record the full ambiguity PickCube and StackCube overnight results in the
-   paper pack.
-2. Diagnose why StackCube tabletop_3 fused grasp targets fail on 9/20 seeds
-   despite single-view success.
-3. Keep semantic centers for retrieval/reporting and grasp points for execution
-   targets as separate diagnostics.
-4. Keep detector backends, fusion weights, training, web demo, controller
-   timing, and real-robot deployment out of scope for the grasp-baseline phase.
+1. Freeze the cross-task simulated pick table with PickCube full/compact rows
+   and StackCube guarded compact rows.
+2. Add a limitation/failure figure showing that StackCube closed-loop still
+   reaches only `0.5500` pick success despite reduced uncertainty diagnostics.
+3. Preserve the target-source distinction: PickCube refined uses
+   `memory_grasp_world_xyz`; StackCube refined uses
+   `task_guard_selected_object_world_xyz`.
+4. Keep StackCube framed as pick-only compatibility unless `task_success_rate`
+   improves through a separate stacking executor.

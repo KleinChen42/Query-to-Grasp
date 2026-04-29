@@ -290,6 +290,51 @@ DEFAULT_ARTIFACTS = (
             "grasp validation and StackCube closed-loop diagnostics."
         ),
     ),
+    ArtifactSpec(
+        label="stackcube_task_guard_compact_tabletop_summary",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_task_guard_compact_seed0_19/"
+            "tabletop_no_clip/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "StackCube-v1 compact task-aware grasp target guard validation for "
+            "tabletop_3 no-CLIP seeds 0-19."
+        ),
+    ),
+    ArtifactSpec(
+        label="stackcube_task_guard_compact_closed_loop_summary",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_task_guard_compact_seed0_19/"
+            "closed_loop_no_clip/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "StackCube-v1 compact task-aware grasp target guard validation for "
+            "closed-loop no-CLIP seeds 0-19."
+        ),
+    ),
+    ArtifactSpec(
+        label="stackcube_task_guard_compact_pickcube_regression_summary",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_task_guard_compact_seed0_19/"
+            "pickcube_regression_no_clip/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "PickCube-v1 regression check showing that the StackCube-specific guard "
+            "does not disturb memory_grasp_world_xyz refined picking."
+        ),
+    ),
+    ArtifactSpec(
+        label="stackcube_task_guard_compact_cross_task_table",
+        source_path=Path("outputs/h200_60071_stackcube_task_guard_compact_seed0_19/reports/cross_task_pick_table.md"),
+        category="tables",
+        caption=(
+            "Cross-task simulated pick table refreshed after the StackCube task-aware "
+            "multi-view grasp target guard compact validation."
+        ),
+    ),
 )
 
 

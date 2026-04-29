@@ -1,6 +1,6 @@
 # Query-to-Grasp Paper Milestone Log
 
-Last updated: 2026-04-28
+Last updated: 2026-04-29
 
 Purpose: keep a concise, paper-oriented record of key implementation milestones,
 experiment reports, quantitative findings, and next decisions. This file is
@@ -71,6 +71,7 @@ Scope update:
 | Single-view shifted-crop sim grasp | Accepted refined single-view grasp target with compact `PickCube-v1` success | `outputs/h200_60071_grasp_shifted_crop_compact_seed01234_v2/with_clip/benchmark_summary.json` |
 | Multi-view sim-grasp bridge ablation | Opt-in `sim_topdown` execution from fused tabletop_3 and closed-loop selected objects | `outputs/h200_60071_multiview_sim_pick_bridge_ablation_seed01234` |
 | Fused-memory grasp point ablation | Accepted multi-view `sim_topdown` path using fused `memory_grasp_world_xyz` instead of semantic centers | `outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234` |
+| StackCube task-aware grasp guard | Compact `StackCube-v1` multi-view refined pick validation using semantic selected-object centers | `outputs/h200_60071_stackcube_task_guard_compact_seed0_19` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -116,6 +117,7 @@ Scope update:
 | Simulated grasp-point diagnosis | Done | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/grasp_point_diagnosis.md` | Exact `red cube` successes have mean target-oracle distance `0.0171 m`, while compact failures average `0.3329 m` from oracle and almost always have high/far target points. |
 | Multi-view simulated pick bridge | Done | `493f63b` and `outputs/h200_60071_multiview_sim_pick_bridge_ablation_seed01234` | Fused tabletop_3 and closed-loop selected objects now drive `sim_topdown` metrics with `0` child failures, but compact pick success remains `0.0000` because fused memory currently exposes semantic object centers rather than shifted-crop grasp points. |
 | Fused-memory grasp point path | Done | `2403755` and `outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234` | Propagating per-view grasp points into memory and picking from `memory_grasp_world_xyz` lifts compact multi-view and closed-loop pick success from `0.0000` to `1.0000` in all four H200 compact modes. |
+| StackCube task-aware grasp target guard | Done | `f5810ff` and `outputs/h200_60071_stackcube_task_guard_compact_seed0_19` | `StackCube-v1` refined multi-view picking now uses the semantic selected-object center, improving compact tabletop pick success to `0.7000` and preserving closed-loop at `0.5500` while a PickCube regression remains `1.0000` with `memory_grasp_world_xyz`. |
 
 ## Key Quantitative Results
 
@@ -1257,6 +1259,28 @@ tabletop_3 and closed-loop multi-view runs remain at `pick_success_rate =
 success on this task, so the next technical bottleneck is task-general
 multi-view fused grasp target quality, not CLIP or the top-down controller.
 
+Latest StackCube task-aware grasp target guard:
+
+| benchmark | env | runs | failed | grasp attempted | pick success | task success | target source | guard applied |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| Compact tabletop_3 no CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.7000 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
+| Compact tabletop_3 with CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.7000 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
+| Compact closed-loop no CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.5500 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
+| Compact closed-loop with CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.5500 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
+| PickCube regression tabletop_3 no CLIP | `PickCube-v1` | 3 | 0 | 1.0000 | 1.0000 | 0.3333 | `memory_grasp_world_xyz` | false |
+
+The semantic-vs-memory ablation showed that StackCube targeted failures improve
+when multi-view refined picking uses the selected object's semantic fused
+center instead of the fused memory grasp point. The accepted task-aware guard
+implements that behavior only for `StackCube-v1`; compact seeds `0..19` improve
+tabletop_3 pick-only success from the previous `0.5500` to `0.7000` in both
+no-CLIP and with-CLIP modes. Closed-loop remains `0.5500`, so the guard improves
+the static multi-view target source but does not yet make re-observation a
+grasp-success gain on StackCube. `PickCube-v1` remains protected and continues
+to use `memory_grasp_world_xyz` for refined multi-view picks. This is still a
+pick-only compatibility result: `task_success_rate = 0.0000` because the
+executor does not stack cubeA onto cubeB.
+
 Publication-level expectation:
 
 - Current retrieval/re-observation version: arXiv, workshop, or diagnostic
@@ -1294,4 +1318,7 @@ Candidate paper framing:
 > lifts compact and full-ambiguity PickCube multi-view and closed-loop simulated
 > pick success to `1.0000`. The first StackCube validation shows that the same
 > single-view pick-only chain transfers across tasks, while multi-view StackCube
-> remains a diagnostic failure mode for task-general fused grasp targets.
+> exposes task-dependent grasp target preferences. A task-aware guard
+> improves StackCube compact multi-view pick-only success without regressing PickCube,
+> but StackCube remains a compatibility diagnostic rather than a stacking
+> completion result.
