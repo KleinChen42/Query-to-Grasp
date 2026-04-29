@@ -416,6 +416,27 @@ def observation_from_candidate(
 
 
 def _append_observation_metadata(obj: MemoryObject3D, observation: ObjectObservation3D) -> None:
+    observation_record = {
+        "view_id": observation.view_id,
+        "label": observation.label,
+        "world_xyz": np.asarray(observation.world_xyz, dtype=float).tolist(),
+        "num_points": int(observation.num_points),
+        "depth_valid_ratio": float(observation.depth_valid_ratio),
+        "grasp_world_xyz": (
+            None
+            if observation.grasp_world_xyz is None
+            else np.asarray(observation.grasp_world_xyz, dtype=float).tolist()
+        ),
+        "grasp_camera_xyz": (
+            None
+            if observation.grasp_camera_xyz is None
+            else np.asarray(observation.grasp_camera_xyz, dtype=float).tolist()
+        ),
+        "grasp_num_points": int(observation.grasp_num_points),
+        "grasp_metadata": observation.grasp_metadata,
+        "metadata": observation.metadata,
+    }
+    obj.metadata.setdefault("observation_history", []).append(observation_record)
     obj.metadata.setdefault("num_points_history", []).append(int(observation.num_points))
     obj.metadata.setdefault("depth_valid_ratio_history", []).append(float(observation.depth_valid_ratio))
     obj.metadata.setdefault("grasp_num_points_history", []).append(int(observation.grasp_num_points))
@@ -423,6 +444,8 @@ def _append_observation_metadata(obj: MemoryObject3D, observation: ObjectObserva
         obj.metadata.setdefault("grasp_camera_xyz_history", []).append(
             np.asarray(observation.grasp_camera_xyz, dtype=float).tolist()
         )
+    if observation.grasp_world_xyz is not None:
+        obj.metadata.setdefault("grasp_observation_history", []).append(observation_record)
     if observation.grasp_metadata:
         obj.metadata.setdefault("grasp_metadata_history", []).append(observation.grasp_metadata)
 

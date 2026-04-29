@@ -881,6 +881,74 @@ def build_reobserve_stage_snapshot(
     }
 
 
+def build_selected_grasp_diagnostics(selected: MemoryObject3D | None) -> dict[str, Any]:
+    """Summarize grasp-point dispersion for the selected memory object."""
+
+    if selected is None:
+        return _empty_selected_grasp_diagnostics()
+
+    semantic_xyz = np.asarray(selected.world_xyz, dtype=float).reshape(3)
+    grasp_xyz = None if selected.grasp_world_xyz is None else np.asarray(selected.grasp_world_xyz, dtype=float).reshape(3)
+    if grasp_xyz is None:
+        xy_distance = 0.0
+        z_delta = 0.0
+    else:
+        delta = grasp_xyz - semantic_xyz
+        xy_distance = float(np.linalg.norm(delta[:2]))
+        z_delta = float(delta[2])
+
+    grasp_observations = _valid_xyz_array(selected.grasp_observation_xyzs)
+    if len(grasp_observations) == 0:
+        xy_spread = 0.0
+        z_spread = 0.0
+        max_distance_to_fused = 0.0
+    else:
+        xy_center = np.median(grasp_observations[:, :2], axis=0)
+        xy_spread = float(np.max(np.linalg.norm(grasp_observations[:, :2] - xy_center, axis=1)))
+        z_spread = float(np.max(grasp_observations[:, 2]) - np.min(grasp_observations[:, 2]))
+        if grasp_xyz is None:
+            max_distance_to_fused = 0.0
+        else:
+            max_distance_to_fused = float(np.max(np.linalg.norm(grasp_observations - grasp_xyz, axis=1)))
+
+    history = selected.metadata.get("grasp_observation_history", [])
+    if not isinstance(history, list):
+        history = []
+
+    return {
+        "selected_semantic_to_grasp_xy_distance": xy_distance,
+        "selected_semantic_to_grasp_z_delta": z_delta,
+        "selected_grasp_observation_count": int(len(grasp_observations)),
+        "selected_grasp_observation_xy_spread": xy_spread,
+        "selected_grasp_observation_z_spread": z_spread,
+        "selected_grasp_observation_max_distance_to_fused": max_distance_to_fused,
+        "selected_grasp_observation_history": history,
+    }
+
+
+def _empty_selected_grasp_diagnostics() -> dict[str, Any]:
+    return {
+        "selected_semantic_to_grasp_xy_distance": 0.0,
+        "selected_semantic_to_grasp_z_delta": 0.0,
+        "selected_grasp_observation_count": 0,
+        "selected_grasp_observation_xy_spread": 0.0,
+        "selected_grasp_observation_z_spread": 0.0,
+        "selected_grasp_observation_max_distance_to_fused": 0.0,
+        "selected_grasp_observation_history": [],
+    }
+
+
+def _valid_xyz_array(values: Sequence[Any]) -> np.ndarray:
+    xyzs: list[np.ndarray] = []
+    for value in values:
+        xyz = np.asarray(value, dtype=float)
+        if xyz.shape == (3,) and np.all(np.isfinite(xyz)):
+            xyzs.append(xyz)
+    if not xyzs:
+        return np.empty((0, 3), dtype=float)
+    return np.asarray(xyzs, dtype=float)
+
+
 def build_closed_loop_delta(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
     """Build compact before/after deltas for closed-loop diagnostics."""
 
@@ -1246,6 +1314,7 @@ def build_summary(
 
     pick_result = pick_result or _pick_not_attempted("Pick execution was not requested.")
     pick_metadata = pick_result.get("metadata") if isinstance(pick_result.get("metadata"), dict) else {}
+    selected_grasp_diagnostics = build_selected_grasp_diagnostics(selected)
     return {
         "query": args.query,
         "normalized_prompt": parsed_query["normalized_prompt"],
@@ -1262,6 +1331,7 @@ def build_summary(
         "selected_grasp_world_xyz": (
             None if selected is None or selected.grasp_world_xyz is None else selected.grasp_world_xyz.tolist()
         ),
+        **selected_grasp_diagnostics,
         "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
         "pick_target_xyz": pick_result.get("target_xyz", []),
         "pick_target_source": pick_metadata.get("target_used_for_pick"),

@@ -76,6 +76,34 @@ def test_observation_json_includes_optional_grasp_fields() -> None:
     assert payload["grasp_metadata"] == {"strategy": "shifted_crop"}
 
 
+def test_memory_records_per_observation_grasp_history() -> None:
+    memory = ObjectMemory3D(ObjectMemoryConfig(merge_distance=0.10))
+
+    memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            label="red cube",
+            det_score=0.8,
+            fused_2d_score=0.8,
+            view_id="front",
+            num_points=500,
+            depth_valid_ratio=0.9,
+            grasp_world_xyz=np.array([0.1, 0.2, 0.3], dtype=np.float32),
+            grasp_num_points=42,
+            grasp_metadata={"strategy": "component"},
+            metadata={"rank": 0, "source": "detector_only"},
+        )
+    )
+
+    obj = memory.objects[0]
+
+    assert obj.metadata["observation_history"][0]["view_id"] == "front"
+    assert obj.metadata["observation_history"][0]["label"] == "red cube"
+    assert obj.metadata["observation_history"][0]["metadata"] == {"rank": 0, "source": "detector_only"}
+    assert obj.metadata["grasp_observation_history"][0]["grasp_world_xyz"] == pytest.approx([0.1, 0.2, 0.3])
+    assert obj.metadata["grasp_observation_history"][0]["grasp_num_points"] == 42
+
+
 def test_memory_median_fuses_grasp_points_separately_from_semantic_center() -> None:
     memory = ObjectMemory3D(ObjectMemoryConfig(merge_distance=0.10))
 

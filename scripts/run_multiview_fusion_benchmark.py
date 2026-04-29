@@ -33,6 +33,13 @@ CSV_COLUMNS = [
     "selected_top_label",
     "selected_world_xyz",
     "selected_grasp_world_xyz",
+    "selected_semantic_to_grasp_xy_distance",
+    "selected_semantic_to_grasp_z_delta",
+    "selected_grasp_observation_count",
+    "selected_grasp_observation_xy_spread",
+    "selected_grasp_observation_z_spread",
+    "selected_grasp_observation_max_distance_to_fused",
+    "selected_grasp_observation_history_json",
     "selected_overall_confidence",
     "selection_label",
     "should_reobserve",
@@ -331,6 +338,30 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "selected_top_label": _optional_str(summary.get("selected_top_label")),
         "selected_world_xyz": _join_sequence(summary.get("selected_world_xyz")),
         "selected_grasp_world_xyz": _join_sequence(summary.get("selected_grasp_world_xyz")),
+        "selected_semantic_to_grasp_xy_distance": _as_float(
+            summary.get("selected_semantic_to_grasp_xy_distance"),
+            0.0,
+        ),
+        "selected_semantic_to_grasp_z_delta": _as_float(
+            summary.get("selected_semantic_to_grasp_z_delta"),
+            0.0,
+        ),
+        "selected_grasp_observation_count": _as_int(summary.get("selected_grasp_observation_count"), 0),
+        "selected_grasp_observation_xy_spread": _as_float(
+            summary.get("selected_grasp_observation_xy_spread"),
+            0.0,
+        ),
+        "selected_grasp_observation_z_spread": _as_float(
+            summary.get("selected_grasp_observation_z_spread"),
+            0.0,
+        ),
+        "selected_grasp_observation_max_distance_to_fused": _as_float(
+            summary.get("selected_grasp_observation_max_distance_to_fused"),
+            0.0,
+        ),
+        "selected_grasp_observation_history_json": _json_dumps_compact(
+            summary.get("selected_grasp_observation_history", [])
+        ),
         "selected_overall_confidence": _as_float(summary.get("selected_overall_confidence"), 0.0),
         "selection_label": _optional_str(summary.get("selection_label")),
         "should_reobserve": _as_bool(summary.get("should_reobserve")),
@@ -487,6 +518,10 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "task_success_rate": 0.0,
             "is_grasped_rate": 0.0,
             "pick_stage_counts": {},
+            "mean_selected_semantic_to_grasp_xy_distance": 0.0,
+            "mean_selected_grasp_observation_count": 0.0,
+            "mean_selected_grasp_observation_xy_spread": 0.0,
+            "mean_selected_grasp_observation_max_distance_to_fused": 0.0,
             "mean_selected_overall_confidence": 0.0,
             "mean_runtime_seconds": 0.0,
         }
@@ -587,6 +622,18 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "task_success_rate": _mean(1 if _as_bool(row.get("task_success")) else 0 for row in rows),
         "is_grasped_rate": _mean(1 if _as_bool(row.get("is_grasped")) else 0 for row in rows),
         "pick_stage_counts": count_values(row.get("pick_stage") or "unknown" for row in rows),
+        "mean_selected_semantic_to_grasp_xy_distance": _mean(
+            _as_float(row.get("selected_semantic_to_grasp_xy_distance"), 0.0) for row in rows
+        ),
+        "mean_selected_grasp_observation_count": _mean(
+            _as_int(row.get("selected_grasp_observation_count"), 0) for row in rows
+        ),
+        "mean_selected_grasp_observation_xy_spread": _mean(
+            _as_float(row.get("selected_grasp_observation_xy_spread"), 0.0) for row in rows
+        ),
+        "mean_selected_grasp_observation_max_distance_to_fused": _mean(
+            _as_float(row.get("selected_grasp_observation_max_distance_to_fused"), 0.0) for row in rows
+        ),
         "mean_selected_overall_confidence": _mean(_as_float(row.get("selected_overall_confidence"), 0.0) for row in rows),
         "mean_runtime_seconds": _mean(_as_float(row.get("runtime_seconds"), 0.0) for row in rows),
     }
@@ -623,6 +670,13 @@ def failed_row(
         "selected_top_label": None,
         "selected_world_xyz": "",
         "selected_grasp_world_xyz": "",
+        "selected_semantic_to_grasp_xy_distance": 0.0,
+        "selected_semantic_to_grasp_z_delta": 0.0,
+        "selected_grasp_observation_count": 0,
+        "selected_grasp_observation_xy_spread": 0.0,
+        "selected_grasp_observation_z_spread": 0.0,
+        "selected_grasp_observation_max_distance_to_fused": 0.0,
+        "selected_grasp_observation_history_json": "[]",
         "selected_overall_confidence": 0.0,
         "selection_label": None,
         "should_reobserve": False,
@@ -758,6 +812,13 @@ def _join_sequence(value: Any) -> str:
     if isinstance(value, (list, tuple)):
         return " ".join(str(item) for item in value)
     return str(value)
+
+
+def _json_dumps_compact(value: Any) -> str:
+    try:
+        return json.dumps(value, separators=(",", ":"), sort_keys=True)
+    except TypeError:
+        return "[]"
 
 
 def _mean(values: Any) -> float:

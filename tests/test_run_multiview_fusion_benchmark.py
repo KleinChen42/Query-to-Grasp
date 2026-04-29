@@ -114,6 +114,9 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["selected_overall_confidence"] == 0.75
     assert row["selected_world_xyz"] == ""
     assert row["selected_grasp_world_xyz"] == ""
+    assert row["selected_semantic_to_grasp_xy_distance"] == 0.0
+    assert row["selected_grasp_observation_count"] == 0
+    assert row["selected_grasp_observation_history_json"] == "[]"
     assert row["should_reobserve"] is True
     assert row["reobserve_reason"] == "ambiguous_top_candidates"
     assert row["runtime_seconds"] == 0.0
@@ -385,6 +388,16 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "selected_top_label": query,
             "selected_world_xyz": [0.0, 0.0, 0.02],
             "selected_grasp_world_xyz": [0.01, 0.02, 0.03],
+            "selected_semantic_to_grasp_xy_distance": 0.02236,
+            "selected_semantic_to_grasp_z_delta": 0.01,
+            "selected_grasp_observation_count": 2,
+            "selected_grasp_observation_xy_spread": 0.02,
+            "selected_grasp_observation_z_spread": 0.01,
+            "selected_grasp_observation_max_distance_to_fused": 0.025,
+            "selected_grasp_observation_history": [
+                {"view_id": "front", "grasp_world_xyz": [0.0, 0.0, 0.02]},
+                {"view_id": "left", "grasp_world_xyz": [0.02, 0.04, 0.04]},
+            ],
             "selection_label": query,
             "selected_overall_confidence": 0.7,
             "should_reobserve": False,
@@ -491,6 +504,9 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert rows[0]["has_selected_object"] is True
     assert rows[0]["selected_world_xyz"] == "0.0 0.0 0.02"
     assert rows[0]["selected_grasp_world_xyz"] == "0.01 0.02 0.03"
+    assert rows[0]["selected_semantic_to_grasp_xy_distance"] == 0.02236
+    assert rows[0]["selected_grasp_observation_count"] == 2
+    assert "front" in rows[0]["selected_grasp_observation_history_json"]
     assert rows[0]["pick_target_source"] == "memory_grasp_world_xyz"
     assert summary["total_runs"] == 4
     assert summary["env_id"] == "PickCube-v1"
@@ -528,10 +544,16 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert summary["aggregate_metrics"]["task_success_rate"] == 0.0
     assert summary["aggregate_metrics"]["is_grasped_rate"] == 1.0
     assert summary["aggregate_metrics"]["pick_stage_counts"] == {"success": 4}
+    assert summary["aggregate_metrics"]["mean_selected_semantic_to_grasp_xy_distance"] == 0.02236
+    assert summary["aggregate_metrics"]["mean_selected_grasp_observation_count"] == 2.0
+    assert summary["aggregate_metrics"]["mean_selected_grasp_observation_xy_spread"] == 0.02
+    assert summary["aggregate_metrics"]["mean_selected_grasp_observation_max_distance_to_fused"] == 0.025
     assert summary["aggregate_metrics"]["mean_num_memory_objects"] == 2.0
     assert "selected_overall_confidence" in csv_header
     assert "selected_world_xyz" in csv_header
     assert "selected_grasp_world_xyz" in csv_header
+    assert "selected_semantic_to_grasp_xy_distance" in csv_header
+    assert "selected_grasp_observation_history_json" in csv_header
     assert "should_reobserve" in csv_header
     assert "closed_loop_delta_selected_num_views" in csv_header
     assert "closed_loop_reobserve_resolved" in csv_header

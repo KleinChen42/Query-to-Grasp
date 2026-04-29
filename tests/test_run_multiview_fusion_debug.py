@@ -254,6 +254,49 @@ def test_lift_and_add_candidates_updates_memory(monkeypatch, tmp_path) -> None:
     np.testing.assert_allclose(memory.objects[0].grasp_world_xyz, np.array([0.11, 0.22, 0.33], dtype=np.float32))
 
 
+def test_build_selected_grasp_diagnostics_reports_offsets_and_spread() -> None:
+    memory = ObjectMemory3D()
+    selected = memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+            label="red cube",
+            det_score=0.8,
+            fused_2d_score=0.8,
+            view_id="front",
+            num_points=100,
+            depth_valid_ratio=0.8,
+            grasp_world_xyz=np.array([0.10, 0.0, 0.01], dtype=np.float32),
+            grasp_num_points=30,
+            grasp_metadata={"strategy": "component_front"},
+        )
+    )
+    memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.01, 0.0, 0.0], dtype=np.float32),
+            label="red cube",
+            det_score=0.8,
+            fused_2d_score=0.8,
+            view_id="left",
+            num_points=100,
+            depth_valid_ratio=0.8,
+            grasp_world_xyz=np.array([0.30, 0.0, 0.03], dtype=np.float32),
+            grasp_num_points=28,
+            grasp_metadata={"strategy": "component_left"},
+        )
+    )
+
+    diagnostics = multiview.build_selected_grasp_diagnostics(selected)
+
+    assert diagnostics["selected_grasp_observation_count"] == 2
+    assert diagnostics["selected_semantic_to_grasp_xy_distance"] == pytest.approx(0.195)
+    assert diagnostics["selected_semantic_to_grasp_z_delta"] == pytest.approx(0.02)
+    assert diagnostics["selected_grasp_observation_xy_spread"] == pytest.approx(0.1)
+    assert diagnostics["selected_grasp_observation_z_spread"] == pytest.approx(0.02)
+    assert diagnostics["selected_grasp_observation_max_distance_to_fused"] == pytest.approx(np.sqrt(0.1**2 + 0.01**2))
+    assert diagnostics["selected_grasp_observation_history"][0]["view_id"] == "front"
+    assert diagnostics["selected_grasp_observation_history"][1]["grasp_metadata"] == {"strategy": "component_left"}
+
+
 def test_build_closed_loop_reobserve_report_computes_deltas() -> None:
     before = {
         "num_views": 3,
