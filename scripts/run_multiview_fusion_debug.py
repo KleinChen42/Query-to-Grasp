@@ -1239,7 +1239,11 @@ def execute_selected_memory_pick(
     if selected is None:
         return _pick_not_attempted("No selected memory object was available for pick execution.")
 
-    target, target_source = choose_memory_pick_target(selected=selected, grasp_target_mode=args.grasp_target_mode)
+    target, target_source, target_diagnostics = choose_memory_pick_target(
+        selected=selected,
+        grasp_target_mode=args.grasp_target_mode,
+        env_id=getattr(args, "env_id", None),
+    )
     if target.shape != (3,) or not np.all(np.isfinite(target)):
         return _pick_not_attempted("Selected memory object had an invalid world-frame target.")
 
@@ -1256,6 +1260,7 @@ def execute_selected_memory_pick(
             "grasp_target_mode": args.grasp_target_mode,
             "grasp_target_mode_effective": target_source,
             "refined_grasp_point_available": selected.grasp_world_xyz is not None,
+            **target_diagnostics,
             "semantic_world_xyz": np.asarray(selected.world_xyz, dtype=float).tolist(),
             "memory_grasp_world_xyz": (
                 None
@@ -1273,14 +1278,39 @@ def execute_selected_memory_pick(
 def choose_memory_pick_target(
     selected: MemoryObject3D,
     grasp_target_mode: str = "semantic",
-) -> tuple[np.ndarray, str]:
+    env_id: str | None = None,
+) -> tuple[np.ndarray, str, dict[str, Any]]:
     """Choose a multi-view pick target while preserving semantic target reporting."""
 
     if grasp_target_mode not in {"semantic", "refined"}:
         raise ValueError(f"Unknown grasp target mode: {grasp_target_mode}")
+    diagnostics = {
+        "task_grasp_target_guard_applied": False,
+        "task_grasp_target_guard_reason": None,
+    }
+    if _is_stackcube_env(env_id) and grasp_target_mode == "refined":
+        diagnostics["task_grasp_target_guard_applied"] = True
+        diagnostics["task_grasp_target_guard_reason"] = "stackcube_prefers_semantic_fused_center"
+        return (
+            np.asarray(selected.world_xyz, dtype=np.float32).reshape(-1),
+            "task_guard_selected_object_world_xyz",
+            diagnostics,
+        )
     if grasp_target_mode == "refined" and selected.grasp_world_xyz is not None:
-        return np.asarray(selected.grasp_world_xyz, dtype=np.float32).reshape(-1), "memory_grasp_world_xyz"
-    return np.asarray(selected.world_xyz, dtype=np.float32).reshape(-1), "selected_object_world_xyz"
+        return (
+            np.asarray(selected.grasp_world_xyz, dtype=np.float32).reshape(-1),
+            "memory_grasp_world_xyz",
+            diagnostics,
+        )
+    return (
+        np.asarray(selected.world_xyz, dtype=np.float32).reshape(-1),
+        "selected_object_world_xyz",
+        diagnostics,
+    )
+
+
+def _is_stackcube_env(env_id: str | None) -> bool:
+    return str(env_id or "").strip().lower() == "stackcube-v1"
 
 
 def _pick_not_attempted(message: str) -> dict[str, Any]:
@@ -1336,6 +1366,8 @@ def build_summary(
         "pick_target_xyz": pick_result.get("target_xyz", []),
         "pick_target_source": pick_metadata.get("target_used_for_pick"),
         "target_used_for_pick": pick_metadata.get("target_used_for_pick"),
+        "task_grasp_target_guard_applied": bool(pick_metadata.get("task_grasp_target_guard_applied", False)),
+        "task_grasp_target_guard_reason": pick_metadata.get("task_grasp_target_guard_reason"),
         "grasp_attempted": bool(pick_result.get("grasp_attempted", False)),
         "pick_success": bool(pick_result.get("pick_success", pick_result.get("success", False))),
         "task_success": pick_result.get("task_success"),

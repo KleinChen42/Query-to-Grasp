@@ -141,6 +141,8 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["is_grasped"] is False
     assert row["pick_stage"] == "not_attempted"
     assert row["pick_target_source"] is None
+    assert row["task_grasp_target_guard_applied"] is False
+    assert row["task_grasp_target_guard_reason"] is None
 
 
 def test_aggregate_rows_by_query() -> None:
@@ -445,6 +447,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
             "pick_stage": "success",
             "pick_target_xyz": [0.01, 0.02, 0.03],
             "pick_target_source": "memory_grasp_world_xyz",
+            "task_grasp_target_guard_applied": False,
+            "task_grasp_target_guard_reason": None,
             "runtime_seconds": 2.5,
             "detector_backend": "mock",
             "skip_clip": True,
@@ -508,6 +512,8 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert rows[0]["selected_grasp_observation_count"] == 2
     assert "front" in rows[0]["selected_grasp_observation_history_json"]
     assert rows[0]["pick_target_source"] == "memory_grasp_world_xyz"
+    assert rows[0]["task_grasp_target_guard_applied"] is False
+    assert rows[0]["task_grasp_target_guard_reason"] is None
     assert summary["total_runs"] == 4
     assert summary["env_id"] == "PickCube-v1"
     assert summary["obs_mode"] == "rgbd"
@@ -565,6 +571,7 @@ def test_multiview_fusion_benchmark_writes_outputs(monkeypatch, tmp_path: Path) 
     assert "grasp_attempted" in csv_header
     assert "pick_success" in csv_header
     assert "pick_target_source" in csv_header
+    assert "task_grasp_target_guard_applied" in csv_header
     assert all("--skip-clip" in command for command in seen_commands)
     assert all("--control-mode" in command for command in seen_commands)
     assert all("--pick-executor" in command for command in seen_commands)
