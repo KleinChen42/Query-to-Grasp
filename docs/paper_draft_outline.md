@@ -924,10 +924,10 @@ A PickCube regression remains `3/3` successful and continues to use
 `memory_grasp_world_xyz`. This should be reported as a StackCube pick-only
 compatibility guard, not as stack-placement success.
 
-## Next Coding Milestone
+## Next Writing Milestone
 
-Turn the validated StackCube guard into a paper-ready multi-task section without
-changing detector, fusion weights, or controller timing:
+Turn the polished Markdown draft into a venue-shaped manuscript without changing
+detector, fusion weights, controller timing, or benchmark claims:
 
 1. Freeze the cross-task simulated pick table with PickCube full/compact rows
    and StackCube expanded guarded rows.
@@ -942,5 +942,9 @@ changing detector, fusion weights, or controller timing:
 5. Multi-task simulated-grasp prose is drafted in
    `docs/paper_multitask_sim_grasp_section.md`, and the first full manuscript
    skeleton is assembled in `docs/paper_manuscript_draft.md`.
-6. Next writing task: polish the manuscript draft for the target venue format,
-   especially related work, figure callouts, and result-table placement.
+6. Manuscript draft v0.2 now includes a related-work scaffold, figure/table
+   callouts, and conference-style result framing; the citation buckets are
+   tracked in `docs/paper_related_work_citation_plan.md`.
+7. Next writing task: convert the Markdown draft to the target venue format
+   (ICRA/IROS-style LaTeX), verify exact BibTeX metadata from primary sources,
+   and tighten the page budget around the final figure/table set.

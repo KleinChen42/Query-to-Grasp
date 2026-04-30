@@ -1,6 +1,6 @@
 # Query-to-Grasp Paper Milestone Log
 
-Last updated: 2026-04-29
+Last updated: 2026-04-30
 
 Purpose: keep a concise, paper-oriented record of key implementation milestones,
 experiment reports, quantitative findings, and next decisions. This file is
@@ -75,6 +75,7 @@ Scope update:
 | StackCube expanded failure analysis | Failure taxonomy explaining why closed-loop improves uncertainty but not StackCube pick success | `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49/reports/stackcube_guard_failure_report.md` |
 | Multi-task simulated-grasp section draft | Paper-ready prose for PickCube/StackCube simulated pick evidence and limitations | `docs/paper_multitask_sim_grasp_section.md` |
 | Full manuscript draft skeleton | Coherent first-pass Markdown paper draft assembled from the outline, results, and multi-task section | `docs/paper_manuscript_draft.md` |
+| Related-work citation plan | Candidate citation buckets, search terms, and metadata verification checklist for the conference draft | `docs/paper_related_work_citation_plan.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -123,6 +124,7 @@ Scope update:
 | StackCube task-aware grasp target guard | Done | `f5810ff`, `1c10aa6`, and `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49` | `StackCube-v1` refined multi-view picking now uses the semantic selected-object center. The expanded 50-seed validation reaches tabletop pick success `0.6200` and closed-loop pick success `0.5200` with `0` failures, while a PickCube regression remains `1.0000` with `memory_grasp_world_xyz`. |
 | Multi-task simulated-grasp section draft | Done | `docs/paper_multitask_sim_grasp_section.md` | The PickCube full-ambiguity, StackCube expanded guard, and StackCube failure taxonomy results are now written as manuscript-style prose with explicit pick-vs-task-success framing. |
 | Full manuscript draft skeleton | Done | `docs/paper_manuscript_draft.md` | A first complete Markdown paper skeleton now covers abstract, introduction, method, setup, results, multi-task simulated grasp evaluation, limitations, conclusion, and artifact appendix. |
+| Conference manuscript draft v0.2 | Done | `docs/paper_manuscript_draft.md` and `docs/paper_related_work_citation_plan.md` | The draft now replaces the related-work placeholder with citation-scaffold subsections, adds figure/table callouts tied to the paper pack, and frames the main results as geometry correction, fused PickCube grasp targets, and StackCube cross-task limitations. |
 
 ## Key Quantitative Results
 

@@ -180,6 +180,15 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="paper_related_work_citation_plan",
+        source_path=Path("docs/paper_related_work_citation_plan.md"),
+        category="notes",
+        caption=(
+            "Citation planning artifact with related-work buckets, search terms, "
+            "and metadata verification notes for conference formatting."
+        ),
+    ),
+    ArtifactSpec(
         label="fused_memory_grasp_targeted_summary",
         source_path=Path(
             "outputs/h200_60071_multiview_memory_grasp_point_targeted/"

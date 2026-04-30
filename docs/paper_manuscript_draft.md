@@ -66,13 +66,58 @@ The paper makes three practical contributions:
 
 ## 2. Related Work
 
-This draft currently uses a placeholder related-work section. The final paper
-should position Query-to-Grasp against open-vocabulary object grounding,
-language-conditioned manipulation, RGB-D object memory, active perception, and
-grasp evaluation in simulation. The intended framing is not a new detector,
-language model, or learned controller. Instead, Query-to-Grasp contributes a
-reproducible integration and diagnostic benchmark for the gap between
-language-conditioned perception and graspable 3D targets.
+### 2.1 Open-Vocabulary Grounding
+
+Open-vocabulary image grounding methods make it possible to retrieve 2D regions
+from category names, attributes, and free-form prompts without training a
+closed-set detector for every manipulation task. Query-to-Grasp uses this family
+of models as an off-the-shelf proposal layer: HF GroundingDINO supplies query
+conditioned 2D detections, and CLIP can optionally rerank candidate crops. The
+paper does not claim a new grounding model. Instead, it studies what happens
+after an open-vocabulary 2D proposal is available: whether RGB-D lifting,
+multi-view fusion, uncertainty diagnostics, and simulated control preserve a
+graspable target. Table 1 should use the paper-pack ablation artifact to show
+that the current bottleneck is not CLIP reranking, because candidate
+multiplicity is low and top-1 changes are rare in the validated benchmarks.
+
+### 2.2 Language-Conditioned Manipulation
+
+Language-conditioned manipulation systems connect natural-language task
+descriptions to actions through perception, planning, learned policies, or
+large-model reasoning. Query-to-Grasp occupies a narrower but practical part of
+this space. It does not learn a policy, synthesize grasps from language, or
+perform long-horizon reasoning. It asks whether a simple query such as
+`red cube` can be converted into a stable 3D target hypothesis and then into an
+honest simulated pick attempt. This makes the system complementary to broader
+language-to-action frameworks: it provides a reproducible diagnostic baseline
+for the intermediate target-retrieval layer that those systems often depend on.
+
+### 2.3 RGB-D and Multi-View Object Memory
+
+RGB-D manipulation pipelines commonly rely on geometric lifting, point clouds,
+multi-view fusion, or object-centric maps to move from image evidence to
+actionable 3D state. Query-to-Grasp follows this object-memory framing but keeps
+the memory deliberately small and inspectable. Each memory object stores label
+votes, view support, confidence terms, geometry diagnostics, and a separate
+grasp point when the simulated pick path is enabled. The central systems lesson
+is that this memory is only meaningful when camera conventions are handled
+correctly. Fig. 2 should use the geometry artifacts in the paper pack to show
+that the OpenCV-to-OpenGL correction reduces cross-view spread enough for
+deterministic memory fusion to become credible.
+
+### 2.4 Active and Re-Observation Diagnostics
+
+Active perception and next-best-view methods use additional observations to
+reduce uncertainty before acting. Query-to-Grasp implements a diagnostic version
+of this idea rather than a learned view planner: a rule-based policy requests a
+virtual extra view when confidence, view support, geometry, or point-count
+signals are weak. This design makes uncertainty visible in benchmark rows and
+reports, and it exposes a useful caution for manipulation. Closed-loop
+re-observation can reduce the final uncertainty signal, but StackCube shows that
+lower uncertainty does not automatically imply better grasp execution. Table 5
+or the limitation figure should therefore use the expanded StackCube failure
+report to separate third-object absorption, wrong fused grasp observations, and
+controller/contact residuals.
 
 ## 3. Method
 
@@ -90,6 +135,8 @@ OpenCV-to-OpenGL camera convention before applying ManiSkill `cam2world_gl`.
 This correction is important empirically: same-label cross-view spread drops
 from `1.0693 m` to `0.0518 m`, and memory fragmentation drops from `3.3333` to
 `1.3333` objects per run in the validated geometry benchmark.
+Fig. 1 should show the implemented pipeline from `docs/architecture_query_to_grasp.md`;
+Fig. 2 should show the camera-convention and cross-view geometry validation.
 
 The multi-view path captures virtual tabletop views, lifts per-view detections
 to 3D, and merges them into object memory. Each memory object stores semantic
@@ -147,21 +194,47 @@ Key artifact sources are:
 - Paper pack:
   `outputs/paper_figure_pack_latest`.
 
+The main quantitative callouts are organized as follows. Table 1 reports the
+single-view and ambiguity detector/rerank baseline. Table 2 reports the
+geometry and corrected fusion evidence. Table 3 reports PickCube full-ambiguity
+simulated grasp metrics. Table 4 reports the cross-task PickCube/StackCube pick
+comparison. Fig. 3 or Table 5 reports the expanded StackCube failure taxonomy.
+
 ## 5. Results
 
-In the single-view HF baselines, both no-CLIP and with-CLIP modes detect one
-candidate per exact-object query on average and produce a 3D target in every
-run. The ambiguity benchmark raises candidate multiplicity to `1.4242`, but
-CLIP still does not change top-1 in the current result set. This suggests that
-the immediate limitation is not language-image reranking; it is whether lifted
-and fused 3D targets are geometrically reliable.
+### 5.1 Single-View Retrieval and CLIP Reranking
 
-The multi-view geometry correction is a pivotal result. Before the camera-frame
-fix, same-label observations from different views could be far apart in memory.
-After correcting the convention, cross-view consistency becomes plausible
-enough for deterministic fusion and selection to be meaningful. This turns the
-system from a collection of per-view detections into a benchmarkable 3D object
-memory.
+The single-view HF baselines establish that the retrieval chain is stable before
+multi-view fusion or simulated control is introduced. In exact-object runs,
+both no-CLIP and with-CLIP modes detect one candidate per query on average and
+produce a 3D target in every run. The ambiguity benchmark raises candidate
+multiplicity to `1.4242`, but CLIP still does not change top-1 in the current
+result set. Table 1 should use
+`tables/single_view_and_ambiguity_ablation.md` from the paper pack. The main
+interpretation is conservative: CLIP is useful infrastructure and a confidence
+source, but the validated results do not support presenting CLIP as the primary
+improvement mechanism.
+
+### 5.2 Geometry Correction Enables Multi-View Memory
+
+The multi-view geometry correction is the first pivotal systems result. Before
+the camera-frame fix, same-label observations from different views could be
+more than a meter apart in memory. After applying the OpenCV-to-OpenGL
+conversion before ManiSkill `cam2world_gl`, same-label cross-view spread drops
+from `1.0693 m` to `0.0518 m`, and memory fragmentation drops from `3.3333` to
+`1.3333` objects per run. Table 2 should combine
+`geometry/extrinsic_convention_report.md`,
+`geometry/corrected_cross_view_geometry.md`, and the corrected fusion table in
+the paper pack.
+
+This result changes the nature of the benchmark. Without the convention fix,
+multi-view memory is mostly an artifact of inconsistent coordinates. With the
+fix, deterministic fusion, label voting, view support, and selection traces
+become meaningful enough to diagnose. The memory still fails in some harder
+cases, but those failures are now attributable to object support, target-source
+choice, or re-observation association rather than a basic frame-convention bug.
+
+### 5.3 Closed-Loop Re-Observation Diagnostics
 
 Closed-loop re-observation improves uncertainty diagnostics in the accepted
 absorber-aware policy path. On compact ambiguity seeds, the accepted policy
@@ -170,6 +243,52 @@ reaches `closed_loop_resolution_rate = 0.6500` and
 within the accepted gate. On the full ambiguity file, both no-CLIP and with-CLIP
 complete `55/55` runs with zero child failures; residual triggers concentrate
 in attribute-style queries such as `red block` and `red cube`.
+
+The result is useful because it is both positive and diagnostic. The extra-view
+path can resolve compact uncertainty, but the full-query residuals show that
+re-observation is not a universal cure. Attribute trace diagnostics found that
+residual red-object cases already had `attribute_coverage = 1.0`; the remaining
+limitations are same-phrase memory fragmentation and point/view support, not
+missing parsed color evidence.
+
+### 5.4 Fused Grasp Targets Enable PickCube Simulated Picking
+
+The strongest downstream-control result is the transition from semantic fused
+centers to fused grasp points. The initial multi-view simulated-pick bridge
+showed that selected memory objects could drive the controller and emit stable
+metrics, but compact pick success was `0.0000` because semantic centers were
+not reliable top-down grasp targets. Propagating per-view refined grasp points
+into fused memory changes the execution target to `memory_grasp_world_xyz`
+while keeping semantic centers unchanged for retrieval and confidence.
+
+Table 3 should use
+`grasp/full_ambiguity_grasp_comparison.md` from the paper pack. In the full
+PickCube ambiguity validation, tabletop_3 and closed-loop modes complete
+`55/55` runs with `0` child failures and `pick_success_rate = 1.0000` in both
+no-CLIP and with-CLIP settings. This is the central positive manipulation
+evidence of the paper: open-vocabulary RGB-D target retrieval, corrected
+multi-view memory, and fused grasp targets can produce simulated picks from
+query-selected objects.
+
+### 5.5 StackCube Exposes Cross-Task Limits
+
+StackCube provides the main limitation result. Single-view `red cube` pick-only
+execution succeeds, but multi-view StackCube prefers a different target source
+than PickCube. PickCube refined multi-view picks should use
+`memory_grasp_world_xyz`; StackCube refined multi-view picks are more reliable
+when guarded to use `task_guard_selected_object_world_xyz`. Table 4 should use
+`tables/stackcube_task_guard_expanded_cross_task_table.md` to show this
+cross-task distinction.
+
+The expanded StackCube validation covers seeds `0..49` and reaches
+`pick_success_rate = 0.6200` for tabletop_3 and `0.5200` for closed-loop in both
+no-CLIP and with-CLIP modes, with `0` child failures. `task_success_rate`
+remains `0.0000`, which is expected because the executor picks and lifts cubeA
+but does not stack it on cubeB. Fig. 3 or Table 5 should use
+`grasp/stackcube_task_guard_expanded_failure_report.md` to show the dominant
+residual classes: wrong fused grasp observation overall and third-object
+absorption in closed-loop runs. This makes StackCube a cross-task pick-only
+compatibility diagnostic, not a completed stacking result.
 
 ## 6. Multi-Task Simulated Grasp Evaluation
 
@@ -286,6 +405,7 @@ Important source artifacts include:
 - `docs/paper_draft_outline.md`
 - `docs/paper_milestone_log.md`
 - `docs/paper_multitask_sim_grasp_section.md`
+- `docs/paper_related_work_citation_plan.md`
 - `outputs/h200_60071_paper_baseline/outputs/paper_ablation_table.md`
 - `outputs/h200_60071_absorber_aware_full_ambiguity_seed01234/reports/reobserve_policy_report.md`
 - `outputs/h200_60071_multiview_memory_grasp_point_full_ambiguity_seed01234/reports/full_ambiguity_grasp_comparison.md`
