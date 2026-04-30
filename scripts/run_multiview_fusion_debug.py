@@ -28,6 +28,7 @@ from src.memory.object_memory_3d import (  # noqa: E402
     ObjectMemoryConfig,
     ObjectObservation3D,
 )
+from src.manipulation.oracle_targets import find_stackcube_oracle_place_xyz  # noqa: E402
 from src.policy.reobserve_policy import ReobserveDecision, ReobservePolicyConfig, decide_reobserve  # noqa: E402
 from src.policy.target_selector import (  # noqa: E402
     apply_selection_continuity,
@@ -107,7 +108,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--pick-executor",
         default="placeholder",
-        choices=["placeholder", "sim_topdown"],
+        choices=["placeholder", "sim_topdown", "sim_pick_place"],
         help="Optional pick executor for the final selected fused object.",
     )
     parser.add_argument(
@@ -118,6 +119,12 @@ def parse_args() -> argparse.Namespace:
             "Target mode for pick execution. Multi-view currently uses the selected fused "
             "object world_xyz for both modes and records that source explicitly."
         ),
+    )
+    parser.add_argument(
+        "--place-target-source",
+        default="none",
+        choices=["none", "oracle_cubeB_pose"],
+        help="Optional place target source for sim_pick_place.",
     )
     parser.add_argument("--camera-name", default=None, help="Camera key to extract or recapture for preset views.")
     parser.add_argument("--seed", type=int, default=0, help="Environment reset seed.")
@@ -201,7 +208,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if args.pick_executor == "sim_topdown" and args.control_mode is None:
+    if args.pick_executor in {"sim_topdown", "sim_pick_place"} and args.control_mode is None:
         args.control_mode = "pd_ee_delta_pos"
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
     start_time = time.perf_counter()
@@ -1247,7 +1254,15 @@ def execute_selected_memory_pick(
     if target.shape != (3,) or not np.all(np.isfinite(target)):
         return _pick_not_attempted("Selected memory object had an invalid world-frame target.")
 
-    result = scene.execute_pick(target, executor=args.pick_executor)
+    if args.pick_executor == "sim_pick_place":
+        if getattr(args, "place_target_source", "none") != "oracle_cubeB_pose":
+            return _pick_not_attempted("sim_pick_place requires --place-target-source oracle_cubeB_pose.")
+        place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
+        result = scene.execute_pick_place(pick_xyz=target, place_xyz=place_xyz)
+    else:
+        place_xyz = None
+        place_metadata = {}
+        result = scene.execute_pick(target, executor=args.pick_executor)
     metadata = result.get("metadata")
     if not isinstance(metadata, dict):
         metadata = {}
@@ -1259,6 +1274,9 @@ def execute_selected_memory_pick(
             "pick_executor_cli": args.pick_executor,
             "grasp_target_mode": args.grasp_target_mode,
             "grasp_target_mode_effective": target_source,
+            "place_target_source": getattr(args, "place_target_source", "none"),
+            "place_target_xyz": None if place_xyz is None else np.asarray(place_xyz, dtype=float).tolist(),
+            "place_target_metadata": place_metadata,
             "refined_grasp_point_available": selected.grasp_world_xyz is not None,
             **target_diagnostics,
             "semantic_world_xyz": np.asarray(selected.world_xyz, dtype=float).tolist(),
@@ -1318,10 +1336,13 @@ def _pick_not_attempted(message: str) -> dict[str, Any]:
         "success": False,
         "pick_success": False,
         "grasp_attempted": False,
+        "place_attempted": False,
+        "place_success": False,
         "task_success": None,
         "is_grasped": None,
         "stage": "not_attempted",
         "target_xyz": [],
+        "place_xyz": [],
         "message": message,
         "trajectory_summary": {"planned_stages": [], "executed_stages": [], "num_env_steps": 0},
         "metadata": {"executor": None},
@@ -1350,6 +1371,7 @@ def build_summary(
         "normalized_prompt": parsed_query["normalized_prompt"],
         "pick_executor": getattr(args, "pick_executor", "placeholder"),
         "grasp_target_mode": getattr(args, "grasp_target_mode", "semantic"),
+        "place_target_source": pick_metadata.get("place_target_source", getattr(args, "place_target_source", "none")),
         "view_ids": view_ids,
         "num_views": len(view_ids),
         "num_memory_objects": len(memory.objects),
@@ -1365,6 +1387,10 @@ def build_summary(
         "selected_overall_confidence": 0.0 if selected is None else float(selected.overall_confidence),
         "pick_target_xyz": pick_result.get("target_xyz", []),
         "pick_target_source": pick_metadata.get("target_used_for_pick"),
+        "place_target_xyz": pick_result.get("place_xyz", pick_metadata.get("place_target_xyz", [])),
+        "place_attempted": bool(pick_result.get("place_attempted", False)),
+        "place_success": pick_result.get("place_success"),
+        "place_message": pick_result.get("message") if pick_result.get("place_attempted") else None,
         "target_used_for_pick": pick_metadata.get("target_used_for_pick"),
         "task_grasp_target_guard_applied": bool(pick_metadata.get("task_grasp_target_guard_applied", False)),
         "task_grasp_target_guard_reason": pick_metadata.get("task_grasp_target_guard_reason"),

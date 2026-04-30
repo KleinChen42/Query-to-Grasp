@@ -1,7 +1,7 @@
 # Query-to-Grasp Paper Draft
 
-This directory contains the first ICRA/IROS-style LaTeX scaffold for the
-Query-to-Grasp conference paper.
+This directory contains the first IROS/ICRA-style LaTeX scaffold for the
+Query-to-Grasp H200-scale simulated manipulation paper.
 
 ## Files
 
@@ -45,8 +45,11 @@ test is the structural checker plus paper-pack inclusion.
 ## Current Claim Boundary
 
 - PickCube-v1 is the main successful simulated pick benchmark.
-- StackCube-v1 is a pick-only compatibility diagnostic.
-- StackCube `task_success_rate` remains `0.0000`.
+- StackCube-v1 is the main cross-task bridge benchmark.
+- Accepted query-driven StackCube rows remain pick-only until the placement
+  bridge is validated.
+- Oracle StackCube pick-place is a privileged upper-bound baseline, not a
+  deployable language-conditioned stacker.
 - No real-robot execution, learned controller, or StackCube stack completion is
   claimed.
 

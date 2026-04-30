@@ -203,6 +203,13 @@ class ManiSkillScene:
             return execute_pick_sim_topdown(self.env, target_xyz)
         raise ValueError(f"Unknown pick executor '{executor}'. Expected 'placeholder' or 'sim_topdown'.")
 
+    def execute_pick_place(self, pick_xyz: np.ndarray, place_xyz: np.ndarray) -> dict[str, Any]:
+        """Execute a minimal simulated pick-place attempt for oracle bridge baselines."""
+
+        from src.manipulation.pick_executor import execute_pick_place_sim
+
+        return execute_pick_place_sim(self.env, pick_xyz=pick_xyz, place_xyz=place_xyz)
+
     def close(self) -> None:
         """Close the wrapped simulator environment."""
 

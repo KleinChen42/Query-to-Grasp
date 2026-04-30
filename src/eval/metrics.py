@@ -30,6 +30,8 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
     pick_stage = str(summary.get("pick_stage") or pick_result.get("stage") or "unknown")
     grasp_attempted = _as_bool(summary.get("grasp_attempted", pick_result.get("grasp_attempted", False)))
     task_success = _as_bool(summary.get("task_success", pick_result.get("task_success", False)))
+    place_attempted = _as_bool(summary.get("place_attempted", pick_result.get("place_attempted", False)))
+    place_success = _as_bool(summary.get("place_success", pick_result.get("place_success", False)))
     is_grasped = _as_bool(summary.get("is_grasped", pick_result.get("is_grasped", False)))
     runtime_seconds = _as_float(summary.get("runtime_seconds"), default=0.0)
     num_detections = _as_int(summary.get("num_detections"), default=0)
@@ -46,6 +48,10 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
         "num_3d_points": num_3d_points,
         "grasp_attempted": grasp_attempted,
         "pick_success": pick_success,
+        "place_attempted": place_attempted,
+        "place_success": place_success,
+        "place_target_xyz": summary.get("place_target_xyz", pick_result.get("place_xyz")),
+        "place_target_source": summary.get("place_target_source"),
         "task_success": task_success,
         "is_grasped": is_grasped,
         "pick_stage": pick_stage,
@@ -61,6 +67,7 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
     if total_runs == 0:
         return {
             "total_runs": 0,
+            "failed_runs": 0,
             "mean_raw_num_detections": 0.0,
             "mean_num_detections": 0.0,
             "mean_num_ranked_candidates": 0.0,
@@ -68,16 +75,21 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "fraction_with_3d_target": 0.0,
             "grasp_attempted_rate": 0.0,
             "pick_success_rate": 0.0,
+            "place_attempted_rate": 0.0,
+            "place_success_rate": 0.0,
             "task_success_rate": 0.0,
             "is_grasped_rate": 0.0,
             "fraction_top1_changed_by_rerank": 0.0,
             "mean_runtime_seconds": 0.0,
             "pick_stage_counts": {},
+            "place_stage_counts": {},
         }
 
     stage_counts = Counter(str(row.get("pick_stage") or "unknown") for row in rows)
+    place_stage_counts = Counter(str(row.get("pick_stage") or "unknown") for row in rows if _as_bool(row.get("place_attempted")))
     return {
         "total_runs": total_runs,
+        "failed_runs": sum(1 for row in rows if _as_bool(row.get("run_failed"))),
         "mean_raw_num_detections": _mean(_row_raw_num_detections(row) for row in rows),
         "mean_num_detections": _mean(_as_int(row.get("num_detections"), 0) for row in rows),
         "mean_num_ranked_candidates": _mean(_as_int(row.get("num_ranked_candidates"), 0) for row in rows),
@@ -85,11 +97,14 @@ def aggregate_runs(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "fraction_with_3d_target": _mean(1 if _as_bool(row.get("has_3d_target")) else 0 for row in rows),
         "grasp_attempted_rate": _mean(1 if _as_bool(row.get("grasp_attempted")) else 0 for row in rows),
         "pick_success_rate": _mean(1 if _as_bool(row.get("pick_success")) else 0 for row in rows),
+        "place_attempted_rate": _mean(1 if _as_bool(row.get("place_attempted")) else 0 for row in rows),
+        "place_success_rate": _mean(1 if _as_bool(row.get("place_success")) else 0 for row in rows),
         "task_success_rate": _mean(1 if _as_bool(row.get("task_success")) else 0 for row in rows),
         "is_grasped_rate": _mean(1 if _as_bool(row.get("is_grasped")) else 0 for row in rows),
         "fraction_top1_changed_by_rerank": _mean(1 if _as_bool(row.get("top1_changed_by_rerank")) else 0 for row in rows),
         "mean_runtime_seconds": _mean(_as_float(row.get("runtime_seconds"), 0.0) for row in rows),
         "pick_stage_counts": dict(sorted(stage_counts.items())),
+        "place_stage_counts": dict(sorted(place_stage_counts.items())),
     }
 
 

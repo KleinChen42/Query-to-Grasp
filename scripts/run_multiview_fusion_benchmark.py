@@ -87,6 +87,10 @@ CSV_COLUMNS = [
     "pick_stage",
     "pick_target_xyz",
     "pick_target_source",
+    "place_attempted",
+    "place_success",
+    "place_target_xyz",
+    "place_target_source",
     "task_grasp_target_guard_applied",
     "task_grasp_target_guard_reason",
     "runtime_seconds",
@@ -122,8 +126,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--env-id", default="PickCube-v1")
     parser.add_argument("--obs-mode", default="rgbd")
     parser.add_argument("--control-mode", default=None)
-    parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown"])
+    parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown", "sim_pick_place"])
     parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
+    parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose"])
     parser.add_argument("--merge-distance", type=float, default=0.08)
     parser.add_argument("--enable-closed-loop-reobserve", action="store_true")
     parser.add_argument("--closed-loop-max-extra-views", type=int, default=1)
@@ -138,7 +143,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    if args.pick_executor == "sim_topdown" and args.control_mode is None:
+    if args.pick_executor in {"sim_topdown", "sim_pick_place"} and args.control_mode is None:
         args.control_mode = "pd_ee_delta_pos"
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
 
@@ -180,6 +185,7 @@ def main() -> None:
         "control_mode": args.control_mode,
         "pick_executor": args.pick_executor,
         "grasp_target_mode": args.grasp_target_mode,
+        "place_target_source": args.place_target_source,
         "detector_backend": args.detector_backend,
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),
@@ -285,6 +291,8 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         args.pick_executor,
         "--grasp-target-mode",
         args.grasp_target_mode,
+        "--place-target-source",
+        args.place_target_source,
         "--detector-backend",
         args.detector_backend,
         "--mock-box-position",
@@ -463,6 +471,10 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "pick_stage": _optional_str(summary.get("pick_stage")) or "not_attempted",
         "pick_target_xyz": _join_sequence(summary.get("pick_target_xyz")),
         "pick_target_source": _optional_str(summary.get("pick_target_source")),
+        "place_attempted": _as_bool(summary.get("place_attempted")),
+        "place_success": _as_bool(summary.get("place_success")),
+        "place_target_xyz": _join_sequence(summary.get("place_target_xyz")),
+        "place_target_source": _optional_str(summary.get("place_target_source")),
         "task_grasp_target_guard_applied": _as_bool(summary.get("task_grasp_target_guard_applied")),
         "task_grasp_target_guard_reason": _optional_str(summary.get("task_grasp_target_guard_reason")),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
@@ -520,8 +532,11 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "grasp_attempted_rate": 0.0,
             "pick_success_rate": 0.0,
             "task_success_rate": 0.0,
+            "place_attempted_rate": 0.0,
+            "place_success_rate": 0.0,
             "is_grasped_rate": 0.0,
             "pick_stage_counts": {},
+            "place_stage_counts": {},
             "mean_selected_semantic_to_grasp_xy_distance": 0.0,
             "mean_selected_grasp_observation_count": 0.0,
             "mean_selected_grasp_observation_xy_spread": 0.0,
@@ -623,9 +638,14 @@ def aggregate_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "grasp_attempted_rate": _mean(1 if _as_bool(row.get("grasp_attempted")) else 0 for row in rows),
         "pick_success_rate": _mean(1 if _as_bool(row.get("pick_success")) else 0 for row in rows),
+        "place_attempted_rate": _mean(1 if _as_bool(row.get("place_attempted")) else 0 for row in rows),
+        "place_success_rate": _mean(1 if _as_bool(row.get("place_success")) else 0 for row in rows),
         "task_success_rate": _mean(1 if _as_bool(row.get("task_success")) else 0 for row in rows),
         "is_grasped_rate": _mean(1 if _as_bool(row.get("is_grasped")) else 0 for row in rows),
         "pick_stage_counts": count_values(row.get("pick_stage") or "unknown" for row in rows),
+        "place_stage_counts": count_values(
+            row.get("pick_stage") or "unknown" for row in rows if _as_bool(row.get("place_attempted"))
+        ),
         "mean_selected_semantic_to_grasp_xy_distance": _mean(
             _as_float(row.get("selected_semantic_to_grasp_xy_distance"), 0.0) for row in rows
         ),
@@ -728,6 +748,10 @@ def failed_row(
         "pick_stage": "run_failed",
         "pick_target_xyz": "",
         "pick_target_source": None,
+        "place_attempted": False,
+        "place_success": False,
+        "place_target_xyz": "",
+        "place_target_source": None,
         "task_grasp_target_guard_applied": False,
         "task_grasp_target_guard_reason": None,
         "runtime_seconds": 0.0,

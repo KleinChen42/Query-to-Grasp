@@ -7,7 +7,7 @@
 \usepackage{graphicx}
 \usepackage{url}
 
-\title{Query-to-Grasp: Language-Queryable RGB-D Retrieval, Multi-View Memory, and Simulated Pick Execution in ManiSkill}
+\title{Query-to-Grasp: Language-Queryable RGB-D Retrieval, Multi-View Memory, and H200-Scale Simulated Manipulation in ManiSkill}
 
 \author{\IEEEauthorblockN{Anonymous Authors}
 \IEEEauthorblockA{Paper draft scaffold for internal development}}
@@ -19,23 +19,25 @@
 Language-conditioned manipulation systems need more than a 2D language
 grounding result: they need a 3D target that is geometrically consistent,
 diagnosable under ambiguity, and usable by an action executor. We present
-Query-to-Grasp, a modular ManiSkill prototype for language-queryable RGB-D
-target retrieval, multi-view object memory, confidence-aware re-observation
-diagnostics, and opt-in simulated pick execution. The system connects
+Query-to-Grasp, a modular H200-validated ManiSkill prototype for
+language-queryable RGB-D target retrieval, multi-view object memory,
+confidence-aware re-observation diagnostics, and opt-in simulated manipulation
+evaluation. The system connects
 GroundingDINO detections, optional CLIP reranking, RGB-D lifting, object-centric
 3D fusion, deterministic target selection, and a scripted top-down ManiSkill
-pick controller. The default executor remains a safe placeholder, while the
-simulated executor reports downstream \texttt{pick\_success} separately from
-task-level \texttt{task\_success}. On \texttt{PickCube-v1}, fused memory grasp
+pick and pick-place controllers. The default executor remains a safe
+placeholder, while simulated executors report downstream \texttt{pick\_success},
+\texttt{place\_success}, and task-level \texttt{task\_success} separately. On \texttt{PickCube-v1}, fused memory grasp
 points yield full-query multi-view and closed-loop simulated pick success of
 \texttt{1.0000}. On \texttt{StackCube-v1}, task-aware guarded multi-view
 targets reach \texttt{0.6200} tabletop and \texttt{0.5200} closed-loop
 pick-only success over 50 seeds, while oracle object poses reach
-\texttt{0.9400}. StackCube task success remains \texttt{0.0000}, so we present
-it as pick-only compatibility rather than stack completion. These results
+\texttt{0.9400} pick success and \texttt{0.8800} privileged pick-place task
+success. Accepted query-driven StackCube rows remain pick-only until the
+query-pick/oracle-place bridge is validated. These results
 support Query-to-Grasp as a reproducible diagnostic baseline for studying the
-gap between open-vocabulary RGB-D retrieval and executable simulated grasp
-targets.
+gap between open-vocabulary RGB-D retrieval, executable simulated targets, and
+task-level manipulation outcomes.
 \end{abstract}
 
 \section{Introduction}
@@ -63,9 +65,9 @@ downstream pick success depends on preserving a grasp target separately from a
 semantic object center: fused \texttt{memory\_grasp\_world\_xyz} targets lift
 \texttt{PickCube-v1} multi-view and closed-loop pick success to \texttt{1.0000}.
 Third, broader tasks expose useful limitations: \texttt{StackCube-v1} supports
-pick-only compatibility, but task-aware guards, oracle baselines, and failure
-reports show that remaining errors are target-source and association
-limitations rather than evidence of full stacking competence.
+pick-only compatibility, oracle pick-place establishes a privileged placement
+upper bound, and the current bridge tests whether query-derived cubeA targets
+can support placement when cubeB is oracle-provided.
 
 No real-robot execution is claimed. The controller is scripted, not learned,
 and StackCube results do not claim stack placement completion. The contribution
@@ -153,15 +155,17 @@ Continuity guards keep selected-object association stable when appropriate,
 while absorber-aware checks prevent forcing continuity when a competing object
 also absorbed the extra view.
 
-\subsection{Simulated Pick Execution}
+\subsection{Simulated Pick and Pick-Place Execution}
 
 The default executor returns a structured placeholder result. The opt-in
 \texttt{sim\_topdown} executor uses ManiSkill \texttt{pd\_ee\_delta\_pos}
 actions to move the TCP above the target, descend, close the gripper, and lift.
-It reports \texttt{grasp\_attempted}, \texttt{pick\_success},
-\texttt{task\_success}, pick stage, final TCP position, and simulator info.
-\texttt{pick\_success} measures task-specific grasp or lift evidence, while
-\texttt{task\_success} is the raw ManiSkill task success flag.
+The opt-in \texttt{sim\_pick\_place} executor extends the sequence with a
+scripted move-to-place, release, and settle stage. Both executors report
+\texttt{grasp\_attempted}, \texttt{pick\_success}, \texttt{place\_success},
+\texttt{task\_success}, stage diagnostics, final TCP position, and simulator
+info. \texttt{pick\_success} measures task-specific grasp or lift evidence,
+while \texttt{task\_success} is the raw ManiSkill task success flag.
 
 \begin{figure}[t]
 \centering
@@ -175,29 +179,32 @@ execution.}
 
 \section{Experimental Setup}
 
-Experiments run in ManiSkill with RGB-D observations. The primary benchmark is
-\texttt{PickCube-v1}. \texttt{StackCube-v1} is used as a cross-task pick-only
-compatibility diagnostic: the system attempts to pick the queried red cube but
-does not execute the placement phase required for stacking task completion.
+Experiments run in ManiSkill with RGB-D observations. H200 HF/ManiSkill runs
+are the source of paper-scale claims; local and Colab paths are retained for
+smoke testing. The primary benchmark is \texttt{PickCube-v1}. \texttt{StackCube-v1}
+is the cross-task bridge benchmark: accepted rows test query-driven cubeA
+picking, oracle rows test privileged cubeA-to-cubeB placement, and the current
+bridge tests query-derived cubeA targets with an oracle cubeB placement target.
 
 Metrics are split into retrieval, uncertainty, and control groups. Retrieval
 metrics include detection count, 3D target availability, memory size, selected
 confidence, and target source. Re-observation metrics include trigger rate,
 closed-loop resolution, and still-needed rate. Control metrics include
 \texttt{grasp\_attempted\_rate}, \texttt{pick\_success\_rate},
-\texttt{task\_success\_rate}, and pick-stage counts.
+\texttt{place\_success\_rate}, \texttt{task\_success\_rate}, and stage counts.
 
 The main paper artifacts are collected in \texttt{outputs/paper\_figure\_pack\_latest}.
 Table~\ref{tab:target-source} summarizes the final target-source results.
 Additional reports include the single-view ablation table, corrected geometry
-reports, full PickCube grasp comparison, StackCube expanded failure report, and
-oracle target-source comparison.
+reports, full PickCube grasp comparison, StackCube expanded failure report,
+oracle target-source comparison, and the pending query-driven StackCube
+placement bridge.
 
 \begin{table*}[t]
 \centering
-\caption{Target-source and simulated pick results used by the current paper
-draft. StackCube rows are pick-only compatibility results; their
-\texttt{task\_success\_rate} remains \texttt{0.0000}.}
+\caption{Target-source and simulated manipulation results used by the current
+paper draft. Query-driven StackCube rows are pick-only until the placement
+bridge is accepted; oracle pick-place is privileged.}
 \label{tab:target-source}
 \begin{tabular}{llrrrrl}
 \toprule
@@ -208,6 +215,7 @@ Expanded tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & 0.0000 & \texttt{t
 Expanded closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
 Oracle pick & \texttt{PickCube-v1} & 50 & 0 & 1.0000 & 0.0400 & \texttt{oracle\_object\_pose} \\
 Oracle pick & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.0000 & \texttt{oracle\_object\_pose} \\
+Oracle pick-place & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.8800 & \texttt{oracle\_cubeA\_pose}\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -276,9 +284,11 @@ improvement.
 
 Query-to-Grasp is a simulated systems prototype. It does not claim real-robot
 deployment, a learned controller, or full long-horizon manipulation. The
-\texttt{sim\_topdown} executor is a scripted top-down pick policy and does not
-perform StackCube placement. StackCube \texttt{task\_success\_rate} remains
-\texttt{0.0000}; its results are therefore pick-only compatibility evidence.
+\texttt{sim\_topdown} executor is a scripted top-down pick policy, and
+\texttt{sim\_pick\_place} is a scripted placement probe rather than a learned
+controller. Accepted query-driven StackCube rows remain pick-only until the
+query-pick/oracle-place bridge is validated. Oracle pick-place rows are
+privileged upper bounds, not deployable language-conditioned stacking.
 
 The detector backend is used off the shelf. The current results do not show
 CLIP reranking as a primary improvement source. The query parser handles simple
@@ -289,13 +299,15 @@ ManiSkill, not physical camera motion.
 \section{Conclusion}
 
 Query-to-Grasp connects language-queryable RGB-D perception to multi-view 3D
-memory, uncertainty-aware re-observation, and opt-in simulated pick execution.
+memory, uncertainty-aware re-observation, and opt-in simulated pick and
+pick-place execution.
 The current system shows that careful camera geometry and separate grasp-point
 memory are enough to turn PickCube from a retrieval-only benchmark into a
 strong simulated pick benchmark. StackCube demonstrates useful cross-task
-pick-only transfer while exposing target-source and closed-loop association
-limits. These results provide a reproducible basis for a full simulated
-conference-style paper and a clear roadmap toward broader task success.
+transfer while exposing target-source, placement-target, and closed-loop
+association limits. These results provide a reproducible H200-scale basis for
+an IROS/ICRA-style simulated systems paper and a clear roadmap toward broader
+task success.
 
 \appendices
 \section{Artifact and Command Notes}
@@ -319,6 +331,8 @@ The main benchmark artifacts referenced by this draft are:
   \item \texttt{outputs/h200\_60071\_multiview\_memory\_grasp\_point\_full\_ambiguity\_seed01234}
   \item \texttt{outputs/h200\_60071\_stackcube\_task\_guard\_expanded\_seed0\_49}
   \item \texttt{outputs/h200\_60071\_oracle\_pick\_ablation}
+  \item \texttt{outputs/h200\_60071\_oracle\_stackcube\_place\_seed0\_49}
+  \item \texttt{outputs/h200\_60071\_query\_stackcube\_place\_bridge\_seed0\_49} (pending bridge gate)
   \item \texttt{outputs/paper\_figure\_pack\_latest}
 \end{itemize}
 

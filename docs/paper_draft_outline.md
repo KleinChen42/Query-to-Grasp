@@ -2,50 +2,213 @@
 
 Working title:
 
-`Query-to-Grasp via Confidence-Aware 3D Semantic Fusion`
-
-Shorter title option:
-
-`Language-Queryable 3D Target Retrieval with Confidence-Aware Multi-View Fusion`
+`Query-to-Grasp: From Open-Vocabulary RGB-D Retrieval to Graspable 3D Action Targets`
 
 ## Current Claim
 
-This project currently supports a focused systems claim:
+This project now targets an H200-scale simulated IROS/ICRA full-paper systems
+claim:
 
-> A language-queryable RGB-D perception pipeline can retrieve open-vocabulary
-> 3D target hypotheses in ManiSkill, and corrected multi-view geometric fusion
-> substantially reduces object-memory fragmentation compared with an uncorrected
-> or single-view-only baseline.
+> Open-vocabulary detectors can identify language-relevant objects in 2D, but
+> robot manipulation requires graspable 3D action targets. Query-to-Grasp is a
+> diagnostic RGB-D manipulation system that exposes the retrieval-to-execution
+> gap: target-source quality, cross-view geometric consistency, and
+> re-observation association determine whether language-selected objects become
+> executable simulated pick or pick-place targets.
 
 Updated paper positioning:
 
-- The near-term paper is a target-retrieval and active re-observation paper for
-  grasp preparation, with an initial opt-in simulated grasp baseline.
-- The current placeholder pick path is valid infrastructure, but it should be
-  framed as target validation rather than robot-control evidence.
-- The simulated top-down executor now reports downstream grasp outcomes
-  separately from retrieval outcomes; the first compact result is diagnostic
-  rather than a mature manipulation benchmark.
+- The primary target is now an IROS/ICRA-style full simulated systems paper.
+- H200 HF/ManiSkill runs are the authoritative experimental source; Colab/local
+  mock paths are smoke and reproducibility support.
+- The current placeholder pick path is valid infrastructure, but only opt-in
+  simulated executors count as control evidence.
+- The paper should center target-source, oracle, and task-success ablations:
+  query-derived targets, fused memory grasp targets, task-aware guards, and
+  privileged oracle object poses.
+- The paper should read as a diagnostic systems paper, not an implementation
+  log. Engineering terms such as "smoke test", "mock backend", "debug path",
+  "child failure", "repo", "commit", and explicit source paths should be
+  removed from manuscript prose unless they appear in a reproducibility
+  appendix.
 
 What we should not claim yet:
 
 - Real grasp execution success.
 - General cluttered-scene manipulation.
 - Learned re-observation.
+- Learned grasping or learned active perception.
 - CLIP as the main source of retrieval improvement.
 - Robust relation-heavy language grounding.
+- Full non-oracle StackCube stacking completion.
 
 Submission-level expectation:
 
-- Current retrieval/re-observation version: suitable for an arXiv systems paper,
-  workshop paper, or perception-for-manipulation diagnostic submission.
-- With a reliable minimal simulated grasp baseline and grasp-success ablations:
-  substantially stronger for ICRA/IROS workshop or a possible conference paper
-  if the experimental story is clean.
-- With robust simulated grasp control, stronger baselines, and broader tasks:
-  closer to RA-L/ICRA/IROS full-paper expectations.
+- Current target: IROS/ICRA full paper in simulation, assuming H200-scale
+  validation, strong target-source baselines, and conservative claim framing.
+- RA-L remains a stretch target if task-success evidence broadens beyond the
+  current StackCube bridge and the paper gains a stronger method contribution.
 - With real-robot validation: materially higher ceiling, but that is a new
   project phase rather than a small extension.
+
+## Revised Narrative Spine
+
+The manuscript should be rewritten around four layers.
+
+### Layer 1: Reranking Is Not the Bottleneck
+
+CLIP should be framed as a controlled semantic reranking ablation, not as a
+failed feature. In the current candidate pools, GroundingDINO usually returns
+one or very few candidates, so CLIP rarely changes the top-1 selection. The
+academic message is that the dominant bottleneck is downstream of 2D semantic
+matching: the quality of the lifted 3D target and its suitability for execution.
+
+### Layer 2: Geometric Consistency Enables Multi-View Memory
+
+The OpenCV-to-OpenGL camera-frame correction should be described as a coordinate
+alignment result, not as a bug fix. Persistent multi-view memory is meaningful
+only when RGB-D lifting and simulator camera poses agree. Without cross-view
+coordinate consistency, memory fragmentation is expected; with the correction,
+the object memory becomes a valid diagnostic substrate.
+
+### Layer 3: PickCube Demonstrates Executability
+
+PickCube is the strongest positive result. The paper should emphasize that
+fused memory grasp targets bridge semantic retrieval and executable simulated
+control, reaching `1.0000` simulated pick success in the validated full-query
+multi-view and closed-loop settings.
+
+### Layer 4: StackCube Exposes the Retrieval-to-Execution Gap
+
+StackCube should be framed as a cross-task diagnostic testbed. It is not a
+claim of full language-conditioned stacking. Current StackCube evidence has
+three roles:
+
+- pick-only compatibility shows cross-task transfer of query-derived pick
+  targets;
+- oracle pick and oracle pick-place establish privileged upper bounds for the
+  scripted controller;
+- the query-pick plus oracle-place bridge tests whether query-derived cubeA
+  targets can support task completion when the placement target is privileged.
+
+The key interpretation is that remaining failures are not simply low-level
+controller failures. They reflect target-source selection, task-dependent grasp
+target quality, memory association, and closed-loop third-object absorption.
+
+## Revised Section Headings
+
+1. Introduction
+2. Related Work
+   - Open-Vocabulary Grounding for Manipulation
+   - Language-Conditioned Robotic Manipulation
+   - RGB-D Lifting and Multi-View Object Memory
+   - Active Perception and Re-Observation Diagnostics
+3. System Overview
+4. From Language Queries to 3D Action Targets
+   - Open-Vocabulary 2D Proposals and Reranking
+   - Camera-Consistent RGB-D Lifting
+   - Multi-View Object Memory and Target Selection
+   - Re-Observation as Diagnostic Association
+5. Simulated Execution and Target-Source Baselines
+   - Simulated Pick Execution
+   - Oracle Pick and Pick-Place Baselines
+   - Query-Pick plus Oracle-Place Bridge
+6. Experimental Protocol
+7. Results
+   - Reranking Is Not the Main Bottleneck
+   - Geometric Consistency Reduces Memory Fragmentation
+   - PickCube Converts Retrieval into Executable Picks
+   - StackCube Reveals Cross-Task Target-Source Limits
+8. Limitations and Failure Taxonomy
+9. Conclusion
+10. Reproducibility Appendix
+
+## Manuscript Rewrite Targets
+
+### Abstract
+
+The abstract should use the new title and thesis. It should state that the paper
+studies the retrieval-to-execution gap between open-vocabulary 2D detection and
+graspable 3D action targets. It should preserve the established numbers:
+PickCube full-query multi-view and closed-loop pick success `1.0000`;
+StackCube expanded pick-only tabletop `0.6200` and closed-loop `0.5200`;
+StackCube oracle pick `0.9400`; StackCube oracle pick-place task success
+`0.8800`; and the query-pick plus oracle-place result only after the current
+H200 bridge gate finishes. If the bridge is still pending, mark it as pending
+rather than a final claim.
+
+### Introduction
+
+The introduction should start from the mismatch between 2D open-vocabulary
+grounding and 3D executable manipulation. The system should be presented as a
+diagnostic benchmark and pipeline for identifying where language-conditioned
+RGB-D manipulation fails: semantic candidate pools, camera-frame consistency,
+multi-view association, target-source choice, and physical execution.
+
+### Conclusion
+
+The conclusion should not summarize implementation milestones. It should return
+to the central lesson: the hard part of query-to-grasp is not only recognizing a
+named object but producing and maintaining a graspable 3D action target across
+views and tasks. PickCube shows that the bridge can close under favorable
+target-source conditions; StackCube shows why oracle and target-source ablations
+remain necessary before claiming full language-conditioned task completion.
+
+## Method-Section Edit Checklist
+
+- Replace implementation-log phrasing with method concepts: proposal generation,
+  RGB-D lifting, cross-view alignment, object memory, target-source selection,
+  and execution baselines.
+- Remove explicit source-code paths from main method prose; keep them only in
+  appendix or reproducibility notes.
+- Describe CLIP as an optional semantic reranking/control ablation, not as a
+  central contribution.
+- Describe the camera-frame conversion as coordinate-system alignment required
+  for valid multi-view fusion.
+- Separate semantic object centers from grasp/action targets throughout the
+  method.
+- Present re-observation as diagnostic association and uncertainty reduction,
+  not learned active perception.
+- Present privileged oracle target sources as baselines and upper bounds, not
+  deployable perception results.
+
+## Results-Section Edit Checklist
+
+- Begin with the reranking observation: current candidate multiplicity leaves
+  little room for CLIP to alter top-1, so downstream target quality matters more.
+- Make the camera-frame consistency result the first major systems finding:
+  geometric alignment enables meaningful multi-view memory.
+- Treat PickCube as the main positive execution result and preserve the
+  `1.0000` full-query pick-success claim.
+- Treat StackCube as a diagnostic cross-task result, clearly separating
+  pick-only, oracle placement, and query-pick plus oracle-place bridge rows.
+- State that closed-loop re-observation can reduce uncertainty while still
+  failing to improve StackCube manipulation success because association errors
+  such as third-object absorption can affect the final target.
+- Include a failure taxonomy paragraph instead of an engineering post-mortem.
+
+## Claim Boundary Box
+
+The paper can claim:
+
+- open-vocabulary RGB-D target retrieval with camera-consistent 3D lifting;
+- inspectable multi-view object memory and deterministic target selection;
+- diagnostic re-observation that measures uncertainty and association effects;
+- opt-in simulated pick and oracle pick-place baselines in ManiSkill;
+- PickCube full-query simulated pick success of `1.0000`;
+- StackCube pick-only compatibility and privileged oracle placement baselines;
+- query-pick plus oracle-place StackCube task success only if the current H200
+  bridge validation passes and is recorded.
+
+The paper must not claim:
+
+- real-robot execution;
+- learned grasping or learned active perception;
+- robust long-horizon language-conditioned manipulation;
+- robust relation-heavy language grounding;
+- full non-oracle language-conditioned StackCube stacking completion;
+- CLIP as the primary performance driver unless future evidence changes the
+  top-1 reranking result.
 
 ## Abstract Skeleton
 
@@ -807,12 +970,12 @@ Paper assets:
 Be explicit:
 
 - Real-robot control is not implemented.
-- Low-level ManiSkill simulated control is opt-in and currently limited to a
-  simple top-down pick executor. It is strong on `PickCube-v1` compact queries
-  and has a `StackCube-v1` pick-only smoke, but it is not yet a general task
-  controller.
-- Therefore, the current paper may report an initial simulated grasp baseline,
-  but should not claim robust end-to-end manipulation or real grasp success.
+- Low-level ManiSkill simulated control is opt-in and currently includes
+  scripted pick and pick-place executors. These are benchmark controllers, not
+  learned or general-purpose robot policies.
+- Therefore, the current paper may report simulated pick and privileged
+  pick-place baselines, but should not claim robust real-world manipulation or
+  non-oracle StackCube completion until the bridge validation supports it.
 - Web demo is not implemented.
 - Re-observation is implemented as a minimal opt-in virtual-view loop. It now
   resolves compact ambiguity triggers in the accepted H200 diagnostic benchmark,
@@ -841,15 +1004,17 @@ Be explicit:
   wrong fused grasp observation dominates tabletop failures, while closed-loop
   adds third-object absorption. This should be used as the limitation figure or
   table for the multi-task section.
-- `StackCube-v1` `task_success_rate` remains `0.0000` because the controller
-  only picks/lifts cubeA and does not perform stack placement.
+- Accepted query-driven StackCube rows remain pick-only until the placement
+  bridge is validated. The oracle placement baseline is privileged and must be
+  reported as an upper bound, not as a deployable language-conditioned stacker.
 - The resolved simulated-grasp failures were dominated by detector boxes whose
   original upper region missed the graspable object support; the semantic target
   center is preserved while the opt-in refined grasp point can use a downward
   crop fallback.
-- Experiments are still simulated: the strongest benchmark is full-query
-  `PickCube-v1`, while `StackCube-v1` is a pick-only generalization diagnostic
-  rather than a complete stacking task.
+- Experiments are still simulated: the strongest accepted benchmark is
+  full-query `PickCube-v1`, while `StackCube-v1` is now the key cross-task
+  bridge for testing whether query-derived cubeA targets can support placement
+  when cubeB is privileged.
 - CLIP did not change top-1 in current benchmarks.
 - Query parser supports simple attributes and conservative relations, not full
   language reasoning.
@@ -949,34 +1114,38 @@ Latest oracle placement baseline:
 
 This is the first positive StackCube placement-capability result, but it is
 privileged. It should be framed as an upper-bound controller/target-source
-ablation, not as query-driven StackCube task completion. Query-driven
-StackCube results remain pick-only until a non-oracle placement target path is
-implemented and validated.
+ablation, not as query-driven StackCube task completion. The current bridge
+under H200 validation uses a query-derived cubeA pick target with privileged
+`oracle_cubeB_pose`; it may become a partial task-success bridge, but it is
+still not a fully non-oracle language-conditioned stacking result.
 
 ## Next Writing Milestone
 
 Turn the polished Markdown draft into a venue-shaped manuscript without changing
 detector, fusion weights, controller timing, or benchmark claims:
 
-1. Freeze the cross-task simulated pick table with PickCube full/compact rows
-   and StackCube expanded guarded rows.
-2. Use the expanded failure report as the limitation/failure figure showing
+1. Finish and record the query-driven StackCube placement bridge:
+   query-derived cubeA pick target plus privileged `oracle_cubeB_pose`.
+2. Freeze the cross-task simulated pick/place table with PickCube full/compact
+   rows, StackCube expanded guarded rows, oracle pick/place rows, and bridge
+   rows when accepted.
+3. Use the expanded failure report as the limitation/failure figure showing
    that StackCube closed-loop still reaches only `0.5200` pick success despite
    reduced uncertainty diagnostics.
-3. Preserve the target-source distinction: PickCube refined uses
+4. Preserve the target-source distinction: PickCube refined uses
    `memory_grasp_world_xyz`; StackCube refined uses
    `task_guard_selected_object_world_xyz`.
-4. Keep StackCube framed as pick-only compatibility unless `task_success_rate`
-   improves through a separate stacking executor.
-5. Multi-task simulated-grasp prose is drafted in
+5. Keep privileged placement sources clearly labeled unless a non-oracle
+   placement target path is implemented and validated.
+6. Multi-task simulated-grasp prose is drafted in
    `docs/paper_multitask_sim_grasp_section.md`, and the first full manuscript
    skeleton is assembled in `docs/paper_manuscript_draft.md`.
-6. Manuscript draft v0.2 now includes a related-work scaffold, figure/table
+7. Manuscript draft v0.2 now includes a related-work scaffold, figure/table
    callouts, and conference-style result framing; the citation buckets are
    tracked in `docs/paper_related_work_citation_plan.md`.
-7. ICRA/IROS-style LaTeX draft v0.1 now lives in `paper/main.tex`, with
+8. ICRA/IROS-style LaTeX draft v0.1 now lives in `paper/main.tex`, with
    first-pass BibTeX in `paper/references.bib` and structural checks in
    `scripts/check_paper_latex.py`.
-8. Next writing task: verify exact BibTeX metadata from primary sources,
+9. Next writing task: verify exact BibTeX metadata from primary sources,
    tighten the LaTeX draft to the target page budget, and replace figure/table
    placeholders with final camera-ready assets.

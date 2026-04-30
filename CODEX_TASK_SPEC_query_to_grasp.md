@@ -1,21 +1,23 @@
 # CODEX TASK SPEC — Query-to-Grasp via Confidence-Aware 3D Semantic Fusion
 
 ## 1. Role
-You are an autonomous coding agent building a research-grade but fast-to-ship prototype for a conference-style demo and paper.
+You are an autonomous coding agent building a research-grade H200-scale simulated manipulation system for an IROS/ICRA-style full paper.
 
-Your goal is to implement a **language-queryable 3D semantic target retrieval system for grasp preparation** in simulation, with strong AI involvement and a clean path to experiments, diagnostic reports, and a paper draft.
+Your goal is to implement a **language-queryable RGB-D target retrieval, multi-view memory, re-observation, and simulated manipulation evaluation system** in ManiSkill, with strong AI involvement, H200-scale experiments, diagnostic reports, and a conference-paper artifact pack.
 
-Current scope reset, 2026-04-27:
-- The stable paper v1 is a perception/retrieval/re-observation system, not a full grasp-control paper.
-- `SafePlaceholderPickExecutor` is expected in the current mainline and must not be reported as real grasp success.
-- The minimal simulated grasp execution baseline now exists as an opt-in `sim_topdown` path.
-- The next quality-upgrade phase is grasp-point/control diagnosis: explain why exact/oracle targets grasp while broad compact queries often lift to non-grasp-confirmed target centers.
+Current scope reset, 2026-04-30:
+- The target is now an H200-scale simulated IROS/ICRA full-paper package, not a Colab-first demo.
+- `SafePlaceholderPickExecutor` remains the safe default and must not be reported as real grasp success.
+- Opt-in `sim_topdown` and `sim_pick_place` paths provide real ManiSkill action metrics for pick and pick-place baselines.
+- H200 is the authoritative platform for HF GroundingDINO, multi-view, closed-loop, oracle, and simulated manipulation validation.
+- Colab/local mock modes are retained only for smoke testing, quick reproducibility, and dependency-light debugging.
+- The current quality-upgrade phase is target-source and placement-bridge validation: compare query-derived targets, fused memory grasp targets, task-aware semantic guards, and oracle object poses on downstream simulated task success.
 
 You must optimize for:
-1. **Fast end-to-end demo delivery**
-2. **Minimal training / mostly inference-based AI modules**
+1. **H200-scale benchmark coverage suitable for IROS/ICRA full-paper evidence**
+2. **Strong target-source, oracle, and task-success ablations**
 3. **Clear modular architecture**
-4. **Reproducibility in Colab Pro and local Linux**
+4. **Smoke-test reproducibility in Colab/local mock modes**
 5. **Research value**, not just a toy script
 
 ---
@@ -35,7 +37,7 @@ Given a natural-language query such as:
 - `banana`
 - `small green block near the cup`
 
-The current paper-v1 system should:
+The current full-paper system should:
 1. Parse the query into structured semantic constraints
 2. Observe a ManiSkill scene using RGB + depth (+ segmentation if available)
 3. Propose candidate 2D object regions using an open-vocabulary detector
@@ -44,22 +46,29 @@ The current paper-v1 system should:
 6. Fuse multi-view evidence into a persistent 3D object memory
 7. If confidence is low, trigger one or more extra viewpoints
 8. Select the best target in 3D
-9. Validate the selected target with a safe placeholder pick executor
-10. Return visualizations, logs, benchmark rows, reports, and paper artifacts
+9. Validate the selected target with a safe placeholder executor by default
+10. Optionally execute simulated pick or pick-place actions with ManiSkill low-level control
+11. Report retrieval, pick, placement, and task-success metrics separately
+12. Return visualizations, logs, benchmark rows, reports, and paper artifacts
 
-The next grasp-upgrade system should additionally:
-1. Convert the selected 3D target into a minimal scripted or planner-assisted simulated grasp attempt
-2. Report real ManiSkill grasp-attempt and pick-success metrics separately from retrieval metrics
-3. Compare single-view, multi-view, and closed-loop re-observation on downstream grasp success
+The H200-scale grasp/task-upgrade system should additionally:
+1. Compare query-derived, fused-memory, task-guarded, and oracle target sources
+2. Report real ManiSkill grasp-attempt, pick-success, place-success, and task-success metrics
+3. Compare single-view, multi-view, and closed-loop re-observation on downstream manipulation outcomes
+4. Scale final validations to 50, 100, or 200 seeds when feasible
 
 ---
 
 ## 4. Research hypothesis
-A **confidence-aware multi-view 3D semantic fusion pipeline** will improve language-conditioned **3D target retrieval and grasp-preparation diagnostics** in cluttered scenes compared with a single-view or non-fusion baseline.
+A **confidence-aware multi-view 3D semantic fusion pipeline** will improve language-conditioned **3D target retrieval, action-target selection, and simulated manipulation diagnostics** compared with single-view or non-fusion baselines.
 
 Follow-up hypothesis after adding minimal simulated grasp control:
 
 > Better language-conditioned 3D target retrieval and re-observation should improve downstream simulated grasp-attempt success, even with a simple non-learned grasp executor.
+
+Full-paper hypothesis after adding H200-scale target-source and placement baselines:
+
+> Downstream simulated manipulation success is governed less by 2D grounding alone than by the choice of 3D action target source; query-derived, fused-memory, task-aware, and oracle target sources should expose where language-conditioned RGB-D systems fail between retrieval and execution.
 
 ---
 
@@ -73,23 +82,25 @@ Follow-up hypothesis after adding minimal simulated grasp control:
 - Confidence-based re-observation policy
 - Evaluation scripts and ablations
 - Paper-ready reports and artifact packs
+- H200-scale final validation for accepted baselines
 
 ### Next-stage must do for a stronger grasp paper
-- Minimal simulated scripted or planner-assisted grasp attempt
-- Downstream `grasp_attempted`, `pick_success`, and query-to-grasp metrics
-- Ablations showing whether retrieval/re-observation improves grasp outcomes
+- Simulated scripted pick and pick-place attempts
+- Downstream `grasp_attempted`, `pick_success`, `place_success`, `task_success`, and query-to-task metrics
+- Oracle and target-source ablations showing whether retrieval/re-observation improves manipulation outcomes
+- Failure taxonomy for cases where lower uncertainty does not improve control
 
 ### Must NOT do in v1
 - Real robot deployment
 - Real low-level robot-control claim
 - Treat placeholder pick success as real grasp success
 - Web demo unless the paper/debug artifacts are already frozen
-- Large-scale model training
+- Blind large-scale model training without a clear ablation or target-source hypothesis
 - Full relation-heavy language reasoning
-- Multi-step task chains
+- Long-horizon multi-step task chains beyond the controlled StackCube placement bridge
 - Multi-robot setup
 - Complex motion planning research
-- Novel grasp synthesis training
+- Novel grasp synthesis training before target-source and oracle baselines are exhausted
 
 ### Principle
 **Prefer a strong, clean, fully working baseline over a large but incomplete system.**
@@ -543,18 +554,23 @@ Do not make tests depend on large model downloads unless explicitly marked integ
 ---
 
 ## 14. Performance / resource constraints
-Assume the primary development environment is:
-- **Colab Pro**
-- single-GPU session
-- limited VRAM budget
-- need for fast restart and checkpoint-free inference workflows
+Assume the primary experiment environment is:
+- **H200 remote server**
+- HF GroundingDINO and ManiSkill validation with long-running benchmark jobs
+- large seed sweeps, target-source ablations, oracle baselines, and report generation
+- detached execution with `status.tsv` polling so local Windows shutdown does not interrupt runs
+
+Assume the secondary smoke environment is:
+- Colab Pro or local Windows/Linux
+- mock detector, skip-CLIP, and dependency-light commands
+- short tests that validate interfaces without requiring H200-scale dependencies
 
 Therefore:
-- prefer inference-first pipeline
-- avoid training-heavy components in v1
-- cache model loads
-- allow CPU fallback for non-critical paths
-- make notebooks restart-friendly
+- treat H200 results as authoritative for paper claims
+- use Colab/local paths for smoke and reproducibility, not for final experimental scale
+- prefer inference-first and refinement-first upgrades unless training has a clear experimental purpose
+- cache model loads and keep restart-friendly scripts
+- write all long jobs as resumable or pollable runs with lightweight pullback artifacts
 
 ---
 
@@ -615,7 +631,7 @@ The README must include:
 1. project overview
 2. architecture diagram (ASCII or Mermaid acceptable)
 3. install steps
-4. Colab usage notes
+4. H200 experiment workflow and Colab/local smoke usage notes
 5. quickstart commands
 6. demo launch instructions
 7. evaluation instructions
@@ -683,8 +699,8 @@ Next step
 
 ---
 
-## 22. Acceptance criteria for v1
-The v1 system is considered successful if it can:
+## 22. Acceptance criteria
+The stable smoke/retrieval system is considered successful if it can:
 
 1. accept a query like `red cube`
 2. retrieve candidate detections from one or more views
@@ -694,20 +710,22 @@ The v1 system is considered successful if it can:
 6. run ablations comparing single-view, multi-view, CLIP/no-CLIP, and re-observation variants
 7. clearly document limitations around placeholder grasp execution
 
-The stronger grasp-paper stage is considered successful if it can:
+The IROS/ICRA simulated full-paper system is considered successful if it can:
 
 1. convert the selected 3D target into a real simulated grasp attempt
-2. execute that attempt in ManiSkill with a scripted or planner-assisted controller
-3. report downstream pick success separately from retrieval success
-4. show whether multi-view/re-observation improves grasp outcomes
+2. execute pick and pick-place attempts in ManiSkill with scripted or planner-assisted controllers
+3. report downstream pick, place, and task success separately from retrieval success
+4. compare query-derived, fused-memory, task-aware, and oracle target sources
+5. show whether multi-view/re-observation improves manipulation outcomes or only uncertainty diagnostics
+6. scale accepted H200 validations to enough seeds for conference-style evidence
 
-Current status, 2026-04-27:
+Current status, 2026-04-30:
 
-- Items 1-3 are implemented for the opt-in single-view `sim_topdown` path.
-- H200 oracle and exact `red cube` smoke tests can grasp successfully.
-- The first compact query benchmark is stable but low-success (`pick_success_rate = 0.1000`), so item 4 should wait until target-center/grasp-point diagnosis is complete.
-- The first grasp-point diagnosis is complete: exact successes choose target points within about `0.017 m` of the oracle cube pose, while compact failures average about `0.333 m` from oracle and usually place the target high above the object.
-- Next action: add one small grasp-point refinement for broad detections before rerunning compact grasp-success ablations.
+- `PickCube-v1` query-driven single-view, multi-view, and closed-loop simulated pick baselines are strong after refined and fused-memory grasp target work.
+- `StackCube-v1` accepted query-driven rows are still pick-only; expanded guarded multi-view validation reaches `0.6200` tabletop and `0.5200` closed-loop pick success over 50 seeds.
+- Oracle StackCube pick-place is implemented as a privileged upper bound and reaches positive task success.
+- Query-driven StackCube placement bridge is in H200 validation: query-derived cubeA pick target plus privileged `oracle_cubeB_pose` placement target.
+- Next action: finish that bridge validation, then decide between large-scale table freeze and optional H200-scale mask/refinement target lifting.
 
 ---
 
@@ -716,8 +734,8 @@ Current status, 2026-04-27:
 - VLM-based failure explanation
 - learned re-observation policy
 - learned grasp ranking
-- minimal simulated scripted grasp baseline
-- segment-anything refinement
+- task-general placement target inference
+- optional SAM/SAM2-style target-mask refinement
 - simple sim-to-real export utilities
 - paper figure generation scripts
 

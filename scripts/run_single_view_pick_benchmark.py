@@ -34,6 +34,10 @@ CSV_COLUMNS = [
     "num_3d_points",
     "grasp_attempted",
     "pick_success",
+    "place_attempted",
+    "place_success",
+    "place_target_xyz",
+    "place_target_source",
     "task_success",
     "is_grasped",
     "pick_stage",
@@ -61,8 +65,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--env-id", default="PickCube-v1")
     parser.add_argument("--obs-mode", default="rgbd")
     parser.add_argument("--control-mode", default=None)
-    parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown"])
+    parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown", "sim_pick_place"])
     parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
+    parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose"])
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
 
@@ -102,6 +107,7 @@ def main() -> None:
         "control_mode": args.control_mode,
         "pick_executor": args.pick_executor,
         "grasp_target_mode": args.grasp_target_mode,
+        "place_target_source": args.place_target_source,
         "aggregate_metrics": aggregate_runs(rows),
         "per_query_metrics": aggregate_runs_by_query(rows),
     }
@@ -209,6 +215,8 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         args.pick_executor,
         "--grasp-target-mode",
         args.grasp_target_mode,
+        "--place-target-source",
+        args.place_target_source,
         "--detector-backend",
         args.detector_backend,
         "--mock-box-position",
@@ -263,6 +271,10 @@ def failed_row(
         "num_3d_points": 0,
         "grasp_attempted": False,
         "pick_success": False,
+        "place_attempted": False,
+        "place_success": False,
+        "place_target_xyz": None,
+        "place_target_source": None,
         "task_success": False,
         "is_grasped": False,
         "pick_stage": "run_failed",

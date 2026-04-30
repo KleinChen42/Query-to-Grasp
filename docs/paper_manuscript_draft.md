@@ -4,8 +4,9 @@
 
 Language-conditioned robotic manipulation requires connecting open-vocabulary
 2D perception with 3D geometric reasoning and executable action targets. We
-present Query-to-Grasp, a modular ManiSkill research prototype for
-language-queryable RGB-D target retrieval and simulated pick evaluation. The
+present Query-to-Grasp, a modular H200-validated ManiSkill research prototype
+for language-queryable RGB-D target retrieval and simulated manipulation
+evaluation. The
 system parses a natural-language query, detects candidate 2D regions with
 GroundingDINO, optionally reranks candidates with CLIP, lifts RGB-D detections
 into 3D, fuses multi-view evidence into persistent object memory, selects a
@@ -23,9 +24,10 @@ pick success to `1.0000`. A broader `StackCube-v1` pick-only validation reaches
 `0.6200` tabletop and `0.5200` closed-loop pick success over 50 seeds, while
 revealing task-dependent target-source preferences and closed-loop
 third-object absorption. These results support Query-to-Grasp as a reproducible
-diagnostic baseline for language-conditioned RGB-D retrieval and simulated
-grasp target evaluation, while clearly separating perception, pick-only control,
-and full task completion.
+conference-scale diagnostic baseline for language-conditioned RGB-D retrieval,
+target-source selection, and simulated manipulation evaluation, while clearly
+separating perception, pick-only control, privileged placement baselines, and
+full non-oracle task completion.
 
 ## 1. Introduction
 
@@ -37,8 +39,9 @@ geometrically consistent, expose uncertainty when observations are ambiguous,
 and produce an action target that can drive a controller. Query-to-Grasp is a
 systems-oriented prototype for studying this full chain in ManiSkill.
 
-The project focuses on measurable RGB-D retrieval and grasp-target diagnostics
-rather than learned grasp synthesis or real-robot deployment. Its default path
+The project focuses on measurable RGB-D retrieval, target-source diagnostics,
+and simulated manipulation outcomes rather than learned grasp synthesis or
+real-robot deployment. Its default path
 exports a structured placeholder pick result so that perception and target
 selection can be benchmarked without pretending to solve low-level control. For
 simulated manipulation evidence, the system provides an opt-in top-down
@@ -47,10 +50,13 @@ grasp/lift success separately from environment task success.
 
 This distinction is central to the paper. On `PickCube-v1`, selected 3D targets
 can now drive successful simulated picks across compact and full ambiguity
-query sets. On `StackCube-v1`, the same pipeline validates pick-only transfer
-for cubeA, but does not perform the placement phase needed for stacking task
-completion. We therefore report `pick_success` and `task_success` as separate
-metrics and avoid claiming full end-to-end manipulation or real-robot success.
+query sets. On `StackCube-v1`, the accepted query-driven results validate
+pick-only transfer for cubeA, while oracle pick-place establishes a privileged
+upper bound for placement. A query-pick plus oracle-place bridge is the current
+gate for upgrading StackCube from pick-only compatibility to a partial
+task-success result. We therefore report `pick_success`, `place_success`, and
+`task_success` as separate metrics and avoid claiming full non-oracle
+StackCube completion or real-robot success.
 
 The paper makes three practical contributions:
 
@@ -60,9 +66,10 @@ The paper makes three practical contributions:
 2. Diagnostic multi-view and closed-loop re-observation baselines that expose
    confidence, view support, memory fragmentation, selected-object continuity,
    and residual failure causes.
-3. An opt-in simulated pick evaluation path that connects selected 3D targets
-   to low-level ManiSkill actions and demonstrates strong `PickCube-v1` pick
-   success while identifying cross-task limitations on `StackCube-v1`.
+3. Opt-in simulated pick and pick-place evaluation paths that connect selected
+   3D targets to low-level ManiSkill actions and demonstrate strong
+   `PickCube-v1` pick success while identifying cross-task target-source
+   limitations on `StackCube-v1`.
 
 ## 2. Related Work
 
@@ -166,12 +173,14 @@ success flag.
 ## 4. Experimental Setup
 
 The main perception and simulated-control validations run on H200 using the HF
-GroundingDINO backend. Local smoke tests use the mock detector and skip-CLIP
-path when heavy dependencies are unnecessary. The primary environment is
+GroundingDINO backend. Local and Colab smoke tests use the mock detector and
+skip-CLIP path when heavy dependencies are unnecessary; they are not the source
+of final paper-scale claims. The primary environment is
 `PickCube-v1`, where the target is a cube that can be picked by the top-down
-executor. `StackCube-v1` is used as a broader-task compatibility diagnostic:
-the system attempts to pick cubeA from the query `red cube`, but it does not
-perform stack placement.
+executor. `StackCube-v1` is used as a broader-task bridge: accepted rows test
+query-driven cubeA picking, oracle rows test privileged cubeA-to-cubeB
+placement, and the current bridge tests query-derived cubeA targets with an
+oracle cubeB placement target.
 
 The benchmark suite reports both retrieval and control metrics. Retrieval
 metrics include detection count, 3D target availability, memory size, selected
@@ -189,6 +198,8 @@ Key artifact sources are:
   `outputs/h200_60071_multiview_memory_grasp_point_full_ambiguity_seed01234`.
 - Expanded StackCube guard validation:
   `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49`.
+- Query-driven StackCube placement bridge:
+  `outputs/h200_60071_query_stackcube_place_bridge_seed0_49` (pending H200 gate).
 - StackCube failure taxonomy:
   `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49/reports/stackcube_guard_failure_report.md`.
 - Paper pack:
@@ -349,13 +360,14 @@ associating the extra view with an object that is not the final graspable cubeA
 target.
 
 Taken together, these experiments show that the pipeline has moved beyond
-perception-only retrieval: language-selected RGB-D targets can drive a real
-simulated controller and produce stable downstream grasp metrics. The evidence
-is strongest for `PickCube-v1`, where full-query multi-view and closed-loop
-simulated pick success reaches `1.0000`. `StackCube-v1` provides a stricter
-cross-task diagnostic: it validates pick-only transfer, exposes task-dependent
-grasp target preferences, and motivates future work on task-general fused grasp
-target aggregation and closed-loop association.
+perception-only retrieval: language-selected RGB-D targets can drive real
+simulated controllers and produce stable downstream pick and placement metrics.
+The evidence is strongest for `PickCube-v1`, where full-query multi-view and
+closed-loop simulated pick success reaches `1.0000`. `StackCube-v1` provides a
+stricter cross-task bridge: accepted rows validate pick-only transfer, oracle
+rows prove placement capability with privileged poses, and the pending bridge
+tests whether query-derived cubeA targets can support placement when cubeB is
+privileged.
 
 ## 7. Limitations
 
@@ -364,11 +376,12 @@ deployment. It does not include real camera motion, real gripper control,
 hardware safety, or sim-to-real transfer. The web demo and training code are
 also out of scope for the current version.
 
-The low-level controller is intentionally simple. It is useful as a stable
-diagnostic baseline because it separates graspable target quality from
-perception-only retrieval, but it is not a general manipulation controller.
-For `StackCube-v1`, `task_success_rate = 0.0000` is expected: the controller
-can pick/lift cubeA but does not place it on cubeB.
+The low-level controllers are intentionally simple. They are useful as stable
+diagnostic baselines because they separate target quality from perception-only
+retrieval, but they are not learned or general manipulation policies. The
+accepted query-driven StackCube rows remain pick-only until the placement
+bridge is validated. Oracle pick-place rows are privileged upper bounds and
+must not be described as fully language-conditioned stacking.
 
 The language interface is also conservative. Query parsing handles simple
 targets, attributes, synonyms, and limited relation fields. Current results do
@@ -380,8 +393,10 @@ claiming broad language understanding.
 Finally, closed-loop re-observation is a diagnostic virtual-view path rather
 than learned active perception. It can reduce uncertainty and improve some
 selection diagnostics, but StackCube shows that lower uncertainty is not always
-the same as better grasp execution. The next technical step is task-general
-association between re-observed evidence, fused memory, and grasp target
+the same as better manipulation execution. The next technical steps are
+task-general association between re-observed evidence, fused memory, grasp
+targets, and placement targets, plus optional H200-scale mask/refinement
+backends for broad-box target precision.
 quality.
 
 ## 8. Conclusion

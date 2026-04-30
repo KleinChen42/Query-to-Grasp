@@ -19,6 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.run_single_view_query import build_clip_prompts, rank_detections_without_clip  # noqa: E402
 from src.env.maniskill_env import ManiSkillScene  # noqa: E402
 from src.io.export_utils import export_observation_frame, write_json  # noqa: E402
+from src.manipulation.oracle_targets import find_stackcube_oracle_place_xyz  # noqa: E402
 from src.perception.clip_rerank import rerank_candidates_with_clip  # noqa: E402
 from src.perception.grounding_dino import detect_candidates  # noqa: E402
 from src.perception.mask_projector import Candidate3D, lift_box_to_3d  # noqa: E402
@@ -36,14 +37,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--pick-executor",
         default="placeholder",
-        choices=["placeholder", "sim_topdown"],
-        help="Pick execution backend. sim_topdown sends ManiSkill pd_ee_delta_pos actions.",
+        choices=["placeholder", "sim_topdown", "sim_pick_place"],
+        help="Execution backend. sim_topdown picks; sim_pick_place uses query pick target plus a place target.",
     )
     parser.add_argument(
         "--grasp-target-mode",
         default="semantic",
         choices=["semantic", "refined"],
         help="Target point used for pick execution. refined uses an opt-in workspace-filtered point when available.",
+    )
+    parser.add_argument(
+        "--place-target-source",
+        default="none",
+        choices=["none", "oracle_cubeB_pose"],
+        help="Optional place target source for sim_pick_place.",
     )
     parser.add_argument("--camera-name", default=None, help="Optional camera key to prefer.")
     parser.add_argument("--seed", type=int, default=0, help="Environment reset seed.")
@@ -80,9 +87,9 @@ def main() -> None:
     args = parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
     pipeline_start_time = time.perf_counter()
-    if args.pick_executor == "sim_topdown" and args.control_mode is None:
+    if args.pick_executor in {"sim_topdown", "sim_pick_place"} and args.control_mode is None:
         args.control_mode = "pd_ee_delta_pos"
-        LOGGER.info("Using control_mode=pd_ee_delta_pos for sim_topdown pick executor.")
+        LOGGER.info("Using control_mode=pd_ee_delta_pos for simulated executor.")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = args.output_dir / f"{timestamp}_{_slug(args.query)}"
@@ -201,10 +208,10 @@ def main() -> None:
             )
             if target_xyz is None:
                 pick_result = _pick_not_attempted("Top candidate had no valid 3D target point.")
-            elif args.pick_executor == "sim_topdown" and coordinate_frame != "world":
-                pick_result = _pick_not_attempted("Simulated top-down pick requires a world-frame target.")
+            elif args.pick_executor in {"sim_topdown", "sim_pick_place"} and coordinate_frame != "world":
+                pick_result = _pick_not_attempted("Simulated execution requires a world-frame target.")
             else:
-                pick_result = scene.execute_pick(target_xyz, executor=args.pick_executor)
+                pick_result = execute_single_view_target(scene=scene, target_xyz=target_xyz, args=args)
                 pick_result.setdefault("metadata", {})
                 pick_result["metadata"]["target_coordinate_frame"] = coordinate_frame
                 pick_result["metadata"]["target_used_for_pick"] = target_source
@@ -252,6 +259,26 @@ def choose_pick_target(
     return None, None, None
 
 
+def execute_single_view_target(scene: ManiSkillScene, target_xyz: np.ndarray, args: argparse.Namespace) -> dict[str, Any]:
+    """Execute the selected single-view target with the requested executor."""
+
+    if args.pick_executor == "sim_pick_place":
+        if args.place_target_source != "oracle_cubeB_pose":
+            return _pick_not_attempted("sim_pick_place requires --place-target-source oracle_cubeB_pose.")
+        place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
+        result = scene.execute_pick_place(pick_xyz=target_xyz, place_xyz=place_xyz)
+        result.setdefault("metadata", {})
+        result["metadata"].update(
+            {
+                "place_target_source": "oracle_cubeB_pose",
+                "place_target_xyz": _array_to_list(place_xyz),
+                "place_target_metadata": place_metadata,
+            }
+        )
+        return result
+    return scene.execute_pick(target_xyz, executor=args.pick_executor)
+
+
 def build_summary(
     args: argparse.Namespace,
     parsed_query: dict[str, Any],
@@ -272,6 +299,7 @@ def build_summary(
         "query": args.query,
         "normalized_prompt": parsed_query["normalized_prompt"],
         "grasp_target_mode": getattr(args, "grasp_target_mode", "semantic"),
+        "place_target_source": metadata.get("place_target_source", getattr(args, "place_target_source", "none")),
         "raw_num_detections": num_detections,
         "num_detections": num_detections,
         "num_ranked_candidates": num_ranked,
@@ -289,11 +317,15 @@ def build_summary(
         "target_used_for_pick": metadata.get("target_used_for_pick"),
         "grasp_metadata": {} if candidate_3d is None else candidate_3d.grasp_metadata,
         "num_3d_points": 0 if candidate_3d is None else candidate_3d.num_points,
-        "pick_success": bool(pick_result.get("success", False)),
+        "pick_success": bool(pick_result.get("pick_success", pick_result.get("success", False))),
         "grasp_attempted": bool(pick_result.get("grasp_attempted", False)),
+        "place_attempted": bool(pick_result.get("place_attempted", False)),
+        "place_success": pick_result.get("place_success"),
+        "place_target_xyz": pick_result.get("place_xyz", metadata.get("place_target_xyz")),
         "task_success": pick_result.get("task_success"),
         "is_grasped": pick_result.get("is_grasped"),
         "pick_stage": pick_result.get("stage"),
+        "place_message": pick_result.get("message") if pick_result.get("place_attempted") else None,
         "pick_message": pick_result.get("message"),
         "runtime_seconds": float(runtime_seconds),
         "artifacts": str(run_dir),
@@ -314,6 +346,7 @@ def print_pick_summary(summary: dict[str, Any]) -> None:
     print(f"  Grasp mode:   {summary.get('grasp_target_mode', 'semantic')}")
     print(f"  Grasp XYZ:    {summary.get('grasp_world_xyz')}")
     print(f"  Pick success: {summary['pick_success']}")
+    print(f"  Place success:{summary.get('place_success')}")
     print(f"  Attempted:    {summary.get('grasp_attempted', False)}")
     print(f"  Task success: {summary.get('task_success')}")
     print(f"  Pick stage:   {summary['pick_stage']}")
@@ -326,10 +359,13 @@ def _pick_not_attempted(message: str) -> dict[str, Any]:
         "success": False,
         "pick_success": False,
         "grasp_attempted": False,
+        "place_attempted": False,
+        "place_success": False,
         "task_success": None,
         "is_grasped": None,
         "stage": "not_attempted",
         "target_xyz": [],
+        "place_xyz": [],
         "message": message,
         "trajectory_summary": {"planned_stages": [], "executed_stages": [], "num_env_steps": 0},
         "metadata": {"executor": None},

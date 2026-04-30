@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from scripts.run_oracle_place_benchmark import (
-    aggregate_oracle_place_rows,
-    find_stackcube_oracle_place_targets,
-)
+from scripts.run_oracle_place_benchmark import aggregate_oracle_place_rows
+from src.manipulation.oracle_targets import find_stackcube_oracle_place_targets
 
 
 def test_find_stackcube_oracle_place_targets_reads_cube_a_and_cube_b() -> None:

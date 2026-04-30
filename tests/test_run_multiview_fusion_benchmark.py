@@ -58,6 +58,21 @@ def test_build_child_command_forwards_pick_flags(tmp_path: Path) -> None:
     assert command[command.index("--grasp-target-mode") + 1] == "refined"
 
 
+def test_build_child_command_forwards_place_target_source(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+    args.control_mode = "pd_ee_delta_pos"
+    args.pick_executor = "sim_pick_place"
+    args.grasp_target_mode = "refined"
+    args.place_target_source = "oracle_cubeB_pose"
+
+    command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
+
+    assert "--pick-executor" in command
+    assert command[command.index("--pick-executor") + 1] == "sim_pick_place"
+    assert "--place-target-source" in command
+    assert command[command.index("--place-target-source") + 1] == "oracle_cubeB_pose"
+
+
 def test_build_child_command_forwards_closed_loop_reobserve(tmp_path: Path) -> None:
     args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
     args.enable_closed_loop_reobserve = True
@@ -141,6 +156,10 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["is_grasped"] is False
     assert row["pick_stage"] == "not_attempted"
     assert row["pick_target_source"] is None
+    assert row["place_attempted"] is False
+    assert row["place_success"] is False
+    assert row["place_target_xyz"] == ""
+    assert row["place_target_source"] is None
     assert row["task_grasp_target_guard_applied"] is False
     assert row["task_grasp_target_guard_reason"] is None
 
@@ -189,6 +208,8 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_delta_selected_num_observations": 1,
             "grasp_attempted": True,
             "pick_success": True,
+            "place_attempted": True,
+            "place_success": True,
             "task_success": False,
             "is_grasped": True,
             "pick_stage": "success",
@@ -237,6 +258,8 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_delta_selected_num_observations": 0,
             "grasp_attempted": False,
             "pick_success": False,
+            "place_attempted": False,
+            "place_success": False,
             "task_success": False,
             "is_grasped": False,
             "pick_stage": "run_failed",
@@ -285,6 +308,8 @@ def test_aggregate_rows_by_query() -> None:
             "closed_loop_delta_selected_num_observations": 0,
             "grasp_attempted": True,
             "pick_success": False,
+            "place_attempted": True,
+            "place_success": False,
             "task_success": False,
             "is_grasped": False,
             "pick_stage": "grasp_not_confirmed",
@@ -336,6 +361,8 @@ def test_aggregate_rows_by_query() -> None:
     }
     assert aggregate["grasp_attempted_rate"] == 2 / 3
     assert aggregate["pick_success_rate"] == 1 / 3
+    assert aggregate["place_attempted_rate"] == 2 / 3
+    assert aggregate["place_success_rate"] == 1 / 3
     assert aggregate["task_success_rate"] == 0.0
     assert aggregate["is_grasped_rate"] == 1 / 3
     assert aggregate["pick_stage_counts"] == {
@@ -639,6 +666,7 @@ def _args(
             "control_mode": None,
             "pick_executor": "placeholder",
             "grasp_target_mode": "semantic",
+            "place_target_source": "none",
             "detector_backend": "mock",
             "mock_box_position": "center",
             "depth_scale": 1000.0,
