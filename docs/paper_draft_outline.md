@@ -795,7 +795,8 @@ Paper assets:
 16. Full ambiguity simulated grasp validation: 55-run `PickCube-v1`
    fused-memory tabletop_3 and closed-loop pick-success results.
 17. Broader-task simulated pick validation: `StackCube-v1` query-driven
-   `red cube` single-view and tabletop_3 pick-only seeds `0..19`.
+   `red cube` single-view and expanded guarded tabletop_3/closed-loop
+   pick-only seeds `0..49`.
 18. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
@@ -832,7 +833,8 @@ Be explicit:
   closed-loop `PickCube-v1`, but this remains simulated single-task evidence.
 - The `StackCube-v1` validation reaches `pick_success_rate = 1.0000` for
   query-driven single-view `red cube` seeds `0..19` in no-CLIP and with-CLIP
-  modes, but tabletop_3 and closed-loop multi-view stay at `0.5500`.
+  modes. The expanded guarded multi-view validation over seeds `0..49` reaches
+  `0.6200` for tabletop_3 and `0.5200` for closed-loop.
 - `StackCube-v1` `task_success_rate` remains `0.0000` because the controller
   only picks/lifts cubeA and does not perform stack placement.
 - The resolved simulated-grasp failures were dominated by detector boxes whose
@@ -899,20 +901,22 @@ modes. Closed-loop still improves uncertainty diagnostics: still-needed falls
 from `0.4182` to `0.0909` without CLIP and from `0.3818` to `0.0545` with CLIP.
 
 On `StackCube-v1`, single-view `red cube` seeds `0..19` remain fully successful
-for pick-only control, but tabletop_3 and closed-loop multi-view runs reach only
-`pick_success_rate = 0.5500`. Closed-loop reduces still-needed uncertainty from
-`0.8000` to `0.5000` with `closed_loop_resolution_rate = 0.3000`, but it does
-not improve pick success. This marks task-general multi-view grasp target
-quality as the next bottleneck.
+for pick-only control, while the expanded guarded multi-view run reaches
+`pick_success_rate = 0.6200` for tabletop_3 and `0.5200` for closed-loop across
+seeds `0..49`. Closed-loop reduces still-needed uncertainty but does not improve
+pick success on this task. This marks task-general re-observation-to-grasp
+alignment as the next bottleneck.
 
-The latest compact StackCube guard result shows that this bottleneck is
+The latest expanded StackCube guard result shows that this bottleneck is
 task-dependent rather than a global failure of fused-memory grasp points. For
 `StackCube-v1`, using the selected object's semantic fused center as the
-effective refined multi-view pick target reaches `pick_success_rate = 0.7000`
-for tabletop_3 seeds `0..19` in both no-CLIP and with-CLIP modes. Closed-loop
-remains at `0.5500`, so the guard improves the static multi-view target source
-but does not yet convert re-observation into better StackCube grasp success. A
-PickCube regression remains `3/3` successful and continues to use
+effective refined multi-view pick target reaches `pick_success_rate = 0.6200`
+for tabletop_3 seeds `0..49` in both no-CLIP and with-CLIP modes. Closed-loop
+reaches `0.5200`, so the guard improves the static multi-view target source but
+does not yet convert re-observation into better StackCube grasp success. The
+expanded estimate is slightly lower than the compact 20-seed checkpoint, but it
+is stronger paper evidence because it covers 50 seeds with `0` child failures.
+A PickCube regression remains `3/3` successful and continues to use
 `memory_grasp_world_xyz`. This should be reported as a StackCube pick-only
 compatibility guard, not as stack-placement success.
 
@@ -922,9 +926,9 @@ Turn the validated StackCube guard into a paper-ready multi-task section without
 changing detector, fusion weights, or controller timing:
 
 1. Freeze the cross-task simulated pick table with PickCube full/compact rows
-   and StackCube guarded compact rows.
+   and StackCube expanded guarded rows.
 2. Add a limitation/failure figure showing that StackCube closed-loop still
-   reaches only `0.5500` pick success despite reduced uncertainty diagnostics.
+   reaches only `0.5200` pick success despite reduced uncertainty diagnostics.
 3. Preserve the target-source distinction: PickCube refined uses
    `memory_grasp_world_xyz`; StackCube refined uses
    `task_guard_selected_object_world_xyz`.

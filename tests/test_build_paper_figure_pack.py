@@ -52,10 +52,11 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "full_ambiguity_grasp_comparison" in labels
     assert "stackcube_broader_pick_summary" in labels
     assert "overnight_followup_summary" in labels
-    assert "stackcube_task_guard_compact_tabletop_summary" in labels
-    assert "stackcube_task_guard_compact_closed_loop_summary" in labels
-    assert "stackcube_task_guard_compact_pickcube_regression_summary" in labels
-    assert "stackcube_task_guard_compact_cross_task_table" in labels
+    assert "stackcube_task_guard_expanded_summary" in labels
+    assert "stackcube_task_guard_expanded_tabletop_summary" in labels
+    assert "stackcube_task_guard_expanded_closed_loop_summary" in labels
+    assert "stackcube_task_guard_expanded_pickcube_regression_summary" in labels
+    assert "stackcube_task_guard_expanded_cross_task_table" in labels
 
 
 def test_build_paper_figure_pack_copies_artifacts_and_writes_readme(tmp_path: Path) -> None:

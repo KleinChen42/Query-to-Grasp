@@ -117,7 +117,7 @@ Scope update:
 | Simulated grasp-point diagnosis | Done | `outputs/h200_60071_sim_topdown_singleview_compact_seed01234/reports/grasp_point_diagnosis.md` | Exact `red cube` successes have mean target-oracle distance `0.0171 m`, while compact failures average `0.3329 m` from oracle and almost always have high/far target points. |
 | Multi-view simulated pick bridge | Done | `493f63b` and `outputs/h200_60071_multiview_sim_pick_bridge_ablation_seed01234` | Fused tabletop_3 and closed-loop selected objects now drive `sim_topdown` metrics with `0` child failures, but compact pick success remains `0.0000` because fused memory currently exposes semantic object centers rather than shifted-crop grasp points. |
 | Fused-memory grasp point path | Done | `2403755` and `outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234` | Propagating per-view grasp points into memory and picking from `memory_grasp_world_xyz` lifts compact multi-view and closed-loop pick success from `0.0000` to `1.0000` in all four H200 compact modes. |
-| StackCube task-aware grasp target guard | Done | `f5810ff` and `outputs/h200_60071_stackcube_task_guard_compact_seed0_19` | `StackCube-v1` refined multi-view picking now uses the semantic selected-object center, improving compact tabletop pick success to `0.7000` and preserving closed-loop at `0.5500` while a PickCube regression remains `1.0000` with `memory_grasp_world_xyz`. |
+| StackCube task-aware grasp target guard | Done | `f5810ff`, `1c10aa6`, and `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49` | `StackCube-v1` refined multi-view picking now uses the semantic selected-object center. The expanded 50-seed validation reaches tabletop pick success `0.6200` and closed-loop pick success `0.5200` with `0` failures, while a PickCube regression remains `1.0000` with `memory_grasp_world_xyz`. |
 
 ## Key Quantitative Results
 
@@ -1263,23 +1263,25 @@ Latest StackCube task-aware grasp target guard:
 
 | benchmark | env | runs | failed | grasp attempted | pick success | task success | target source | guard applied |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| Compact tabletop_3 no CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.7000 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
-| Compact tabletop_3 with CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.7000 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
-| Compact closed-loop no CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.5500 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
-| Compact closed-loop with CLIP | `StackCube-v1` | 20 | 0 | 1.0000 | 0.5500 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
+| Expanded tabletop_3 no CLIP | `StackCube-v1` | 50 | 0 | 1.0000 | 0.6200 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
+| Expanded tabletop_3 with CLIP | `StackCube-v1` | 50 | 0 | 1.0000 | 0.6200 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
+| Expanded closed-loop no CLIP | `StackCube-v1` | 50 | 0 | 1.0000 | 0.5200 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
+| Expanded closed-loop with CLIP | `StackCube-v1` | 50 | 0 | 1.0000 | 0.5200 | 0.0000 | `task_guard_selected_object_world_xyz` | true |
 | PickCube regression tabletop_3 no CLIP | `PickCube-v1` | 3 | 0 | 1.0000 | 1.0000 | 0.3333 | `memory_grasp_world_xyz` | false |
 
 The semantic-vs-memory ablation showed that StackCube targeted failures improve
 when multi-view refined picking uses the selected object's semantic fused
 center instead of the fused memory grasp point. The accepted task-aware guard
-implements that behavior only for `StackCube-v1`; compact seeds `0..19` improve
-tabletop_3 pick-only success from the previous `0.5500` to `0.7000` in both
-no-CLIP and with-CLIP modes. Closed-loop remains `0.5500`, so the guard improves
-the static multi-view target source but does not yet make re-observation a
-grasp-success gain on StackCube. `PickCube-v1` remains protected and continues
-to use `memory_grasp_world_xyz` for refined multi-view picks. This is still a
-pick-only compatibility result: `task_success_rate = 0.0000` because the
-executor does not stack cubeA onto cubeB.
+implements that behavior only for `StackCube-v1`. The compact seeds `0..19`
+first improved tabletop_3 pick-only success from the previous `0.5500` to
+`0.7000`; the expanded seeds `0..49` provide the paper-facing estimate:
+`0.6200` tabletop and `0.5200` closed-loop in both no-CLIP and with-CLIP modes,
+with `0` child failures. Closed-loop still reduces uncertainty diagnostics but
+does not produce a StackCube grasp-success gain, so this should be reported as
+a limitation rather than as a tuning target. `PickCube-v1` remains protected
+and continues to use `memory_grasp_world_xyz` for refined multi-view picks.
+This is still a pick-only compatibility result: `task_success_rate = 0.0000`
+because the executor does not stack cubeA onto cubeB.
 
 Publication-level expectation:
 
@@ -1319,6 +1321,7 @@ Candidate paper framing:
 > pick success to `1.0000`. The first StackCube validation shows that the same
 > single-view pick-only chain transfers across tasks, while multi-view StackCube
 > exposes task-dependent grasp target preferences. A task-aware guard
-> improves StackCube compact multi-view pick-only success without regressing PickCube,
+> improves StackCube multi-view pick-only success and the expanded 50-seed
+> validation gives a stable cross-task estimate without regressing PickCube,
 > but StackCube remains a compatibility diagnostic rather than a stacking
 > completion result.
