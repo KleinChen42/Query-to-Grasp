@@ -941,6 +941,18 @@ supports the current interpretation that StackCube residuals are primarily
 target-source and association limitations rather than an absolute inability of
 the controller to pick cubeA.
 
+Latest oracle placement baseline:
+
+| benchmark | env | runs | failed | pick success | place success | task success | target source |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Oracle pick-place | `StackCube-v1` | 50 | 0 | 0.9400 | 0.8800 | 0.8800 | `oracle_cubeA_pose` -> `oracle_cubeB_pose` |
+
+This is the first positive StackCube placement-capability result, but it is
+privileged. It should be framed as an upper-bound controller/target-source
+ablation, not as query-driven StackCube task completion. Query-driven
+StackCube results remain pick-only until a non-oracle placement target path is
+implemented and validated.
+
 ## Next Writing Milestone
 
 Turn the polished Markdown draft into a venue-shaped manuscript without changing

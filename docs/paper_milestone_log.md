@@ -74,6 +74,7 @@ Scope update:
 | StackCube task-aware grasp guard | Expanded `StackCube-v1` multi-view refined pick validation using semantic selected-object centers | `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49` |
 | StackCube expanded failure analysis | Failure taxonomy explaining why closed-loop improves uncertainty but not StackCube pick success | `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49/reports/stackcube_guard_failure_report.md` |
 | Oracle target-source ablation | Privileged object-pose upper-bound for the same `sim_topdown` controller on PickCube and StackCube | `outputs/h200_60071_oracle_pick_ablation/reports/oracle_target_source_comparison.md` |
+| Oracle StackCube placement baseline | Privileged cubeA/cubeB pick-place upper-bound for the scripted controller | `outputs/h200_60071_oracle_stackcube_place_seed0_49/benchmark_summary.json` |
 | Multi-task simulated-grasp section draft | Paper-ready prose for PickCube/StackCube simulated pick evidence and limitations | `docs/paper_multitask_sim_grasp_section.md` |
 | Full manuscript draft skeleton | Coherent first-pass Markdown paper draft assembled from the outline, results, and multi-task section | `docs/paper_manuscript_draft.md` |
 | Related-work citation plan | Candidate citation buckets, search terms, and metadata verification checklist for the conference draft | `docs/paper_related_work_citation_plan.md` |
@@ -127,6 +128,7 @@ Scope update:
 | Full manuscript draft skeleton | Done | `docs/paper_manuscript_draft.md` | A first complete Markdown paper skeleton now covers abstract, introduction, method, setup, results, multi-task simulated grasp evaluation, limitations, conclusion, and artifact appendix. |
 | Conference manuscript draft v0.2 | Done | `docs/paper_manuscript_draft.md` and `docs/paper_related_work_citation_plan.md` | The draft now replaces the related-work placeholder with citation-scaffold subsections, adds figure/table callouts tied to the paper pack, and frames the main results as geometry correction, fused PickCube grasp targets, and StackCube cross-task limitations. |
 | Oracle target-source ablation tooling | Done | `scripts/run_oracle_pick_benchmark.py` and `outputs/h200_60071_oracle_pick_ablation/reports/oracle_target_source_comparison.md` | The same `sim_topdown` controller reaches PickCube oracle pick success `1.0000` and StackCube oracle pick success `0.9400` over 50 seeds each, creating a privileged upper-bound row for target-source comparisons. |
+| Oracle StackCube placement baseline | Done | `scripts/run_oracle_place_benchmark.py` and `outputs/h200_60071_oracle_stackcube_place_seed0_49/benchmark_summary.json` | Privileged cubeA/cubeB poses with the scripted pick-place executor complete `50/50` runs with `0` failures, `pick_success_rate = 0.9400`, `place_success_rate = 0.8800`, and `task_success_rate = 0.8800`. This is an oracle controller-capability baseline, not a query-driven StackCube task claim. |
 
 ## Key Quantitative Results
 

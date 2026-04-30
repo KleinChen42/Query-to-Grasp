@@ -301,6 +301,238 @@ class SimulatedTopDownPickExecutor:
         return getattr(self.env, "unwrapped", self.env)
 
 
+class SimulatedPickPlaceExecutor(SimulatedTopDownPickExecutor):
+    """Minimal scripted pick-and-place executor for oracle StackCube probes."""
+
+    def __init__(
+        self,
+        env: Any,
+        approach_height: float = 0.12,
+        grasp_height: float = 0.025,
+        lift_height: float = 0.18,
+        place_height_offset: float = 0.06,
+        position_scale: float = 0.04,
+        move_above_steps: int = 40,
+        descend_steps: int = 30,
+        close_steps: int = 20,
+        lift_steps: int = 40,
+        move_to_place_steps: int = 60,
+        place_descend_steps: int = 30,
+        open_steps: int = 20,
+        settle_steps: int = 20,
+        goal_tolerance: float = 0.015,
+    ) -> None:
+        super().__init__(
+            env=env,
+            approach_height=approach_height,
+            grasp_height=grasp_height,
+            lift_height=lift_height,
+            position_scale=position_scale,
+            move_above_steps=move_above_steps,
+            descend_steps=descend_steps,
+            close_steps=close_steps,
+            lift_steps=lift_steps,
+            goal_tolerance=goal_tolerance,
+        )
+        self.place_height_offset = float(place_height_offset)
+        self.move_to_place_steps = int(move_to_place_steps)
+        self.place_descend_steps = int(place_descend_steps)
+        self.open_steps = int(open_steps)
+        self.settle_steps = int(settle_steps)
+
+    def execute(self, pick_xyz: np.ndarray, place_xyz: np.ndarray) -> dict[str, Any]:
+        """Run a scripted oracle pick-place attempt from world-frame targets."""
+
+        pick_validation = validate_target_xyz(pick_xyz)
+        if pick_validation is not None:
+            result = pick_validation.to_json_dict()
+            result.update(
+                {
+                    "place_attempted": False,
+                    "place_success": False,
+                    "pick_xyz": result.get("target_xyz", []),
+                    "place_xyz": [],
+                }
+            )
+            return result
+        place_validation = validate_target_xyz(place_xyz)
+        if place_validation is not None:
+            result = place_validation.to_json_dict()
+            result.update(
+                {
+                    "place_attempted": False,
+                    "place_success": False,
+                    "pick_xyz": np.asarray(pick_xyz, dtype=np.float32).reshape(3).astype(float).tolist(),
+                    "place_xyz": result.get("target_xyz", []),
+                }
+            )
+            return result
+
+        unsupported = self._validate_action_space()
+        if unsupported is not None:
+            result = unsupported.to_json_dict()
+            result.update(
+                {
+                    "place_attempted": False,
+                    "place_success": False,
+                    "pick_xyz": [],
+                    "place_xyz": [],
+                }
+            )
+            return result
+
+        pick = np.asarray(pick_xyz, dtype=np.float32).reshape(3)
+        place = np.asarray(place_xyz, dtype=np.float32).reshape(3)
+        pick_above = np.array([pick[0], pick[1], pick[2] + self.approach_height], dtype=np.float32)
+        pick_grasp = np.array([pick[0], pick[1], pick[2] + self.grasp_height], dtype=np.float32)
+        pick_lift = np.array([pick[0], pick[1], pick[2] + self.lift_height], dtype=np.float32)
+        place_above = np.array([place[0], place[1], place[2] + self.lift_height], dtype=np.float32)
+        place_release = np.array([place[0], place[1], place[2] + self.place_height_offset], dtype=np.float32)
+
+        executed_stages: list[str] = []
+        all_infos: list[dict[str, Any]] = []
+        is_grasped = False
+        task_success = False
+        place_success = False
+        try:
+            for stage, goal, gripper, steps in [
+                ("move_above_pick", pick_above, 1.0, self.move_above_steps),
+                ("descend_to_pick", pick_grasp, 1.0, self.descend_steps),
+            ]:
+                stage_infos = self._step_to_goal(stage, goal, gripper=gripper, max_steps=steps)
+                executed_stages.append(stage)
+                all_infos.extend(stage_infos)
+
+            stage_infos = self._hold_action("close_gripper", goal_xyz=pick_grasp, gripper=-1.0, max_steps=self.close_steps)
+            executed_stages.append("close_gripper")
+            all_infos.extend(stage_infos)
+            is_grasped = any(_info_any_grasped(info) for info in stage_infos)
+
+            for stage, goal, steps in [
+                ("lift_from_pick", pick_lift, self.lift_steps),
+                ("move_above_place", place_above, self.move_to_place_steps),
+                ("descend_to_place", place_release, self.place_descend_steps),
+            ]:
+                stage_infos = self._step_to_goal(stage, goal, gripper=-1.0, max_steps=steps)
+                executed_stages.append(stage)
+                all_infos.extend(stage_infos)
+                is_grasped = is_grasped or any(_info_any_grasped(info) for info in stage_infos)
+
+            stage_infos = self._hold_action("open_gripper", goal_xyz=place_release, gripper=1.0, max_steps=self.open_steps)
+            executed_stages.append("open_gripper")
+            all_infos.extend(stage_infos)
+
+            stage_infos = self._hold_action("settle", goal_xyz=place_release, gripper=1.0, max_steps=self.settle_steps)
+            executed_stages.append("settle")
+            all_infos.extend(stage_infos)
+            place_success = any(_info_bool(info, "is_obj_placed") for info in all_infos)
+            task_success = any(_info_bool(info, "success") for info in all_infos)
+        except Exception as exc:
+            LOGGER.exception("Simulated pick-place failed during stage execution.")
+            return self._pick_place_result(
+                success=False,
+                stage="execution_failed",
+                pick=pick,
+                place=place,
+                message=f"Simulated pick-place failed: {exc}",
+                all_infos=all_infos,
+                executed_stages=executed_stages,
+                is_grasped=is_grasped,
+                task_success=task_success,
+                place_success=place_success,
+            )
+
+        pick_success = bool(is_grasped)
+        place_success = bool(place_success or task_success)
+        success = bool(task_success)
+        stage = "success" if success else ("placed_not_task_success" if place_success else "place_not_confirmed")
+        return self._pick_place_result(
+            success=success,
+            stage=stage,
+            pick=pick,
+            place=place,
+            message=(
+                "Simulated oracle pick-place executed and ManiSkill task success was detected."
+                if success
+                else "Simulated oracle pick-place executed, but ManiSkill task success was not detected."
+            ),
+            all_infos=all_infos,
+            executed_stages=executed_stages,
+            is_grasped=pick_success,
+            task_success=task_success,
+            place_success=place_success,
+        )
+
+    def _pick_place_result(
+        self,
+        success: bool,
+        stage: str,
+        pick: np.ndarray,
+        place: np.ndarray,
+        message: str,
+        all_infos: list[dict[str, Any]],
+        executed_stages: list[str],
+        is_grasped: bool,
+        task_success: bool,
+        place_success: bool,
+    ) -> dict[str, Any]:
+        final_tcp_xyz = self._current_tcp_xyz()
+        return {
+            "success": bool(success),
+            "pick_success": bool(is_grasped),
+            "grasp_attempted": True,
+            "place_attempted": True,
+            "place_success": bool(place_success),
+            "task_success": bool(task_success),
+            "is_grasped": bool(is_grasped),
+            "stage": stage,
+            "pick_xyz": pick.astype(float).tolist(),
+            "place_xyz": place.astype(float).tolist(),
+            "target_xyz": pick.astype(float).tolist(),
+            "message": message,
+            "trajectory_summary": {
+                "planned_stages": [
+                    "move_above_pick",
+                    "descend_to_pick",
+                    "close_gripper",
+                    "lift_from_pick",
+                    "move_above_place",
+                    "descend_to_place",
+                    "open_gripper",
+                    "settle",
+                ],
+                "executed_stages": executed_stages,
+                "num_env_steps": len(all_infos),
+                "final_tcp_xyz": None if final_tcp_xyz is None else final_tcp_xyz.astype(float).tolist(),
+                "final_info": all_infos[-1] if all_infos else {},
+                "stage_step_counts": {
+                    "move_above_pick": self.move_above_steps,
+                    "descend_to_pick": self.descend_steps,
+                    "close_gripper": self.close_steps,
+                    "lift_from_pick": self.lift_steps,
+                    "move_above_place": self.move_to_place_steps,
+                    "descend_to_place": self.place_descend_steps,
+                    "open_gripper": self.open_steps,
+                    "settle": self.settle_steps,
+                },
+                "grasp_info_keys": _grasp_info_keys(all_infos),
+            },
+            "metadata": {
+                "executor": "SimulatedPickPlaceExecutor",
+                "control_mode": getattr(self._unwrapped_env(), "control_mode", None),
+                "action_convention": "[dx, dy, dz, gripper]; gripper +1=open, -1=close",
+                "place_height_offset": self.place_height_offset,
+                "env_type": type(self.env).__name__,
+            },
+        }
+
+
+def execute_pick_place_sim(env: Any, pick_xyz: np.ndarray, place_xyz: np.ndarray) -> dict[str, Any]:
+    """Convenience helper for the simulated pick-place executor."""
+
+    return SimulatedPickPlaceExecutor(env=env).execute(pick_xyz=pick_xyz, place_xyz=place_xyz)
+
+
 def execute_pick_sim_topdown(env: Any, target_xyz: np.ndarray) -> dict[str, Any]:
     """Convenience helper for the simulated top-down executor."""
 

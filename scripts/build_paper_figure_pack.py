@@ -459,6 +459,27 @@ DEFAULT_ARTIFACTS = (
             "query-driven refined targets, memory grasp points, and task guards."
         ),
     ),
+    ArtifactSpec(
+        label="oracle_stackcube_place_summary",
+        source_path=Path(
+            "outputs/h200_60071_oracle_stackcube_place_seed0_49/"
+            "benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "StackCube-v1 oracle pick-place upper-bound summary using privileged "
+            "cubeA and cubeB poses with the scripted simulated controller."
+        ),
+    ),
+    ArtifactSpec(
+        label="oracle_stackcube_place_rows",
+        source_path=Path(
+            "outputs/h200_60071_oracle_stackcube_place_seed0_49/"
+            "benchmark_rows.csv"
+        ),
+        category="grasp",
+        caption="Per-seed oracle StackCube-v1 pick-place rows with stage and task-success diagnostics.",
+    ),
 )
 
 

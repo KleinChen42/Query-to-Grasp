@@ -9,6 +9,7 @@ import pytest
 from scripts.generate_fusion_comparison_table import (
     build_table_rows,
     fusion_row_from_benchmark,
+    oracle_place_row_from_benchmark,
     oracle_pick_row_from_benchmark,
     render_markdown_table,
     single_view_row_from_benchmark,
@@ -111,6 +112,26 @@ def test_oracle_pick_row_maps_grasp_metrics_and_target_source(tmp_path: Path) ->
     assert row["pick_stage_counts"] == "success: 3; grasp_not_confirmed: 1"
 
 
+def test_oracle_place_row_maps_place_metrics_and_target_sources(tmp_path: Path) -> None:
+    benchmark_dir = tmp_path / "oracle_place"
+    _write_oracle_place_summary(benchmark_dir)
+
+    row = oracle_place_row_from_benchmark("oracle_place", benchmark_dir)
+
+    assert row["benchmark_type"] == "oracle_place"
+    assert row["env_id"] == "StackCube-v1"
+    assert row["pick_executor"] == "sim_pick_place"
+    assert row["grasp_target_mode"] == "oracle_place"
+    assert row["pick_target_source_counts"] == "oracle_cubeA_pose: 4"
+    assert row["place_target_source_counts"] == "oracle_cubeB_pose: 4"
+    assert row["primary_rate_name"] == "task_success_rate"
+    assert row["primary_rate"] == 0.5
+    assert row["pick_success_rate"] == 0.75
+    assert row["place_success_rate"] == 0.5
+    assert row["task_success_rate"] == 0.5
+    assert row["pick_stage_counts"] == "place_not_confirmed: 2; success: 2"
+
+
 def test_build_table_rows_missing_behavior(tmp_path: Path) -> None:
     existing = tmp_path / "single"
     missing = tmp_path / "missing"
@@ -143,6 +164,7 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
             "pick_executor": "sim_topdown",
             "grasp_target_mode": "refined",
             "pick_target_source_counts": "memory_grasp_world_xyz: 2",
+            "place_target_source_counts": "n/a",
             "detector_backend": "hf",
             "skip_clip": "True",
             "total_runs": 2,
@@ -168,6 +190,7 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
             "reobserve_reason_counts": "ambiguous_top_candidates: 1; none: 3",
             "grasp_attempted_rate": 1.0,
             "pick_success_rate": 0.5,
+            "place_success_rate": "n/a",
             "task_success_rate": 0.25,
             "pick_stage_counts": "success: 1; grasp_not_confirmed: 1",
         }
@@ -182,6 +205,7 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
     assert "env_id" in markdown
     assert "pick_executor" in markdown
     assert "pick_target_source_counts" in markdown
+    assert "place_target_source_counts" in markdown
     assert "memory_grasp_world_xyz: 2" in markdown
     assert "sim_topdown" in markdown
     assert "0.5000" in markdown
@@ -297,6 +321,35 @@ def _write_oracle_summary(benchmark_dir: Path) -> None:
             "pick_stage_counts": {
                 "success": 3,
                 "grasp_not_confirmed": 1,
+            },
+        },
+    }
+    (benchmark_dir / "benchmark_summary.json").write_text(json.dumps(summary), encoding="utf-8")
+
+
+def _write_oracle_place_summary(benchmark_dir: Path) -> None:
+    benchmark_dir.mkdir(parents=True, exist_ok=True)
+    summary = {
+        "total_runs": 4,
+        "env_id": "StackCube-v1",
+        "obs_mode": "rgbd",
+        "control_mode": "pd_ee_delta_pos",
+        "pick_executor": "sim_pick_place",
+        "grasp_target_mode": "oracle_place",
+        "detector_backend": "oracle",
+        "skip_clip": True,
+        "pick_target_source": "oracle_cubeA_pose",
+        "place_target_source": "oracle_cubeB_pose",
+        "aggregate_metrics": {
+            "total_runs": 4,
+            "grasp_attempted_rate": 1.0,
+            "pick_success_rate": 0.75,
+            "place_success_rate": 0.5,
+            "task_success_rate": 0.5,
+            "mean_runtime_seconds": 9.0,
+            "pick_stage_counts": {
+                "success": 2,
+                "place_not_confirmed": 2,
             },
         },
     }

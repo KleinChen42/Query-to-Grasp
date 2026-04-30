@@ -68,6 +68,8 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "oracle_pickcube_pick_summary" in labels
     assert "oracle_stackcube_pick_summary" in labels
     assert "oracle_target_source_comparison" in labels
+    assert "oracle_stackcube_place_summary" in labels
+    assert "oracle_stackcube_place_rows" in labels
 
 
 def test_build_paper_figure_pack_copies_artifacts_and_writes_readme(tmp_path: Path) -> None:

@@ -31,6 +31,7 @@ TABLE_COLUMNS = [
     "pick_executor",
     "grasp_target_mode",
     "pick_target_source_counts",
+    "place_target_source_counts",
     "detector_backend",
     "skip_clip",
     "total_runs",
@@ -56,6 +57,7 @@ TABLE_COLUMNS = [
     "reobserve_reason_counts",
     "grasp_attempted_rate",
     "pick_success_rate",
+    "place_success_rate",
     "task_success_rate",
     "pick_stage_counts",
 ]
@@ -85,6 +87,12 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Oracle simulated-pick benchmark entry as LABEL=DIR or DIR. Repeat for each row.",
     )
+    parser.add_argument(
+        "--oracle-place",
+        action="append",
+        default=[],
+        help="Oracle simulated pick-place benchmark entry as LABEL=DIR or DIR. Repeat for each row.",
+    )
     parser.add_argument("--output-md", type=Path, default=Path("outputs") / "fusion_comparison_table.md")
     parser.add_argument("--output-csv", type=Path, default=Path("outputs") / "fusion_comparison_table.csv")
     parser.add_argument("--skip-missing", action="store_true", help="Skip missing benchmark summaries instead of failing.")
@@ -98,6 +106,7 @@ def main() -> int:
             single_view_specs=args.single_view,
             fusion_specs=args.fusion,
             oracle_pick_specs=args.oracle_pick,
+            oracle_place_specs=args.oracle_place,
             skip_missing=args.skip_missing,
         )
     except (FileNotFoundError, ValueError) as exc:
@@ -116,18 +125,21 @@ def build_table_rows(
     single_view_specs: list[str],
     fusion_specs: list[str],
     oracle_pick_specs: list[str] | None = None,
+    oracle_place_specs: list[str] | None = None,
     skip_missing: bool = False,
 ) -> list[dict[str, Any]]:
     """Build comparison rows from single-view and fusion benchmark summaries."""
 
     oracle_pick_specs = oracle_pick_specs or []
-    if not single_view_specs and not fusion_specs and not oracle_pick_specs:
-        raise ValueError("Provide at least one --single-view, --fusion, or --oracle-pick benchmark.")
+    oracle_place_specs = oracle_place_specs or []
+    if not single_view_specs and not fusion_specs and not oracle_pick_specs and not oracle_place_specs:
+        raise ValueError("Provide at least one --single-view, --fusion, --oracle-pick, or --oracle-place benchmark.")
 
     single_entries = [parse_benchmark_spec(spec) for spec in single_view_specs]
     fusion_entries = [parse_benchmark_spec(spec) for spec in fusion_specs]
     oracle_entries = [parse_benchmark_spec(spec) for spec in oracle_pick_specs]
-    all_entries = [*single_entries, *fusion_entries, *oracle_entries]
+    oracle_place_entries = [parse_benchmark_spec(spec) for spec in oracle_place_specs]
+    all_entries = [*single_entries, *fusion_entries, *oracle_entries, *oracle_place_entries]
     missing_entries = [
         (label, benchmark_dir, benchmark_summary_path(benchmark_dir))
         for label, benchmark_dir in all_entries
@@ -146,6 +158,9 @@ def build_table_rows(
     for label, benchmark_dir in oracle_entries:
         if benchmark_summary_path(benchmark_dir).exists():
             rows.append(oracle_pick_row_from_benchmark(label, benchmark_dir))
+    for label, benchmark_dir in oracle_place_entries:
+        if benchmark_summary_path(benchmark_dir).exists():
+            rows.append(oracle_place_row_from_benchmark(label, benchmark_dir))
 
     if not rows:
         raise ValueError("No benchmark summaries were available to include in the fusion comparison table.")
@@ -166,6 +181,7 @@ def single_view_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "pick_executor": _value(summary.get("pick_executor")),
         "grasp_target_mode": _value(summary.get("grasp_target_mode")),
         "pick_target_source_counts": pick_target_source_counts(summary, benchmark_dir),
+        "place_target_source_counts": NA,
         "detector_backend": _value(summary.get("detector_backend")),
         "skip_clip": _value(summary.get("skip_clip")),
         "total_runs": _as_int(summary.get("total_runs", metrics.get("total_runs"))),
@@ -191,6 +207,7 @@ def single_view_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "reobserve_reason_counts": NA,
         "grasp_attempted_rate": _optional_float(metrics.get("grasp_attempted_rate")),
         "pick_success_rate": _as_float(metrics.get("pick_success_rate")),
+        "place_success_rate": _optional_float(metrics.get("place_success_rate")),
         "task_success_rate": _optional_float(metrics.get("task_success_rate")),
         "pick_stage_counts": format_reason_counts(metrics.get("pick_stage_counts")),
     }
@@ -211,6 +228,7 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
         "pick_executor": _value(summary.get("pick_executor")),
         "grasp_target_mode": _value(summary.get("grasp_target_mode")),
         "pick_target_source_counts": pick_target_source_counts(summary, benchmark_dir),
+        "place_target_source_counts": NA,
         "detector_backend": _value(summary.get("detector_backend")),
         "skip_clip": _value(summary.get("skip_clip")),
         "total_runs": _as_int(summary.get("total_runs", metrics.get("total_runs"))),
@@ -244,6 +262,7 @@ def fusion_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str
         "reobserve_reason_counts": format_reason_counts(metrics.get("reobserve_reason_counts")),
         "grasp_attempted_rate": _optional_float(metrics.get("grasp_attempted_rate")),
         "pick_success_rate": _optional_float(metrics.get("pick_success_rate")),
+        "place_success_rate": _optional_float(metrics.get("place_success_rate")),
         "task_success_rate": _optional_float(metrics.get("task_success_rate")),
         "pick_stage_counts": format_reason_counts(metrics.get("pick_stage_counts")),
     }
@@ -262,6 +281,7 @@ def oracle_pick_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "pick_executor": _value(summary.get("pick_executor")),
         "grasp_target_mode": _value(summary.get("grasp_target_mode")),
         "pick_target_source_counts": pick_target_source_counts(summary, benchmark_dir),
+        "place_target_source_counts": NA,
         "detector_backend": _value(summary.get("detector_backend")),
         "skip_clip": _value(summary.get("skip_clip")),
         "total_runs": _as_int(summary.get("total_runs", metrics.get("total_runs"))),
@@ -287,6 +307,52 @@ def oracle_pick_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dic
         "reobserve_reason_counts": NA,
         "grasp_attempted_rate": _optional_float(metrics.get("grasp_attempted_rate")),
         "pick_success_rate": _optional_float(metrics.get("pick_success_rate")),
+        "place_success_rate": _optional_float(metrics.get("place_success_rate")),
+        "task_success_rate": _optional_float(metrics.get("task_success_rate")),
+        "pick_stage_counts": format_reason_counts(metrics.get("pick_stage_counts")),
+    }
+
+
+def oracle_place_row_from_benchmark(label: str, benchmark_dir: str | Path) -> dict[str, Any]:
+    """Load one oracle simulated pick-place benchmark summary into a comparison row."""
+
+    summary = load_benchmark_summary(benchmark_dir)
+    metrics = _metrics(summary)
+    return {
+        "label": label,
+        "benchmark_type": "oracle_place",
+        "env_id": _value(summary.get("env_id")),
+        "obs_mode": _value(summary.get("obs_mode")),
+        "pick_executor": _value(summary.get("pick_executor")),
+        "grasp_target_mode": _value(summary.get("grasp_target_mode")),
+        "pick_target_source_counts": pick_target_source_counts(summary, benchmark_dir),
+        "place_target_source_counts": place_target_source_counts(summary, benchmark_dir),
+        "detector_backend": _value(summary.get("detector_backend")),
+        "skip_clip": _value(summary.get("skip_clip")),
+        "total_runs": _as_int(summary.get("total_runs", metrics.get("total_runs"))),
+        "primary_rate_name": "task_success_rate",
+        "primary_rate": _as_float(metrics.get("task_success_rate")),
+        "mean_runtime_seconds": _as_float(metrics.get("mean_runtime_seconds")),
+        "mean_raw_num_detections": NA,
+        "mean_num_ranked_candidates": NA,
+        "mean_num_views": NA,
+        "mean_num_memory_objects": NA,
+        "mean_num_observations_added": NA,
+        "mean_same_label_pairwise_distance": NA,
+        "mean_selected_overall_confidence": NA,
+        "reobserve_trigger_rate": NA,
+        "initial_reobserve_trigger_rate": NA,
+        "final_reobserve_trigger_rate": NA,
+        "closed_loop_execution_rate": NA,
+        "closed_loop_resolution_rate": NA,
+        "closed_loop_still_needed_rate": NA,
+        "mean_closed_loop_delta_selected_overall_confidence": NA,
+        "mean_closed_loop_delta_selected_num_views": NA,
+        "mean_closed_loop_delta_num_memory_objects": NA,
+        "reobserve_reason_counts": NA,
+        "grasp_attempted_rate": _optional_float(metrics.get("grasp_attempted_rate")),
+        "pick_success_rate": _optional_float(metrics.get("pick_success_rate")),
+        "place_success_rate": _optional_float(metrics.get("place_success_rate")),
         "task_success_rate": _optional_float(metrics.get("task_success_rate")),
         "pick_stage_counts": format_reason_counts(metrics.get("pick_stage_counts")),
     }
@@ -334,8 +400,29 @@ def pick_target_source_counts(summary: dict[str, Any], benchmark_dir: str | Path
     return format_reason_counts(row_counts)
 
 
+def place_target_source_counts(summary: dict[str, Any], benchmark_dir: str | Path) -> str:
+    """Return compact place-target source counts from summary metrics or rows."""
+
+    metrics = _metrics(summary)
+    counts = metrics.get("place_target_source_counts")
+    if isinstance(counts, dict) and counts:
+        return format_reason_counts(counts)
+    source = summary.get("place_target_source")
+    total_runs = _as_int(summary.get("total_runs", metrics.get("total_runs")))
+    if source is not None and total_runs > 0:
+        return format_reason_counts({str(source): total_runs})
+    row_counts = load_target_source_counts(benchmark_dir, row_key="place_target_source")
+    return format_reason_counts(row_counts)
+
+
 def load_pick_target_source_counts(benchmark_dir: str | Path) -> dict[str, int]:
     """Load optional per-row pick target source counts from benchmark rows."""
+
+    return load_target_source_counts(benchmark_dir, row_key="pick_target_source")
+
+
+def load_target_source_counts(benchmark_dir: str | Path, row_key: str) -> dict[str, int]:
+    """Load optional per-row target source counts from benchmark rows."""
 
     benchmark_dir = Path(benchmark_dir)
     rows_json = benchmark_dir / "benchmark_rows.json"
@@ -347,11 +434,11 @@ def load_pick_target_source_counts(benchmark_dir: str | Path) -> dict[str, int]:
             rows = data if isinstance(data, list) else []
             for row in rows:
                 if isinstance(row, dict):
-                    _add_source_count(counts, row.get("pick_target_source"))
+                    _add_source_count(counts, row.get(row_key))
         elif rows_csv.exists():
             with rows_csv.open("r", encoding="utf-8-sig", newline="") as file:
                 for row in csv.DictReader(file):
-                    _add_source_count(counts, row.get("pick_target_source"))
+                    _add_source_count(counts, row.get(row_key))
     except (OSError, json.JSONDecodeError):
         return {}
     return dict(sorted(counts.items()))

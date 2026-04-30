@@ -4,7 +4,11 @@ import json
 
 import numpy as np
 
-from src.manipulation.pick_executor import SafePlaceholderPickExecutor, SimulatedTopDownPickExecutor
+from src.manipulation.pick_executor import (
+    SafePlaceholderPickExecutor,
+    SimulatedPickPlaceExecutor,
+    SimulatedTopDownPickExecutor,
+)
 
 
 def test_placeholder_executor_accepts_valid_target() -> None:
@@ -119,6 +123,78 @@ def test_simulated_topdown_ignores_unrelated_info_flags() -> None:
     assert result["is_grasped"] is False
     assert result["stage"] == "grasp_not_confirmed"
     assert result["trajectory_summary"]["grasp_info_keys"] == []
+
+
+def test_simulated_pick_place_rejects_invalid_pick_without_stepping() -> None:
+    env = _FakeDeltaPosEnv()
+    executor = SimulatedPickPlaceExecutor(env=env)
+
+    result = executor.execute(
+        pick_xyz=np.array([0.1, np.nan, 0.3], dtype=np.float32),
+        place_xyz=np.array([0.0, 0.0, 0.02], dtype=np.float32),
+    )
+
+    assert result["success"] is False
+    assert result["stage"] == "validation_failed"
+    assert result["grasp_attempted"] is False
+    assert result["place_attempted"] is False
+    assert env.num_steps == 0
+
+
+def test_simulated_pick_place_rejects_invalid_place_without_stepping() -> None:
+    env = _FakeDeltaPosEnv()
+    executor = SimulatedPickPlaceExecutor(env=env)
+
+    result = executor.execute(
+        pick_xyz=np.array([0.0, 0.0, 0.02], dtype=np.float32),
+        place_xyz=np.array([0.1, np.nan, 0.3], dtype=np.float32),
+    )
+
+    assert result["success"] is False
+    assert result["stage"] == "validation_failed"
+    assert result["place_attempted"] is False
+    assert env.num_steps == 0
+
+
+def test_simulated_pick_place_builds_actions_and_opens_at_place() -> None:
+    env = _FakeDeltaPosEnv()
+    executor = SimulatedPickPlaceExecutor(
+        env=env,
+        move_above_steps=2,
+        descend_steps=2,
+        close_steps=2,
+        lift_steps=2,
+        move_to_place_steps=2,
+        place_descend_steps=2,
+        open_steps=2,
+        settle_steps=2,
+    )
+
+    result = executor.execute(
+        pick_xyz=np.array([0.0, 0.0, 0.02], dtype=np.float32),
+        place_xyz=np.array([0.08, 0.0, 0.02], dtype=np.float32),
+    )
+
+    assert result["grasp_attempted"] is True
+    assert result["place_attempted"] is True
+    assert result["pick_success"] is True
+    assert result["place_success"] is True
+    assert result["task_success"] is False
+    assert result["stage"] == "placed_not_task_success"
+    assert result["trajectory_summary"]["executed_stages"] == [
+        "move_above_pick",
+        "descend_to_pick",
+        "close_gripper",
+        "lift_from_pick",
+        "move_above_place",
+        "descend_to_place",
+        "open_gripper",
+        "settle",
+    ]
+    assert all(action.shape == (4,) for action in env.actions)
+    assert any(float(action[3]) == -1.0 for action in env.actions)
+    assert env.actions[-1][3] == 1.0
+    json.dumps(result)
 
 
 class _FakeActionSpace:
