@@ -171,6 +171,15 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="paper_manuscript_draft",
+        source_path=Path("docs/paper_manuscript_draft.md"),
+        category="notes",
+        caption=(
+            "First full Markdown manuscript skeleton assembled from the current "
+            "outline, benchmark results, limitations, and artifact appendix."
+        ),
+    ),
+    ArtifactSpec(
         label="fused_memory_grasp_targeted_summary",
         source_path=Path(
             "outputs/h200_60071_multiview_memory_grasp_point_targeted/"

@@ -940,6 +940,7 @@ changing detector, fusion weights, or controller timing:
 4. Keep StackCube framed as pick-only compatibility unless `task_success_rate`
    improves through a separate stacking executor.
 5. Multi-task simulated-grasp prose is drafted in
-   `docs/paper_multitask_sim_grasp_section.md`; the next writing task is to
-   assemble the full manuscript skeleton around the existing outline and figure
-   pack.
+   `docs/paper_multitask_sim_grasp_section.md`, and the first full manuscript
+   skeleton is assembled in `docs/paper_manuscript_draft.md`.
+6. Next writing task: polish the manuscript draft for the target venue format,
+   especially related work, figure callouts, and result-table placement.
