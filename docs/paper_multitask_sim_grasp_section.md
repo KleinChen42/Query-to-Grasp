@@ -45,6 +45,18 @@ The PickCube regression remains `3/3` successful and continues to use
 the main PickCube result. The expanded StackCube artifacts are in
 `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49`.
 
+The query-driven placement bridge then asks whether these query-derived cubeA
+targets can support the full StackCube task when the destination cubeB pose is
+privileged. With `sim_pick_place`, single-view query targets reach
+`pick_success_rate = 0.8800`, `place_success_rate = 0.7200`, and
+`task_success_rate = 0.7200` in both no-CLIP and with-CLIP modes over 50 seeds.
+Multi-view tabletop_3 reaches `0.6200` pick success and `0.5200` task success,
+while closed-loop reaches `0.5200` pick success and `0.4800` task success. This
+is a partial task-success bridge, not a full language-conditioned stacking
+claim: cubeA is query-derived, but cubeB remains an oracle placement target.
+The bridge artifacts are in
+`outputs/h200_60071_query_stackcube_place_bridge_seed0_49`.
+
 The remaining StackCube failures clarify the limitation of the current system.
 The expanded failure report classifies `86` failed grasps across the four
 StackCube modes. The dominant aggregate class is
@@ -64,8 +76,9 @@ perception-only retrieval: language-selected RGB-D targets can drive a real
 simulated controller and produce stable downstream grasp metrics. The evidence
 is strongest for `PickCube-v1`, where full-query multi-view and closed-loop
 simulated pick success reaches `1.0000`. `StackCube-v1` provides a stricter
-cross-task diagnostic: it validates pick-only transfer, exposes task-dependent
-grasp target preferences, and motivates future work on task-general fused grasp
-target aggregation and closed-loop association. We do not claim real-robot
-execution, robust general manipulation, or StackCube stacking completion in the
-current version.
+cross-task diagnostic: it validates pick-only transfer, shows that query-derived
+cubeA targets can support oracle-place task success, exposes task-dependent
+grasp target preferences, and motivates future work on non-oracle placement
+target grounding and closed-loop association. We do not claim real-robot
+execution, robust general manipulation, or fully non-oracle StackCube stacking
+completion in the current version.

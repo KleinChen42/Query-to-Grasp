@@ -133,9 +133,9 @@ graspable 3D action targets. It should preserve the established numbers:
 PickCube full-query multi-view and closed-loop pick success `1.0000`;
 StackCube expanded pick-only tabletop `0.6200` and closed-loop `0.5200`;
 StackCube oracle pick `0.9400`; StackCube oracle pick-place task success
-`0.8800`; and the query-pick plus oracle-place result only after the current
-H200 bridge gate finishes. If the bridge is still pending, mark it as pending
-rather than a final claim.
+`0.8800`; and the accepted query-pick plus oracle-place bridge result:
+single-view task success `0.7200`, tabletop_3 task success `0.5200`, and
+closed-loop task success `0.4800` over 50 seeds per mode.
 
 ### Introduction
 
@@ -197,8 +197,8 @@ The paper can claim:
 - opt-in simulated pick and oracle pick-place baselines in ManiSkill;
 - PickCube full-query simulated pick success of `1.0000`;
 - StackCube pick-only compatibility and privileged oracle placement baselines;
-- query-pick plus oracle-place StackCube task success only if the current H200
-  bridge validation passes and is recorded.
+- query-pick plus oracle-place StackCube task success as a partial privileged
+  placement bridge, with the destination target supplied by oracle cubeB pose.
 
 The paper must not claim:
 
@@ -1004,9 +1004,11 @@ Be explicit:
   wrong fused grasp observation dominates tabletop failures, while closed-loop
   adds third-object absorption. This should be used as the limitation figure or
   table for the multi-task section.
-- Accepted query-driven StackCube rows remain pick-only until the placement
-  bridge is validated. The oracle placement baseline is privileged and must be
-  reported as an upper bound, not as a deployable language-conditioned stacker.
+- Accepted query-driven StackCube pick rows remain pick-only, while the
+  query-pick plus oracle-place bridge reaches positive StackCube task success
+  with a privileged cubeB target. The oracle placement baseline is privileged
+  and must be reported as an upper bound, not as a deployable
+  language-conditioned stacker.
 - The resolved simulated-grasp failures were dominated by detector boxes whose
   original upper region missed the graspable object support; the semantic target
   center is preserved while the opt-in refined grasp point can use a downward
@@ -1114,38 +1116,49 @@ Latest oracle placement baseline:
 
 This is the first positive StackCube placement-capability result, but it is
 privileged. It should be framed as an upper-bound controller/target-source
-ablation, not as query-driven StackCube task completion. The current bridge
-under H200 validation uses a query-derived cubeA pick target with privileged
-`oracle_cubeB_pose`; it may become a partial task-success bridge, but it is
-still not a fully non-oracle language-conditioned stacking result.
+ablation, not as query-driven StackCube task completion.
+
+Accepted query-pick plus oracle-place bridge:
+
+| benchmark | env | runs | failed | pick success | place success | task success | place target |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Single-view no CLIP | `StackCube-v1` | 50 | passed by H200 checker | 0.8800 | 0.7200 | 0.7200 | `oracle_cubeB_pose` |
+| Single-view with CLIP | `StackCube-v1` | 50 | 0 | 0.8800 | 0.7200 | 0.7200 | `oracle_cubeB_pose` |
+| tabletop_3 no CLIP | `StackCube-v1` | 50 | 0 | 0.6200 | 0.5200 | 0.5200 | `oracle_cubeB_pose` |
+| tabletop_3 with CLIP | `StackCube-v1` | 50 | 0 | 0.6200 | 0.5200 | 0.5200 | `oracle_cubeB_pose` |
+| closed-loop no CLIP | `StackCube-v1` | 50 | 0 | 0.5200 | 0.4800 | 0.4800 | `oracle_cubeB_pose` |
+| closed-loop with CLIP | `StackCube-v1` | 50 | 0 | 0.5200 | 0.4800 | 0.4800 | `oracle_cubeB_pose` |
+
+This bridge upgrades StackCube from pick-only compatibility to a partial
+task-success result: the pick target is query-derived, while the placement
+target remains privileged. It supports the retrieval-to-execution-gap thesis
+without claiming fully non-oracle language-conditioned stacking.
 
 ## Next Writing Milestone
 
 Turn the polished Markdown draft into a venue-shaped manuscript without changing
 detector, fusion weights, controller timing, or benchmark claims:
 
-1. Finish and record the query-driven StackCube placement bridge:
-   query-derived cubeA pick target plus privileged `oracle_cubeB_pose`.
-2. Freeze the cross-task simulated pick/place table with PickCube full/compact
+1. Freeze the cross-task simulated pick/place table with PickCube full/compact
    rows, StackCube expanded guarded rows, oracle pick/place rows, and bridge
-   rows when accepted.
-3. Use the expanded failure report as the limitation/failure figure showing
+   rows.
+2. Use the expanded failure report as the limitation/failure figure showing
    that StackCube closed-loop still reaches only `0.5200` pick success despite
    reduced uncertainty diagnostics.
-4. Preserve the target-source distinction: PickCube refined uses
+3. Preserve the target-source distinction: PickCube refined uses
    `memory_grasp_world_xyz`; StackCube refined uses
    `task_guard_selected_object_world_xyz`.
-5. Keep privileged placement sources clearly labeled unless a non-oracle
+4. Keep privileged placement sources clearly labeled unless a non-oracle
    placement target path is implemented and validated.
-6. Multi-task simulated-grasp prose is drafted in
+5. Multi-task simulated-grasp prose is drafted in
    `docs/paper_multitask_sim_grasp_section.md`, and the first full manuscript
    skeleton is assembled in `docs/paper_manuscript_draft.md`.
-7. Manuscript draft v0.2 now includes a related-work scaffold, figure/table
+6. Manuscript draft v0.2 now includes a related-work scaffold, figure/table
    callouts, and conference-style result framing; the citation buckets are
    tracked in `docs/paper_related_work_citation_plan.md`.
-8. ICRA/IROS-style LaTeX draft v0.1 now lives in `paper/main.tex`, with
+7. ICRA/IROS-style LaTeX draft v0.1 now lives in `paper/main.tex`, with
    first-pass BibTeX in `paper/references.bib` and structural checks in
    `scripts/check_paper_latex.py`.
-9. Next writing task: verify exact BibTeX metadata from primary sources,
+8. Next writing task: verify exact BibTeX metadata from primary sources,
    tighten the LaTeX draft to the target page budget, and replace figure/table
    placeholders with final camera-ready assets.

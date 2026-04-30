@@ -23,11 +23,14 @@ grasp points lift `PickCube-v1` full-query multi-view and closed-loop simulated
 pick success to `1.0000`. A broader `StackCube-v1` pick-only validation reaches
 `0.6200` tabletop and `0.5200` closed-loop pick success over 50 seeds, while
 revealing task-dependent target-source preferences and closed-loop
-third-object absorption. These results support Query-to-Grasp as a reproducible
+third-object absorption. A query-pick plus oracle-place bridge further reaches
+`0.7200` single-view task success, `0.5200` tabletop_3 task success, and
+`0.4800` closed-loop task success on StackCube, with cubeB supplied by a
+privileged oracle. These results support Query-to-Grasp as a reproducible
 conference-scale diagnostic baseline for language-conditioned RGB-D retrieval,
 target-source selection, and simulated manipulation evaluation, while clearly
-separating perception, pick-only control, privileged placement baselines, and
-full non-oracle task completion.
+separating perception, pick-only control, privileged placement baselines,
+partial oracle-place bridges, and full non-oracle task completion.
 
 ## 1. Introduction
 
@@ -52,10 +55,11 @@ This distinction is central to the paper. On `PickCube-v1`, selected 3D targets
 can now drive successful simulated picks across compact and full ambiguity
 query sets. On `StackCube-v1`, the accepted query-driven results validate
 pick-only transfer for cubeA, while oracle pick-place establishes a privileged
-upper bound for placement. A query-pick plus oracle-place bridge is the current
-gate for upgrading StackCube from pick-only compatibility to a partial
-task-success result. We therefore report `pick_success`, `place_success`, and
-`task_success` as separate metrics and avoid claiming full non-oracle
+upper bound for placement. The accepted query-pick plus oracle-place bridge
+upgrades StackCube from pick-only compatibility to a partial task-success
+result: query-derived cubeA targets can support placement when cubeB is supplied
+by a privileged oracle. We therefore report `pick_success`, `place_success`,
+and `task_success` as separate metrics and avoid claiming full non-oracle
 StackCube completion or real-robot success.
 
 The paper makes three practical contributions:
@@ -179,8 +183,8 @@ of final paper-scale claims. The primary environment is
 `PickCube-v1`, where the target is a cube that can be picked by the top-down
 executor. `StackCube-v1` is used as a broader-task bridge: accepted rows test
 query-driven cubeA picking, oracle rows test privileged cubeA-to-cubeB
-placement, and the current bridge tests query-derived cubeA targets with an
-oracle cubeB placement target.
+placement, and the accepted query-pick plus oracle-place bridge tests
+query-derived cubeA targets with an oracle cubeB placement target.
 
 The benchmark suite reports both retrieval and control metrics. Retrieval
 metrics include detection count, 3D target availability, memory size, selected
@@ -199,7 +203,7 @@ Key artifact sources are:
 - Expanded StackCube guard validation:
   `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49`.
 - Query-driven StackCube placement bridge:
-  `outputs/h200_60071_query_stackcube_place_bridge_seed0_49` (pending H200 gate).
+  `outputs/h200_60071_query_stackcube_place_bridge_seed0_49`.
 - StackCube failure taxonomy:
   `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49/reports/stackcube_guard_failure_report.md`.
 - Paper pack:
@@ -365,9 +369,9 @@ simulated controllers and produce stable downstream pick and placement metrics.
 The evidence is strongest for `PickCube-v1`, where full-query multi-view and
 closed-loop simulated pick success reaches `1.0000`. `StackCube-v1` provides a
 stricter cross-task bridge: accepted rows validate pick-only transfer, oracle
-rows prove placement capability with privileged poses, and the pending bridge
-tests whether query-derived cubeA targets can support placement when cubeB is
-privileged.
+rows prove placement capability with privileged poses, and the accepted
+query-pick plus oracle-place bridge shows that query-derived cubeA targets can
+support placement when cubeB is privileged.
 
 ## 7. Limitations
 
@@ -379,9 +383,11 @@ also out of scope for the current version.
 The low-level controllers are intentionally simple. They are useful as stable
 diagnostic baselines because they separate target quality from perception-only
 retrieval, but they are not learned or general manipulation policies. The
-accepted query-driven StackCube rows remain pick-only until the placement
-bridge is validated. Oracle pick-place rows are privileged upper bounds and
-must not be described as fully language-conditioned stacking.
+accepted query-pick plus oracle-place StackCube bridge remains privileged at the
+destination target: it is evidence that query-derived cubeA targets can drive
+partial task success, not evidence of fully non-oracle language-conditioned
+stacking. Oracle pick-place rows are privileged upper bounds and must not be
+described as deployable stacking results.
 
 The language interface is also conservative. Query parsing handles simple
 targets, attributes, synonyms, and limited relation fields. Current results do

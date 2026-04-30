@@ -722,10 +722,10 @@ The IROS/ICRA simulated full-paper system is considered successful if it can:
 Current status, 2026-04-30:
 
 - `PickCube-v1` query-driven single-view, multi-view, and closed-loop simulated pick baselines are strong after refined and fused-memory grasp target work.
-- `StackCube-v1` accepted query-driven rows are still pick-only; expanded guarded multi-view validation reaches `0.6200` tabletop and `0.5200` closed-loop pick success over 50 seeds.
+- `StackCube-v1` accepted query-driven pick rows include expanded guarded multi-view validation with `0.6200` tabletop and `0.5200` closed-loop pick success over 50 seeds.
 - Oracle StackCube pick-place is implemented as a privileged upper bound and reaches positive task success.
-- Query-driven StackCube placement bridge is in H200 validation: query-derived cubeA pick target plus privileged `oracle_cubeB_pose` placement target.
-- Next action: finish that bridge validation, then decide between large-scale table freeze and optional H200-scale mask/refinement target lifting.
+- Query-driven StackCube placement bridge is validated: query-derived cubeA pick target plus privileged `oracle_cubeB_pose` placement target reaches `0.7200` single-view task success, `0.5200` tabletop_3 task success, and `0.4800` closed-loop task success over 50 seeds per mode.
+- Next action: freeze the cross-task paper tables, update the figure/video pack, and avoid new core functionality unless a specific paper gap requires it.
 
 ---
 

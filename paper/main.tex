@@ -33,8 +33,10 @@ points yield full-query multi-view and closed-loop simulated pick success of
 targets reach \texttt{0.6200} tabletop and \texttt{0.5200} closed-loop
 pick-only success over 50 seeds, while oracle object poses reach
 \texttt{0.9400} pick success and \texttt{0.8800} privileged pick-place task
-success. Accepted query-driven StackCube rows remain pick-only until the
-query-pick/oracle-place bridge is validated. These results
+success. The accepted query-pick/oracle-place bridge reaches
+\texttt{0.7200} single-view task success, \texttt{0.5200} tabletop task
+success, and \texttt{0.4800} closed-loop task success with an oracle cubeB
+destination. These results
 support Query-to-Grasp as a reproducible diagnostic baseline for studying the
 gap between open-vocabulary RGB-D retrieval, executable simulated targets, and
 task-level manipulation outcomes.
@@ -66,8 +68,8 @@ semantic object center: fused \texttt{memory\_grasp\_world\_xyz} targets lift
 \texttt{PickCube-v1} multi-view and closed-loop pick success to \texttt{1.0000}.
 Third, broader tasks expose useful limitations: \texttt{StackCube-v1} supports
 pick-only compatibility, oracle pick-place establishes a privileged placement
-upper bound, and the current bridge tests whether query-derived cubeA targets
-can support placement when cubeB is oracle-provided.
+upper bound, and the accepted bridge shows that query-derived cubeA targets can
+support placement when cubeB is oracle-provided.
 
 No real-robot execution is claimed. The controller is scripted, not learned,
 and StackCube results do not claim stack placement completion. The contribution
@@ -183,8 +185,9 @@ Experiments run in ManiSkill with RGB-D observations. H200 HF/ManiSkill runs
 are the source of paper-scale claims; local and Colab paths are retained for
 smoke testing. The primary benchmark is \texttt{PickCube-v1}. \texttt{StackCube-v1}
 is the cross-task bridge benchmark: accepted rows test query-driven cubeA
-picking, oracle rows test privileged cubeA-to-cubeB placement, and the current
-bridge tests query-derived cubeA targets with an oracle cubeB placement target.
+picking, oracle rows test privileged cubeA-to-cubeB placement, and the accepted
+query-pick/oracle-place bridge tests query-derived cubeA targets with an oracle
+cubeB placement target.
 
 Metrics are split into retrieval, uncertainty, and control groups. Retrieval
 metrics include detection count, 3D target availability, memory size, selected
@@ -197,14 +200,15 @@ The main paper artifacts are collected in \texttt{outputs/paper\_figure\_pack\_l
 Table~\ref{tab:target-source} summarizes the final target-source results.
 Additional reports include the single-view ablation table, corrected geometry
 reports, full PickCube grasp comparison, StackCube expanded failure report,
-oracle target-source comparison, and the pending query-driven StackCube
+oracle target-source comparison, and the accepted query-driven StackCube
 placement bridge.
 
 \begin{table*}[t]
 \centering
 \caption{Target-source and simulated manipulation results used by the current
-paper draft. Query-driven StackCube rows are pick-only until the placement
-bridge is accepted; oracle pick-place is privileged.}
+paper draft. The StackCube bridge uses query-derived cubeA targets and a
+privileged oracle cubeB placement target; oracle pick-place is fully
+privileged.}
 \label{tab:target-source}
 \begin{tabular}{llrrrrl}
 \toprule
@@ -213,6 +217,9 @@ Benchmark & Environment & Runs & Failed & Pick success & Task success & Effectiv
 Full multi-view/closed-loop & \texttt{PickCube-v1} & 55 & 0 & 1.0000 & 0.1455 & \texttt{memory\_grasp\_world\_xyz} \\
 Expanded tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
 Expanded closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
+Query-pick/oracle-place single-view & \texttt{StackCube-v1} & 50 & 0 & 0.8800 & 0.7200 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
+Query-pick/oracle-place tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & 0.5200 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
+Query-pick/oracle-place closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & 0.4800 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
 Oracle pick & \texttt{PickCube-v1} & 50 & 0 & 1.0000 & 0.0400 & \texttt{oracle\_object\_pose} \\
 Oracle pick & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.0000 & \texttt{oracle\_object\_pose} \\
 Oracle pick-place & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.8800 & \texttt{oracle\_cubeA\_pose}\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
@@ -287,8 +294,9 @@ deployment, a learned controller, or full long-horizon manipulation. The
 \texttt{sim\_topdown} executor is a scripted top-down pick policy, and
 \texttt{sim\_pick\_place} is a scripted placement probe rather than a learned
 controller. Accepted query-driven StackCube rows remain pick-only until the
-query-pick/oracle-place bridge is validated. Oracle pick-place rows are
-privileged upper bounds, not deployable language-conditioned stacking.
+query-pick/oracle-place bridge is enabled with a privileged destination target.
+Oracle pick-place rows are privileged upper bounds, not deployable
+language-conditioned stacking.
 
 The detector backend is used off the shelf. The current results do not show
 CLIP reranking as a primary improvement source. The query parser handles simple
@@ -332,7 +340,7 @@ The main benchmark artifacts referenced by this draft are:
   \item \texttt{outputs/h200\_60071\_stackcube\_task\_guard\_expanded\_seed0\_49}
   \item \texttt{outputs/h200\_60071\_oracle\_pick\_ablation}
   \item \texttt{outputs/h200\_60071\_oracle\_stackcube\_place\_seed0\_49}
-  \item \texttt{outputs/h200\_60071\_query\_stackcube\_place\_bridge\_seed0\_49} (pending bridge gate)
+  \item \texttt{outputs/h200\_60071\_query\_stackcube\_place\_bridge\_seed0\_49}
   \item \texttt{outputs/paper\_figure\_pack\_latest}
 \end{itemize}
 

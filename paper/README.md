@@ -46,12 +46,13 @@ test is the structural checker plus paper-pack inclusion.
 
 - PickCube-v1 is the main successful simulated pick benchmark.
 - StackCube-v1 is the main cross-task bridge benchmark.
-- Accepted query-driven StackCube rows remain pick-only until the placement
-  bridge is validated.
+- The accepted query-pick/oracle-place StackCube bridge reports partial
+  task-success evidence with query-derived cubeA targets and privileged
+  oracle cubeB placement targets.
 - Oracle StackCube pick-place is a privileged upper-bound baseline, not a
   deployable language-conditioned stacker.
-- No real-robot execution, learned controller, or StackCube stack completion is
-  claimed.
+- No real-robot execution, learned controller, or fully non-oracle StackCube
+  stack completion is claimed.
 
 ## Paper Pack
 
