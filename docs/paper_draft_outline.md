@@ -962,6 +962,9 @@ detector, fusion weights, controller timing, or benchmark claims:
 6. Manuscript draft v0.2 now includes a related-work scaffold, figure/table
    callouts, and conference-style result framing; the citation buckets are
    tracked in `docs/paper_related_work_citation_plan.md`.
-7. Next writing task: convert the Markdown draft to the target venue format
-   (ICRA/IROS-style LaTeX), verify exact BibTeX metadata from primary sources,
-   and tighten the page budget around the final figure/table set.
+7. ICRA/IROS-style LaTeX draft v0.1 now lives in `paper/main.tex`, with
+   first-pass BibTeX in `paper/references.bib` and structural checks in
+   `scripts/check_paper_latex.py`.
+8. Next writing task: verify exact BibTeX metadata from primary sources,
+   tighten the LaTeX draft to the target page budget, and replace figure/table
+   placeholders with final camera-ready assets.

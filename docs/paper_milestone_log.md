@@ -1353,3 +1353,11 @@ Candidate paper framing:
 > validation gives a stable cross-task estimate without regressing PickCube,
 > but StackCube remains a compatibility diagnostic rather than a stacking
 > completion result.
+
+Latest conference-format writing checkpoint:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `paper/main.tex` | drafted | ICRA/IROS-style LaTeX v0.1 with abstract, method, experiments, results, limitations, conclusion, and reproducibility appendix notes. |
+| `paper/references.bib` | scaffolded | Core citation buckets for CLIP, GroundingDINO, CLIPort, PerAct, SayCan, VIMA, RT-1/RT-2, and ManiSkill; exact metadata still needs final primary-source verification. |
+| `scripts/check_paper_latex.py` | added | Structural guard that checks required sections, current key metrics, artifact references, and unsupported real-robot / StackCube completion claims. |

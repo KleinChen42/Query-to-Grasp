@@ -44,6 +44,9 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "paper_multitask_sim_grasp_section" in labels
     assert "paper_manuscript_draft" in labels
     assert "paper_related_work_citation_plan" in labels
+    assert "paper_latex_main" in labels
+    assert "paper_latex_references" in labels
+    assert "paper_latex_readme" in labels
     assert "fused_memory_grasp_targeted_summary" in labels
     assert "fused_memory_grasp_ablation_no_clip" in labels
     assert "fused_memory_grasp_ablation_closed_loop" in labels

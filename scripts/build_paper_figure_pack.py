@@ -189,6 +189,31 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="paper_latex_main",
+        source_path=Path("paper/main.tex"),
+        category="paper",
+        caption=(
+            "ICRA/IROS-style LaTeX manuscript scaffold preserving current "
+            "Query-to-Grasp claims, metrics, and limitations."
+        ),
+    ),
+    ArtifactSpec(
+        label="paper_latex_references",
+        source_path=Path("paper/references.bib"),
+        category="paper",
+        caption=(
+            "First-pass BibTeX scaffold for grounding, language-conditioned "
+            "manipulation, and ManiSkill references; exact metadata still needs "
+            "final verification."
+        ),
+    ),
+    ArtifactSpec(
+        label="paper_latex_readme",
+        source_path=Path("paper/README.md"),
+        category="paper",
+        caption="Maintenance notes and structural-check commands for the LaTeX paper scaffold.",
+    ),
+    ArtifactSpec(
         label="fused_memory_grasp_targeted_summary",
         source_path=Path(
             "outputs/h200_60071_multiview_memory_grasp_point_targeted/"
