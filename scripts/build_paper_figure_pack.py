@@ -480,6 +480,33 @@ DEFAULT_ARTIFACTS = (
         category="grasp",
         caption="Per-seed oracle StackCube-v1 pick-place rows with stage and task-success diagnostics.",
     ),
+    ArtifactSpec(
+        label="demo_video_pack_readme",
+        source_path=Path("outputs/demo_video_pack_latest/README.md"),
+        category="video",
+        caption=(
+            "Demo-video planning README listing representative PickCube and StackCube "
+            "stories, selected seeds, available media, and capture requests."
+        ),
+    ),
+    ArtifactSpec(
+        label="demo_video_pack_manifest",
+        source_path=Path("outputs/demo_video_pack_latest/manifest.json"),
+        category="video",
+        caption=(
+            "Machine-readable demo-video manifest for paper figures and supplemental "
+            "video planning."
+        ),
+    ),
+    ArtifactSpec(
+        label="demo_video_capture_requests",
+        source_path=Path("outputs/demo_video_pack_latest/capture_requests.json"),
+        category="video",
+        caption=(
+            "Minimal list of representative runs that still need video/frame capture "
+            "when local media artifacts are unavailable."
+        ),
+    ),
 )
 
 

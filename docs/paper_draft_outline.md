@@ -1162,3 +1162,29 @@ detector, fusion weights, controller timing, or benchmark claims:
 8. Next writing task: verify exact BibTeX metadata from primary sources,
    tighten the LaTeX draft to the target page budget, and replace figure/table
    placeholders with final camera-ready assets.
+
+## Video/Figure Evidence Plan
+
+The core system and benchmark claims are now frozen for the IROS/ICRA simulated
+full-paper v1. The next development work should therefore package existing
+evidence, not tune detector, CLIP, fusion, re-observation, or controller
+behavior.
+
+`scripts/build_demo_video_pack.py` creates the current video-planning pack at
+`outputs/demo_video_pack_latest`. It reads accepted benchmark summaries and
+rows, selects representative success/failure seeds, indexes any already-pulled
+image/video artifacts, and emits `capture_requests.json` when a story still
+needs a small demo recapture.
+
+The required supplemental-video stories are:
+
+| story | purpose | claim boundary |
+| --- | --- | --- |
+| PickCube full-query success | Show `memory_grasp_world_xyz` as an executable simulated pick target. | Simulated pick only, not real robot. |
+| StackCube query-pick plus oracle-place success | Show query-derived cubeA pick target driving a privileged-place task bridge. | Placement target remains oracle. |
+| StackCube tabletop success/failure contrast | Show task-source quality as the cross-task bottleneck. | Diagnostic contrast, not a new benchmark. |
+| StackCube closed-loop limitation | Show that re-observation diagnostics do not guarantee higher task success. | Closed-loop is diagnostic, not claimed as universally beneficial. |
+
+Generated video-pack files are supplemental artifacts and should remain
+untracked under `outputs/`. If local media are missing, only recapture the
+listed representative seeds; do not rerun 50-seed benchmarks for video.

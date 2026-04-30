@@ -1365,3 +1365,17 @@ Latest conference-format writing checkpoint:
 | `paper/main.tex` | drafted | ICRA/IROS-style LaTeX v0.1 with abstract, method, experiments, results, limitations, conclusion, and reproducibility appendix notes. |
 | `paper/references.bib` | scaffolded | Core citation buckets for CLIP, GroundingDINO, CLIPort, PerAct, SayCan, VIMA, RT-1/RT-2, and ManiSkill; exact metadata still needs final primary-source verification. |
 | `scripts/check_paper_latex.py` | added | Structural guard that checks required sections, current key metrics, artifact references, and unsupported real-robot / StackCube completion claims. |
+
+Latest video/figure packaging checkpoint:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `scripts/build_demo_video_pack.py` | added | Builds a supplemental-video planning pack from accepted benchmark summaries and rows without changing benchmark behavior. |
+| `outputs/demo_video_pack_latest/manifest.json` | generated artifact | Lists representative PickCube and StackCube stories, selected seeds, available media, and missing-media capture requests. |
+| `outputs/demo_video_pack_latest/capture_requests.json` | generated artifact | Minimal recapture list for demo videos when lightweight pulled artifacts do not include frames or video. |
+
+This checkpoint freezes core algorithmic development for the simulated
+conference-paper v1 and shifts the next work to camera-ready evidence:
+representative videos, final figure assets, citation verification, and
+LaTeX tightening. Video recapture should be limited to the selected seeds in
+the demo pack; it should not create new benchmark claims.
