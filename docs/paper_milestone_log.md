@@ -73,6 +73,7 @@ Scope update:
 | Fused-memory grasp point ablation | Accepted multi-view `sim_topdown` path using fused `memory_grasp_world_xyz` instead of semantic centers | `outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234` |
 | StackCube task-aware grasp guard | Expanded `StackCube-v1` multi-view refined pick validation using semantic selected-object centers | `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49` |
 | StackCube expanded failure analysis | Failure taxonomy explaining why closed-loop improves uncertainty but not StackCube pick success | `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49/reports/stackcube_guard_failure_report.md` |
+| Multi-task simulated-grasp section draft | Paper-ready prose for PickCube/StackCube simulated pick evidence and limitations | `docs/paper_multitask_sim_grasp_section.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -119,6 +120,7 @@ Scope update:
 | Multi-view simulated pick bridge | Done | `493f63b` and `outputs/h200_60071_multiview_sim_pick_bridge_ablation_seed01234` | Fused tabletop_3 and closed-loop selected objects now drive `sim_topdown` metrics with `0` child failures, but compact pick success remains `0.0000` because fused memory currently exposes semantic object centers rather than shifted-crop grasp points. |
 | Fused-memory grasp point path | Done | `2403755` and `outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234` | Propagating per-view grasp points into memory and picking from `memory_grasp_world_xyz` lifts compact multi-view and closed-loop pick success from `0.0000` to `1.0000` in all four H200 compact modes. |
 | StackCube task-aware grasp target guard | Done | `f5810ff`, `1c10aa6`, and `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49` | `StackCube-v1` refined multi-view picking now uses the semantic selected-object center. The expanded 50-seed validation reaches tabletop pick success `0.6200` and closed-loop pick success `0.5200` with `0` failures, while a PickCube regression remains `1.0000` with `memory_grasp_world_xyz`. |
+| Multi-task simulated-grasp section draft | Done | `docs/paper_multitask_sim_grasp_section.md` | The PickCube full-ambiguity, StackCube expanded guard, and StackCube failure taxonomy results are now written as manuscript-style prose with explicit pick-vs-task-success framing. |
 
 ## Key Quantitative Results
 

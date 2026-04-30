@@ -939,6 +939,7 @@ changing detector, fusion weights, or controller timing:
    `task_guard_selected_object_world_xyz`.
 4. Keep StackCube framed as pick-only compatibility unless `task_success_rate`
    improves through a separate stacking executor.
-5. Next writing task: draft the multi-task simulated-grasp section around the
-   cross-task table, expanded failure report, and PickCube-vs-StackCube target
-   source distinction.
+5. Multi-task simulated-grasp prose is drafted in
+   `docs/paper_multitask_sim_grasp_section.md`; the next writing task is to
+   assemble the full manuscript skeleton around the existing outline and figure
+   pack.

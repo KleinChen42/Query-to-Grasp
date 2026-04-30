@@ -162,6 +162,15 @@ DEFAULT_ARTIFACTS = (
         caption="Current paper outline with claims, experiment plan, limitations, and next milestones.",
     ),
     ArtifactSpec(
+        label="paper_multitask_sim_grasp_section",
+        source_path=Path("docs/paper_multitask_sim_grasp_section.md"),
+        category="notes",
+        caption=(
+            "Manuscript-style section draft summarizing PickCube and StackCube "
+            "simulated grasp evidence, target-source distinctions, and limitations."
+        ),
+    ),
+    ArtifactSpec(
         label="fused_memory_grasp_targeted_summary",
         source_path=Path(
             "outputs/h200_60071_multiview_memory_grasp_point_targeted/"
