@@ -797,7 +797,9 @@ Paper assets:
 17. Broader-task simulated pick validation: `StackCube-v1` query-driven
    `red cube` single-view and expanded guarded tabletop_3/closed-loop
    pick-only seeds `0..49`.
-18. Limitation box: placeholder pick, low detector multiplicity, and no real
+18. Oracle target-source ablation: privileged object-pose `sim_topdown`
+   upper-bound rows for PickCube and StackCube.
+19. Limitation box: placeholder pick, low detector multiplicity, and no real
    camera-planning or robot-control loop yet.
 
 ## Limitations
@@ -923,6 +925,21 @@ is stronger paper evidence because it covers 50 seeds with `0` child failures.
 A PickCube regression remains `3/3` successful and continues to use
 `memory_grasp_world_xyz`. This should be reported as a StackCube pick-only
 compatibility guard, not as stack-placement success.
+
+Latest oracle target-source ablation:
+
+| benchmark | env | runs | failed | pick success | task success | target source |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| Oracle pick | `PickCube-v1` | 50 | 0 | 1.0000 | 0.0400 | `oracle_object_pose` |
+| Oracle pick | `StackCube-v1` | 50 | 0 | 0.9400 | 0.0000 | `oracle_object_pose` |
+
+The oracle rows are an upper-bound diagnostic for the same scripted controller,
+not a deployable perception result. PickCube oracle matches the query-driven
+fused-memory result, while StackCube oracle remains much higher than guarded
+multi-view query-driven picking (`0.6200` tabletop, `0.5200` closed-loop). This
+supports the current interpretation that StackCube residuals are primarily
+target-source and association limitations rather than an absolute inability of
+the controller to pick cubeA.
 
 ## Next Writing Milestone
 

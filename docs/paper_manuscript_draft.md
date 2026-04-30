@@ -290,6 +290,13 @@ residual classes: wrong fused grasp observation overall and third-object
 absorption in closed-loop runs. This makes StackCube a cross-task pick-only
 compatibility diagnostic, not a completed stacking result.
 
+An oracle target-source ablation further separates controller capacity from
+query-driven target quality. With the same `sim_topdown` executor and privileged
+object poses, PickCube reaches `pick_success_rate = 1.0000` and StackCube
+reaches `0.9400` over 50 seeds. The StackCube oracle gap relative to guarded
+multi-view query-driven picking indicates that remaining failures are mostly
+target-source and association limitations rather than a hard controller ceiling.
+
 ## 6. Multi-Task Simulated Grasp Evaluation
 
 Retrieval accuracy alone is not enough for a language-queryable manipulation

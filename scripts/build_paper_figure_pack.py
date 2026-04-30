@@ -398,6 +398,42 @@ DEFAULT_ARTIFACTS = (
         category="grasp",
         caption="Per-failure StackCube-v1 expanded rows for paper limitation analysis.",
     ),
+    ArtifactSpec(
+        label="oracle_pickcube_pick_summary",
+        source_path=Path(
+            "outputs/h200_60071_oracle_pick_ablation/"
+            "pickcube_oracle/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "PickCube-v1 oracle target-source simulated-pick upper-bound summary "
+            "using privileged object poses."
+        ),
+    ),
+    ArtifactSpec(
+        label="oracle_stackcube_pick_summary",
+        source_path=Path(
+            "outputs/h200_60071_oracle_pick_ablation/"
+            "stackcube_oracle/benchmark_summary.json"
+        ),
+        category="grasp",
+        caption=(
+            "StackCube-v1 oracle target-source simulated-pick upper-bound summary "
+            "using privileged cubeA poses."
+        ),
+    ),
+    ArtifactSpec(
+        label="oracle_target_source_comparison",
+        source_path=Path(
+            "outputs/h200_60071_oracle_pick_ablation/"
+            "reports/oracle_target_source_comparison.md"
+        ),
+        category="tables",
+        caption=(
+            "Target-source comparison table separating oracle object poses, "
+            "query-driven refined targets, memory grasp points, and task guards."
+        ),
+    ),
 )
 
 

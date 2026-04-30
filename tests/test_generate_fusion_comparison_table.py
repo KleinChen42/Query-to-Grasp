@@ -9,6 +9,7 @@ import pytest
 from scripts.generate_fusion_comparison_table import (
     build_table_rows,
     fusion_row_from_benchmark,
+    oracle_pick_row_from_benchmark,
     render_markdown_table,
     single_view_row_from_benchmark,
     write_rows_csv,
@@ -46,6 +47,7 @@ def test_single_view_row_maps_detection_metrics(tmp_path: Path) -> None:
     assert row["obs_mode"] == "rgbd"
     assert row["pick_executor"] == "sim_topdown"
     assert row["grasp_target_mode"] == "refined"
+    assert row["pick_target_source_counts"] == "n/a"
     assert row["mean_num_ranked_candidates"] == 1.0
     assert row["mean_num_views"] == 1.0
     assert row["mean_num_memory_objects"] == "n/a"
@@ -66,6 +68,7 @@ def test_fusion_row_maps_memory_metrics(tmp_path: Path) -> None:
     assert row["obs_mode"] == "rgbd"
     assert row["pick_executor"] == "sim_topdown"
     assert row["grasp_target_mode"] == "refined"
+    assert row["pick_target_source_counts"] == "n/a"
     assert row["mean_num_views"] == 2.0
     assert row["mean_num_memory_objects"] == 3.0
     assert row["mean_num_observations_added"] == 4.0
@@ -85,6 +88,27 @@ def test_fusion_row_maps_memory_metrics(tmp_path: Path) -> None:
     assert row["pick_success_rate"] == 0.5
     assert row["task_success_rate"] == 0.25
     assert row["pick_stage_counts"] == "grasp_not_confirmed: 1; success: 1"
+
+
+def test_oracle_pick_row_maps_grasp_metrics_and_target_source(tmp_path: Path) -> None:
+    benchmark_dir = tmp_path / "oracle"
+    _write_oracle_summary(benchmark_dir)
+
+    row = oracle_pick_row_from_benchmark("oracle", benchmark_dir)
+
+    assert row["benchmark_type"] == "oracle_pick"
+    assert row["env_id"] == "PickCube-v1"
+    assert row["obs_mode"] == "rgbd"
+    assert row["pick_executor"] == "sim_topdown"
+    assert row["grasp_target_mode"] == "oracle"
+    assert row["detector_backend"] == "oracle"
+    assert row["pick_target_source_counts"] == "oracle_object_pose: 4"
+    assert row["primary_rate_name"] == "pick_success_rate"
+    assert row["primary_rate"] == 0.75
+    assert row["grasp_attempted_rate"] == 1.0
+    assert row["pick_success_rate"] == 0.75
+    assert row["task_success_rate"] == 0.25
+    assert row["pick_stage_counts"] == "success: 3; grasp_not_confirmed: 1"
 
 
 def test_build_table_rows_missing_behavior(tmp_path: Path) -> None:
@@ -118,6 +142,7 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
             "obs_mode": "rgbd",
             "pick_executor": "sim_topdown",
             "grasp_target_mode": "refined",
+            "pick_target_source_counts": "memory_grasp_world_xyz: 2",
             "detector_backend": "hf",
             "skip_clip": "True",
             "total_runs": 2,
@@ -156,6 +181,8 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
     assert "HF fusion" in markdown
     assert "env_id" in markdown
     assert "pick_executor" in markdown
+    assert "pick_target_source_counts" in markdown
+    assert "memory_grasp_world_xyz: 2" in markdown
     assert "sim_topdown" in markdown
     assert "0.5000" in markdown
     assert "mean_same_label_pairwise_distance" in markdown
@@ -175,6 +202,7 @@ def test_render_markdown_table_and_csv(tmp_path: Path) -> None:
     assert csv_rows[0]["reobserve_trigger_rate"] == "0.25"
     assert csv_rows[0]["grasp_attempted_rate"] == "1.0"
     assert csv_rows[0]["pick_success_rate"] == "0.5"
+    assert csv_rows[0]["pick_target_source_counts"] == "memory_grasp_world_xyz: 2"
 
 
 def _write_single_summary(benchmark_dir: Path) -> None:
@@ -246,3 +274,30 @@ def _write_fusion_summary(benchmark_dir: Path) -> None:
         }
     }
     (benchmark_dir / "memory_diagnostics.json").write_text(json.dumps(diagnostics), encoding="utf-8")
+
+
+def _write_oracle_summary(benchmark_dir: Path) -> None:
+    benchmark_dir.mkdir(parents=True, exist_ok=True)
+    summary = {
+        "total_runs": 4,
+        "env_id": "PickCube-v1",
+        "obs_mode": "rgbd",
+        "control_mode": "pd_ee_delta_pos",
+        "pick_executor": "sim_topdown",
+        "grasp_target_mode": "oracle",
+        "detector_backend": "oracle",
+        "skip_clip": True,
+        "pick_target_source": "oracle_object_pose",
+        "aggregate_metrics": {
+            "total_runs": 4,
+            "grasp_attempted_rate": 1.0,
+            "pick_success_rate": 0.75,
+            "task_success_rate": 0.25,
+            "mean_runtime_seconds": 8.0,
+            "pick_stage_counts": {
+                "success": 3,
+                "grasp_not_confirmed": 1,
+            },
+        },
+    }
+    (benchmark_dir / "benchmark_summary.json").write_text(json.dumps(summary), encoding="utf-8")
