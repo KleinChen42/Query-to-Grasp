@@ -835,6 +835,10 @@ Be explicit:
   query-driven single-view `red cube` seeds `0..19` in no-CLIP and with-CLIP
   modes. The expanded guarded multi-view validation over seeds `0..49` reaches
   `0.6200` for tabletop_3 and `0.5200` for closed-loop.
+- The expanded StackCube failure report shows the main residual classes:
+  wrong fused grasp observation dominates tabletop failures, while closed-loop
+  adds third-object absorption. This should be used as the limitation figure or
+  table for the multi-task section.
 - `StackCube-v1` `task_success_rate` remains `0.0000` because the controller
   only picks/lifts cubeA and does not perform stack placement.
 - The resolved simulated-grasp failures were dominated by detector boxes whose
@@ -927,10 +931,14 @@ changing detector, fusion weights, or controller timing:
 
 1. Freeze the cross-task simulated pick table with PickCube full/compact rows
    and StackCube expanded guarded rows.
-2. Add a limitation/failure figure showing that StackCube closed-loop still
-   reaches only `0.5200` pick success despite reduced uncertainty diagnostics.
+2. Use the expanded failure report as the limitation/failure figure showing
+   that StackCube closed-loop still reaches only `0.5200` pick success despite
+   reduced uncertainty diagnostics.
 3. Preserve the target-source distinction: PickCube refined uses
    `memory_grasp_world_xyz`; StackCube refined uses
    `task_guard_selected_object_world_xyz`.
 4. Keep StackCube framed as pick-only compatibility unless `task_success_rate`
    improves through a separate stacking executor.
+5. Next writing task: draft the multi-task simulated-grasp section around the
+   cross-task table, expanded failure report, and PickCube-vs-StackCube target
+   source distinction.

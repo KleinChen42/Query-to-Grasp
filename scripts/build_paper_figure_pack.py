@@ -350,6 +350,27 @@ DEFAULT_ARTIFACTS = (
             "multi-view grasp target guard expanded validation."
         ),
     ),
+    ArtifactSpec(
+        label="stackcube_task_guard_expanded_failure_report",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_task_guard_expanded_seed0_49/"
+            "reports/stackcube_guard_failure_report.md"
+        ),
+        category="grasp",
+        caption=(
+            "StackCube-v1 expanded failure taxonomy showing wrong fused grasp "
+            "observations and closed-loop third-object absorption as residual limits."
+        ),
+    ),
+    ArtifactSpec(
+        label="stackcube_task_guard_expanded_failure_rows",
+        source_path=Path(
+            "outputs/h200_60071_stackcube_task_guard_expanded_seed0_49/"
+            "reports/stackcube_guard_failure_report.csv"
+        ),
+        category="grasp",
+        caption="Per-failure StackCube-v1 expanded rows for paper limitation analysis.",
+    ),
 )
 
 

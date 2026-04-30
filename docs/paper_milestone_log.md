@@ -71,7 +71,8 @@ Scope update:
 | Single-view shifted-crop sim grasp | Accepted refined single-view grasp target with compact `PickCube-v1` success | `outputs/h200_60071_grasp_shifted_crop_compact_seed01234_v2/with_clip/benchmark_summary.json` |
 | Multi-view sim-grasp bridge ablation | Opt-in `sim_topdown` execution from fused tabletop_3 and closed-loop selected objects | `outputs/h200_60071_multiview_sim_pick_bridge_ablation_seed01234` |
 | Fused-memory grasp point ablation | Accepted multi-view `sim_topdown` path using fused `memory_grasp_world_xyz` instead of semantic centers | `outputs/h200_60071_multiview_memory_grasp_point_ablation_seed01234` |
-| StackCube task-aware grasp guard | Compact `StackCube-v1` multi-view refined pick validation using semantic selected-object centers | `outputs/h200_60071_stackcube_task_guard_compact_seed0_19` |
+| StackCube task-aware grasp guard | Expanded `StackCube-v1` multi-view refined pick validation using semantic selected-object centers | `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49` |
+| StackCube expanded failure analysis | Failure taxonomy explaining why closed-loop improves uncertainty but not StackCube pick success | `outputs/h200_60071_stackcube_task_guard_expanded_seed0_49/reports/stackcube_guard_failure_report.md` |
 | Paper figure pack | Captioned collection of current paper/demo artifacts | `outputs/paper_figure_pack_latest/README.md` |
 | Paper draft outline | Claim, method, experiment, limitation, and next-code scaffold | `docs/paper_draft_outline.md` |
 | Remote camera probe | ManiSkill camera availability for `PickCube-v1` | H200: `outputs/camera_view_probe_pickcube/camera_view_report.json` |
@@ -1282,6 +1283,25 @@ a limitation rather than as a tuning target. `PickCube-v1` remains protected
 and continues to use `memory_grasp_world_xyz` for refined multi-view picks.
 This is still a pick-only compatibility result: `task_success_rate = 0.0000`
 because the executor does not stack cubeA onto cubeB.
+
+StackCube expanded limitation/failure analysis:
+
+| benchmark | failures | dominant classes | mean semantic-grasp XY | mean grasp XY spread |
+| --- | ---: | --- | ---: | ---: |
+| Expanded tabletop_3 no CLIP | 19 | wrong fused grasp observation: 14; memory fragmentation/low support: 5 | 0.0479 | 0.0145 |
+| Expanded tabletop_3 with CLIP | 19 | wrong fused grasp observation: 14; memory fragmentation/low support: 5 | 0.0479 | 0.0145 |
+| Expanded closed-loop no CLIP | 24 | third-object absorption: 11; wrong fused grasp observation: 8; controller/contact: 5 | 0.0514 | 0.0227 |
+| Expanded closed-loop with CLIP | 24 | third-object absorption: 10; wrong fused grasp observation: 8; controller/contact: 5; memory fragmentation/low support: 1 | 0.0512 | 0.0175 |
+
+The report classifies `86` failed grasps across the four expanded StackCube
+modes. The dominant aggregate class is wrong fused grasp observation
+(`44/86`), while closed-loop adds a task-specific failure mode: extra views can
+be absorbed by a third object, producing `third_object_absorption` in `21`
+closed-loop failures. This explains the paper limitation cleanly: closed-loop
+reduces uncertainty signals, but on StackCube it can still move the effective
+post-reobserve state away from a graspable cubeA pick target. The current result
+is therefore a stable cross-task pick-only diagnostic, not a stacking task
+completion claim.
 
 Publication-level expectation:
 
