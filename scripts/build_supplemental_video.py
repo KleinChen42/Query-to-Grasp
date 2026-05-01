@@ -205,8 +205,8 @@ def build_segments(stories: dict[str, dict[str, Any]], demo_root: Path) -> list[
             label="stackcube_tabletop_failure",
             title="Tabletop Multi-View Failure",
             caption=(
-                "StackCube-v1 tabletop_3, seed 1. The pick succeeds but placement is not "
-                "confirmed, illustrating the retrieval-to-execution gap."
+                "StackCube-v1 tabletop_3, seed 2. The place stage is not confirmed, "
+                "illustrating the retrieval-to-execution gap."
             ),
             duration_seconds=7.0,
         ),
@@ -226,7 +226,7 @@ def build_segments(stories: dict[str, dict[str, Any]], demo_root: Path) -> list[
             label="stackcube_closed_loop_failure",
             title="Closed-Loop Limitation",
             caption=(
-                "StackCube-v1 closed-loop, seed 0. The selected target source is "
+                "StackCube-v1 closed-loop, seed 2. The selected target source is "
                 "task_guard_selected_object_world_xyz, place source is oracle_cubeB_pose, "
                 "and task success is false."
             ),

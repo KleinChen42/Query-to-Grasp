@@ -1,7 +1,7 @@
 # Query-to-Grasp Paper Draft
 
-This directory contains the first IROS/ICRA-style LaTeX scaffold for the
-Query-to-Grasp H200-scale simulated manipulation paper.
+This directory contains the IROS/ICRA-style LaTeX scaffold for the
+Query-to-Grasp simulated manipulation paper.
 
 ## Files
 
@@ -9,6 +9,11 @@ Query-to-Grasp H200-scale simulated manipulation paper.
 - `IEEEtran.cls`: IEEE conference class file copied from the provided template.
 - `references.bib`: first-pass BibTeX scaffold for the related-work buckets.
 - `README.md`: notes for maintaining and checking the paper source.
+- `figures/execution_evidence_montage.pdf`: representative continuous
+  ManiSkill execution evidence figure for the main paper.
+- `figures/pipeline_overview.pdf`, `figures/geometry_memory_ablation.pdf`,
+  `figures/target_source_results.pdf`, and
+  `figures/stackcube_failure_taxonomy.pdf`: supporting paper figures.
 
 ## Structural Check
 
@@ -19,9 +24,10 @@ $env:PYTHONPATH=(Get-Location).Path
 python scripts/check_paper_latex.py --tex paper/main.tex --bib paper/references.bib
 ```
 
-The checker verifies that required sections, core metrics, artifact references,
-and bibliography links are present. It also rejects obvious unsupported claims
-such as real-robot success or StackCube task completion.
+The checker verifies that required sections, author metadata, core metrics,
+supplemental-video references, and bibliography links are present. It also
+rejects obvious unsupported claims such as real-robot success or StackCube task
+completion.
 
 ## Optional Compile
 
@@ -44,7 +50,25 @@ pdflatex main
 Compilation is optional for this scaffold checkpoint; the required acceptance
 test is the structural checker plus paper-pack inclusion.
 
+## Overleaf Upload Set
+
+Upload these tracked files for the current conference draft:
+
+- `main.tex`
+- `references.bib`
+- `IEEEtran.cls`
+- `figures/execution_evidence_montage.pdf`
+- `figures/pipeline_overview.pdf`
+- `figures/geometry_memory_ablation.pdf`
+- `figures/target_source_results.pdf`
+- `figures/stackcube_failure_taxonomy.pdf`
+
 ## Current Claim Boundary
+
+Current author block:
+
+- Zhuo Chen, Chalmers University of Technology, `zhuoc@chalmers.se`.
+- No funding footnote is included.
 
 - PickCube-v1 is the main successful simulated pick benchmark.
 - StackCube-v1 is the main cross-task bridge benchmark.

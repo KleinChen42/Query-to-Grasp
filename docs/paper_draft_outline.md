@@ -1165,6 +1165,10 @@ detector, fusion weights, controller timing, or benchmark claims:
    for page budget, and core BibTeX entries have been cleaned. Next writing
    task: run a true PDF compile once a TeX toolchain is available, then polish
    page breaks and optional related-work additions.
+9. The IEEE author block now uses Zhuo Chen as the sole author with Chalmers
+   affiliation and no funding footnote. Detailed reproducibility commands live
+   in `paper/README.md`, while the main paper only references the supplemental
+   video at a high level.
 
 ## Video/Figure Evidence Plan
 
@@ -1202,6 +1206,13 @@ executable-target result, `oracle_cubeB_pose` for the StackCube query-pick plus
 oracle-place bridge, and the closed-loop StackCube clips as a diagnostic
 limitation rather than a universal manipulation improvement.
 
+The paper now includes a tracked execution-evidence montage,
+`paper/figures/execution_evidence_montage.pdf`, built from continuous native
+720p ManiSkill clips. The montage is the first paper figure and uses verified
+success/failure metadata; the StackCube tabletop and closed-loop failure panels
+come from true `place_not_confirmed` recaptures rather than mislabeled
+successful clips.
+
 ## Submission Readiness Freeze
 
 Core functionality is frozen for the simulated IROS/ICRA v1. The submission
@@ -1210,5 +1221,5 @@ which regenerates the final main results table and verifies required artifacts,
 key accepted metrics, and unsupported-claim boundaries. Any future technical
 milestone such as non-oracle placement targets should be treated as a stretch
 branch, not as a requirement for the current paper freeze. The current
-paper-preparation focus is LaTeX page-budget editing, final figure rendering,
+paper-preparation focus is Overleaf compilation, page-budget editing, final
 caption polish, and camera-ready citation cleanup.

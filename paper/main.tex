@@ -1,5 +1,4 @@
 \documentclass[conference]{IEEEtran}
-\IEEEoverridecommandlockouts
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -14,8 +13,10 @@
 
 \title{Query-to-Grasp: Diagnosing the Retrieval-to-Execution Gap in Open-Vocabulary RGB-D Manipulation}
 
-\author{\IEEEauthorblockN{Anonymous Authors}
-\IEEEauthorblockA{Paper draft scaffold for internal development}}
+\author{\IEEEauthorblockN{Zhuo Chen}
+\IEEEauthorblockA{\textit{Chalmers University of Technology}\\
+Gothenburg, Sweden\\
+zhuoc@chalmers.se}}
 
 \begin{document}
 \maketitle
@@ -89,6 +90,18 @@ is a benchmarkable diagnostic system for target-source quality, cross-view
 geometric consistency, and re-observation association in language-conditioned
 RGB-D manipulation.
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/execution_evidence_montage.pdf}
+\caption{Execution evidence from representative continuous ManiSkill clips.
+The montage visualizes accepted benchmark stories, not new benchmark rows:
+PickCube uses \texttt{memory\_grasp\_world\_xyz}; the StackCube bridge uses a
+query-derived cubeA target and \texttt{oracle\_cubeB\_pose}; failure panels show
+place-not-confirmed executions. Quantitative rates are reported in
+Table~\ref{tab:target-source}.}
+\label{fig:execution-evidence}
+\end{figure*}
+
 \section{Related Work}
 
 \subsection{Open-Vocabulary Grounding}
@@ -148,6 +161,19 @@ selected RGB-D pixels into 3D. The lifted semantic center is stored as
 an additive grasp target, \texttt{grasp\_world\_xyz}, from local RGB-D geometry.
 Semantic retrieval remains unchanged when this grasp point is available.
 
+For a pixel $(u,v)$ with depth $D(u,v)$, intrinsics $K$, and camera-to-world
+pose $T_{wc}$, the lifted point is
+\begin{equation}
+\tilde{\mathbf{p}}_w =
+T_{wc}
+\begin{bmatrix}
+D(u,v)K^{-1}[u,v,1]^\top\\
+1
+\end{bmatrix}.
+\end{equation}
+This explicit frame conversion is the boundary between open-vocabulary 2D
+retrieval and executable 3D target selection.
+
 \subsection{Multi-View Object Memory}
 
 The multi-view path captures a virtual \texttt{tabletop\_3} preset and adds
@@ -158,6 +184,16 @@ Grasp observations support downstream simulated pick execution. This separation
 allows Table~\ref{tab:target-source} to compare \texttt{selected\_object\_world\_xyz},
 \texttt{memory\_grasp\_world\_xyz}, task-guarded semantic targets, and
 \texttt{oracle\_object\_pose} without changing the retrieval score.
+
+For memory object $i$, semantic and grasp targets are fused separately:
+\begin{equation}
+\mathbf{c}_i = \frac{1}{|\mathcal{O}_i|}\sum_{\mathbf{o}\in\mathcal{O}_i}
+\mathbf{o}_{xyz}, \qquad
+\mathbf{g}_i = \operatorname{median}\{\mathbf{g}_{xyz}:\mathbf{g}_{xyz}
+\text{ valid}\}.
+\end{equation}
+The first term preserves retrieval geometry; the second supplies the action
+target when refined simulated picking is enabled.
 
 \subsection{Re-Observation Policy}
 
@@ -206,6 +242,10 @@ confidence, and target source. Re-observation metrics include trigger rate,
 closed-loop resolution, and still-needed rate. Control metrics include
 \texttt{grasp\_attempted\_rate}, \texttt{pick\_success\_rate},
 \texttt{place\_success\_rate}, \texttt{task\_success\_rate}, and stage counts.
+The supplemental video contains six representative ManiSkill execution clips
+captured from native \texttt{720x720} RGB frames and exported as
+\texttt{1920x1080} conference video. Fig.~\ref{fig:execution-evidence}
+provides a paper-facing execution evidence montage from those continuous clips.
 
 Table~\ref{tab:target-source} and Fig.~\ref{fig:target-source-results}
 summarize the final target-source results. Additional diagnostic tables cover
@@ -215,24 +255,28 @@ placement bridge.
 
 \begin{table*}[t]
 \centering
-\caption{Final target-source ablation. PickCube uses fused memory grasp points;
-StackCube guarded rows are pick-only; query-pick/oracle-place rows use
-query-derived cubeA targets and a privileged cubeB destination; oracle
-pick-place is fully privileged.}
+\caption{Final target-source ablation. Source abbreviations: MG =
+\texttt{memory\_grasp\_world\_xyz}; TG =
+\texttt{task\_guard\_selected\_object\_world\_xyz}; Q = query-derived target;
+OP = \texttt{oracle\_object\_pose}; OA/OB =
+\texttt{oracle\_cubeA\_pose}/\texttt{oracle\_cubeB\_pose}. StackCube bridge rows
+use a privileged place source and are not full non-oracle stacking claims.}
 \label{tab:target-source}
-\begin{tabular}{llrrrrrl}
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{llrrrrrll}
 \toprule
-Benchmark & Environment & Runs & Failed & Pick & Place & Task & Effective target source \\
+Benchmark & Env. & N & Fail & Pick & Place & Task & Pick src. & Place src. \\
 \midrule
-Full multi-view/closed-loop & \texttt{PickCube-v1} & 55 & 0 & 1.0000 & n/a & 0.1455 & \texttt{memory\_grasp\_world\_xyz} \\
-Expanded tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & n/a & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
-Expanded closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & n/a & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
-Query-pick/oracle-place single-view & \texttt{StackCube-v1} & 50 & 0 & 0.8800 & 0.7200 & 0.7200 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
-Query-pick/oracle-place tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & 0.5200 & 0.5200 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
-Query-pick/oracle-place closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & 0.4800 & 0.4800 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
-Oracle pick & \texttt{PickCube-v1} & 50 & 0 & 1.0000 & n/a & 0.0400 & \texttt{oracle\_object\_pose} \\
-Oracle pick & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & n/a & 0.0000 & \texttt{oracle\_object\_pose} \\
-Oracle pick-place & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.8800 & 0.8800 & \texttt{oracle\_cubeA\_pose}\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
+Full MV/CL & PickCube & 55 & 0 & 1.0000 & n/a & 0.1455 & MG & -- \\
+Expanded tabletop & StackCube & 50 & 0 & 0.6200 & n/a & 0.0000 & TG & -- \\
+Expanded closed-loop & StackCube & 50 & 0 & 0.5200 & n/a & 0.0000 & TG & -- \\
+Q-pick/OB-place single & StackCube & 50 & 0 & 0.8800 & 0.7200 & 0.7200 & Q & OB \\
+Q-pick/OB-place tabletop & StackCube & 50 & 0 & 0.6200 & 0.5200 & 0.5200 & Q & OB \\
+Q-pick/OB-place CL & StackCube & 50 & 0 & 0.5200 & 0.4800 & 0.4800 & Q & OB \\
+Oracle pick & PickCube & 50 & 0 & 1.0000 & n/a & 0.0400 & OP & -- \\
+Oracle pick & StackCube & 50 & 0 & 0.9400 & n/a & 0.0000 & OP & -- \\
+Oracle pick-place & StackCube & 50 & 0 & 0.9400 & 0.8800 & 0.8800 & OA & OB \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -346,18 +390,6 @@ strong simulated pick benchmark. StackCube demonstrates useful cross-task
 transfer while exposing target-source, placement-target, and closed-loop
 association limits. These results provide a reproducible basis for a simulated
 diagnostic systems paper and a clear roadmap toward broader task success.
-
-\appendices
-\section{Reproducibility Notes}
-
-The paper pack, frozen main table, and supplemental-video manifest are generated
-under \texttt{outputs/paper\_figure\_pack\_latest},
-\texttt{outputs/paper\_submission\_audit\_latest}, and
-\texttt{outputs/supplemental\_video\_latest}. Detailed commands are maintained
-in the project README and paper-source README. The supplemental video uses six
-representative ManiSkill execution clips captured from native \texttt{720x720}
-RGB frames and letterboxed to \texttt{1920x1080}; these clips are presentation
-artifacts, not additional benchmark rows.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

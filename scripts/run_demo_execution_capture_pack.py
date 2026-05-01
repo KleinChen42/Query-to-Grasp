@@ -194,15 +194,15 @@ def build_story_specs(args: argparse.Namespace) -> tuple[DemoExecutionStory, ...
         DemoExecutionStory(
             label="stackcube_tabletop_failure",
             runner="multiview",
-            seed=1,
-            caption="StackCube tabletop failure illustrating target-source and execution sensitivity.",
+            seed=2,
+            caption="StackCube tabletop failure with place_not_confirmed, illustrating target-source and execution sensitivity.",
             args=(*common_multiview, *stack_place),
         ),
         DemoExecutionStory(
             label="stackcube_closed_loop_failure",
             runner="multiview",
-            seed=0,
-            caption="StackCube closed-loop limitation: re-observation remains diagnostic rather than universally helpful.",
+            seed=2,
+            caption="StackCube closed-loop failure with place_not_confirmed: re-observation remains diagnostic rather than universally helpful.",
             args=(*common_multiview, *stack_place, *closed_loop_flags),
         ),
         DemoExecutionStory(

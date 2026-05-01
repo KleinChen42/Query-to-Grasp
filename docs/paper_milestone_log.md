@@ -1362,7 +1362,7 @@ Latest conference-format writing checkpoint:
 
 | artifact | status | notes |
 | --- | --- | --- |
-| `paper/main.tex` | drafted | IEEEtran conference-format LaTeX v0.1 with abstract, keywords, method, experiments, results, limitations, conclusion, and reproducibility appendix notes. |
+| `paper/main.tex` | drafted | IEEEtran conference-format LaTeX v0.1 with Zhuo Chen's single-author Chalmers block, abstract, keywords, method, experiments, results, limitations, and conclusion. |
 | `paper/IEEEtran.cls` | added | IEEE conference class copied from the provided template so the paper directory can compile independently. |
 | `paper/references.bib` | scaffolded | Core citation buckets for CLIP, GroundingDINO, CLIPort, PerAct, SayCan, VIMA, RT-1/RT-2, and ManiSkill; exact metadata still needs final primary-source verification. |
 | `scripts/check_paper_latex.py` | added | Structural guard that checks required sections, current key metrics, artifact references, and unsupported real-robot / StackCube completion claims. |
@@ -1374,6 +1374,7 @@ Latest narrative-polish checkpoint:
 | `paper/main.tex` | polished | Main text now follows the diagnostic-systems narrative: reranking is not the bottleneck, camera-frame alignment enables memory, PickCube demonstrates executability, and StackCube exposes the retrieval-to-execution gap. |
 | paper title | updated | Current title is `Query-to-Grasp: Diagnosing the Retrieval-to-Execution Gap in Open-Vocabulary RGB-D Manipulation`, which better matches an IROS/ICRA systems submission than the earlier implementation-oriented titles. |
 | `paper/main.tex` captions/appendix | compressed | Figure/table captions now state the evidence chain directly, and the reproducibility appendix was shortened from command listings to a compact artifact summary for page-budget control. |
+| `paper/main.tex` author/appendix | updated | Author metadata is no longer anonymous, the no-funding IEEE title block is used, and detailed reproducibility commands are kept in `paper/README.md` rather than the main paper body. |
 
 Latest citation-cleanup checkpoint:
 
@@ -1434,3 +1435,15 @@ At this checkpoint, the simulated IROS/ICRA v1 feature set is frozen. Remaining
 work should focus on page-budget editing, citation verification, figure polish,
 and final reproducibility instructions unless a deliberate stretch branch is
 opened for non-oracle StackCube placement.
+
+Execution evidence figure and metadata correction checkpoint:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `scripts/build_execution_evidence_figure.py` | added | Builds a 2x3 paper montage from continuous ManiSkill execution videos and validates each story's true `task_success` before rendering. |
+| `paper/figures/execution_evidence_montage.pdf` | added | First paper figure showing PickCube execution, StackCube query-pick/oracle-place success, tabletop success/failure, and closed-loop success/failure. |
+| demo story failure seeds | corrected | StackCube tabletop and closed-loop failure clips now use verified seed-2 `place_not_confirmed` recaptures rather than earlier clips that were labeled as failures but completed successfully. |
+
+This checkpoint improves paper presentation without changing benchmark metrics:
+the execution montage and supplemental video remain representative
+visualizations, while Table I remains the source of quantitative claims.

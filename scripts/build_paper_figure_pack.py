@@ -231,6 +231,14 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="paper_execution_evidence_figure",
+        source_path=Path("paper/figures/execution_evidence_montage.pdf"),
+        category="paper",
+        caption=(
+            "Representative continuous ManiSkill execution montage used by the LaTeX draft."
+        ),
+    ),
+    ArtifactSpec(
         label="paper_geometry_memory_ablation_figure",
         source_path=Path("paper/figures/geometry_memory_ablation.pdf"),
         category="paper",
