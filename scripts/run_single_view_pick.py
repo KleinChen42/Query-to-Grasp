@@ -18,6 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.run_single_view_query import build_clip_prompts, rank_detections_without_clip  # noqa: E402
 from src.env.maniskill_env import ManiSkillScene  # noqa: E402
+from src.io.execution_video import ExecutionVideoRecorder  # noqa: E402
 from src.io.export_utils import export_observation_frame, write_json  # noqa: E402
 from src.manipulation.oracle_targets import find_stackcube_oracle_place_xyz  # noqa: E402
 from src.perception.clip_rerank import rerank_candidates_with_clip  # noqa: E402
@@ -79,6 +80,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--use-segmentation", action="store_true", help="Restrict 3D lifting to a dominant segmentation id.")
     parser.add_argument("--segmentation-id", type=int, default=None, help="Specific segmentation id to use for 3D lifting.")
     parser.add_argument("--save-candidate-pointcloud", action="store_true", help="Save local point cloud for the top candidate.")
+    parser.add_argument("--capture-execution-video", action="store_true", help="Opt-in demo capture of continuous execution RGB frames.")
+    parser.add_argument("--execution-video-fps", type=float, default=24.0, help="FPS for opt-in execution demo videos.")
+    parser.add_argument("--execution-video-camera-name", default="base_camera", help="Camera used for execution video extraction.")
+    parser.add_argument("--execution-video-every-n-steps", type=int, default=1, help="Frame sampling interval for execution video capture.")
     parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
@@ -211,7 +216,13 @@ def main() -> None:
             elif args.pick_executor in {"sim_topdown", "sim_pick_place"} and coordinate_frame != "world":
                 pick_result = _pick_not_attempted("Simulated execution requires a world-frame target.")
             else:
-                pick_result = execute_single_view_target(scene=scene, target_xyz=target_xyz, args=args)
+                pick_result = execute_single_view_target(
+                    scene=scene,
+                    target_xyz=target_xyz,
+                    args=args,
+                    run_dir=run_dir,
+                    target_source=target_source,
+                )
                 pick_result.setdefault("metadata", {})
                 pick_result["metadata"]["target_coordinate_frame"] = coordinate_frame
                 pick_result["metadata"]["target_used_for_pick"] = target_source
@@ -259,14 +270,38 @@ def choose_pick_target(
     return None, None, None
 
 
-def execute_single_view_target(scene: ManiSkillScene, target_xyz: np.ndarray, args: argparse.Namespace) -> dict[str, Any]:
+def execute_single_view_target(
+    scene: ManiSkillScene,
+    target_xyz: np.ndarray,
+    args: argparse.Namespace,
+    run_dir: Path | None = None,
+    target_source: str | None = None,
+) -> dict[str, Any]:
     """Execute the selected single-view target with the requested executor."""
 
+    recorder = make_execution_recorder(
+        scene=scene,
+        args=args,
+        run_dir=run_dir,
+        metadata={
+            "runner": "single_view",
+            "query": args.query,
+            "seed": args.seed,
+            "env_id": args.env_id,
+            "pick_executor": args.pick_executor,
+            "target_source": target_source,
+            "place_target_source": args.place_target_source,
+        },
+    )
+    step_callback = None if recorder is None else recorder.record_step
     if args.pick_executor == "sim_pick_place":
         if args.place_target_source != "oracle_cubeB_pose":
             return _pick_not_attempted("sim_pick_place requires --place-target-source oracle_cubeB_pose.")
         place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
-        result = scene.execute_pick_place(pick_xyz=target_xyz, place_xyz=place_xyz)
+        if step_callback is None:
+            result = scene.execute_pick_place(pick_xyz=target_xyz, place_xyz=place_xyz)
+        else:
+            result = scene.execute_pick_place(pick_xyz=target_xyz, place_xyz=place_xyz, step_callback=step_callback)
         result.setdefault("metadata", {})
         result["metadata"].update(
             {
@@ -275,8 +310,48 @@ def execute_single_view_target(scene: ManiSkillScene, target_xyz: np.ndarray, ar
                 "place_target_metadata": place_metadata,
             }
         )
+        finalize_execution_recorder(recorder, result)
         return result
-    return scene.execute_pick(target_xyz, executor=args.pick_executor)
+    if step_callback is None:
+        result = scene.execute_pick(target_xyz, executor=args.pick_executor)
+    else:
+        result = scene.execute_pick(target_xyz, executor=args.pick_executor, step_callback=step_callback)
+    finalize_execution_recorder(recorder, result)
+    return result
+
+
+def make_execution_recorder(
+    scene: ManiSkillScene,
+    args: argparse.Namespace,
+    run_dir: Path | None,
+    metadata: dict[str, Any],
+) -> ExecutionVideoRecorder | None:
+    """Create an opt-in execution recorder for demo runs."""
+
+    if not getattr(args, "capture_execution_video", False):
+        return None
+    if args.pick_executor not in {"sim_topdown", "sim_pick_place"}:
+        return None
+    if run_dir is None:
+        return None
+    return ExecutionVideoRecorder(
+        output_dir=run_dir / "execution_video",
+        fps=float(args.execution_video_fps),
+        camera_name=args.execution_video_camera_name,
+        every_n_steps=int(args.execution_video_every_n_steps),
+        fallback_observation_fn=scene.capture_sensor_observation,
+        metadata=metadata,
+    )
+
+
+def finalize_execution_recorder(recorder: ExecutionVideoRecorder | None, result: dict[str, Any]) -> None:
+    if recorder is None:
+        return
+    metadata = result.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        result["metadata"] = metadata
+    metadata["execution_video"] = recorder.finalize()
 
 
 def build_summary(
@@ -327,6 +402,7 @@ def build_summary(
         "pick_stage": pick_result.get("stage"),
         "place_message": pick_result.get("message") if pick_result.get("place_attempted") else None,
         "pick_message": pick_result.get("message"),
+        "execution_video": metadata.get("execution_video"),
         "runtime_seconds": float(runtime_seconds),
         "artifacts": str(run_dir),
     }

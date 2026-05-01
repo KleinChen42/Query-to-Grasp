@@ -20,6 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.run_single_view_query import build_clip_prompts, rank_detections_without_clip  # noqa: E402
 from src.env.camera_utils import ObservationFrame  # noqa: E402
 from src.env.maniskill_env import ManiSkillScene  # noqa: E402
+from src.io.execution_video import ExecutionVideoRecorder  # noqa: E402
 from src.io.export_utils import export_observation_frame, write_json  # noqa: E402
 from src.memory.fusion import FusionWeights  # noqa: E402
 from src.memory.object_memory_3d import (  # noqa: E402
@@ -202,6 +203,10 @@ def parse_args() -> argparse.Namespace:
         default=0.03,
         help="Maximum confidence gap allowed when keeping the initial selected object after re-observation.",
     )
+    parser.add_argument("--capture-execution-video", action="store_true", help="Opt-in demo capture of continuous execution RGB frames.")
+    parser.add_argument("--execution-video-fps", type=float, default=24.0, help="FPS for opt-in execution demo videos.")
+    parser.add_argument("--execution-video-camera-name", default="base_camera", help="Camera used for execution video extraction.")
+    parser.add_argument("--execution-video-every-n-steps", type=int, default=1, help="Frame sampling interval for execution video capture.")
     parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
@@ -431,7 +436,7 @@ def main() -> None:
         reobserve_decision_path = run_dir / "reobserve_decision.json"
         write_json(final_decision.to_json_dict(), reobserve_decision_path)
 
-        pick_result = execute_selected_memory_pick(scene=scene, selected=selected, args=args)
+        pick_result = execute_selected_memory_pick(scene=scene, selected=selected, args=args, run_dir=run_dir)
         pick_result_path = run_dir / "pick_result.json"
         write_json(pick_result, pick_result_path)
 
@@ -1240,6 +1245,7 @@ def execute_selected_memory_pick(
     scene: ManiSkillScene,
     selected: MemoryObject3D | None,
     args: argparse.Namespace,
+    run_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Execute the requested pick mode against the final selected memory object."""
 
@@ -1254,15 +1260,39 @@ def execute_selected_memory_pick(
     if target.shape != (3,) or not np.all(np.isfinite(target)):
         return _pick_not_attempted("Selected memory object had an invalid world-frame target.")
 
+    recorder = make_execution_recorder(
+        scene=scene,
+        args=args,
+        run_dir=run_dir,
+        metadata={
+            "runner": "multiview",
+            "query": getattr(args, "query", None),
+            "seed": getattr(args, "seed", None),
+            "env_id": getattr(args, "env_id", None),
+            "pick_executor": getattr(args, "pick_executor", None),
+            "target_source": target_source,
+            "place_target_source": getattr(args, "place_target_source", "none"),
+            "view_preset": getattr(args, "view_preset", None),
+            "closed_loop_reobserve_enabled": bool(getattr(args, "enable_closed_loop_reobserve", False)),
+        },
+    )
+    step_callback = None if recorder is None else recorder.record_step
     if args.pick_executor == "sim_pick_place":
         if getattr(args, "place_target_source", "none") != "oracle_cubeB_pose":
             return _pick_not_attempted("sim_pick_place requires --place-target-source oracle_cubeB_pose.")
         place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
-        result = scene.execute_pick_place(pick_xyz=target, place_xyz=place_xyz)
+        if step_callback is None:
+            result = scene.execute_pick_place(pick_xyz=target, place_xyz=place_xyz)
+        else:
+            result = scene.execute_pick_place(pick_xyz=target, place_xyz=place_xyz, step_callback=step_callback)
     else:
         place_xyz = None
         place_metadata = {}
-        result = scene.execute_pick(target, executor=args.pick_executor)
+        if step_callback is None:
+            result = scene.execute_pick(target, executor=args.pick_executor)
+        else:
+            result = scene.execute_pick(target, executor=args.pick_executor, step_callback=step_callback)
+    finalize_execution_recorder(recorder, result)
     metadata = result.get("metadata")
     if not isinstance(metadata, dict):
         metadata = {}
@@ -1291,6 +1321,40 @@ def execute_selected_memory_pick(
         }
     )
     return result
+
+
+def make_execution_recorder(
+    scene: ManiSkillScene,
+    args: argparse.Namespace,
+    run_dir: Path | None,
+    metadata: dict[str, Any],
+) -> ExecutionVideoRecorder | None:
+    """Create an opt-in execution recorder for demo runs."""
+
+    if not getattr(args, "capture_execution_video", False):
+        return None
+    if args.pick_executor not in {"sim_topdown", "sim_pick_place"}:
+        return None
+    if run_dir is None:
+        return None
+    return ExecutionVideoRecorder(
+        output_dir=run_dir / "execution_video",
+        fps=float(getattr(args, "execution_video_fps", 24.0)),
+        camera_name=getattr(args, "execution_video_camera_name", "base_camera"),
+        every_n_steps=int(getattr(args, "execution_video_every_n_steps", 1)),
+        fallback_observation_fn=scene.capture_sensor_observation,
+        metadata=metadata,
+    )
+
+
+def finalize_execution_recorder(recorder: ExecutionVideoRecorder | None, result: dict[str, Any]) -> None:
+    if recorder is None:
+        return
+    metadata = result.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+        result["metadata"] = metadata
+    metadata["execution_video"] = recorder.finalize()
 
 
 def choose_memory_pick_target(
@@ -1392,6 +1456,7 @@ def build_summary(
         "place_success": pick_result.get("place_success"),
         "place_message": pick_result.get("message") if pick_result.get("place_attempted") else None,
         "target_used_for_pick": pick_metadata.get("target_used_for_pick"),
+        "execution_video": pick_metadata.get("execution_video"),
         "task_grasp_target_guard_applied": bool(pick_metadata.get("task_grasp_target_guard_applied", False)),
         "task_grasp_target_guard_reason": pick_metadata.get("task_grasp_target_guard_reason"),
         "grasp_attempted": bool(pick_result.get("grasp_attempted", False)),

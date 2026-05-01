@@ -55,6 +55,8 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
         "task_success": task_success,
         "is_grasped": is_grasped,
         "pick_stage": pick_stage,
+        "execution_video_path": _execution_video_path(summary),
+        "execution_video_status": _execution_video_status(summary),
         "runtime_seconds": runtime_seconds,
         "artifacts": str(summary.get("artifacts") or ""),
     }
@@ -175,6 +177,20 @@ def _as_float(value: Any, default: float = 0.0) -> float:
 
 def _row_raw_num_detections(row: dict[str, Any]) -> int:
     return _as_int(row.get("raw_num_detections"), _as_int(row.get("num_detections"), 0))
+
+
+def _execution_video_path(summary: dict[str, Any]) -> str | None:
+    execution_video = summary.get("execution_video")
+    if isinstance(execution_video, dict):
+        return _as_optional_str(execution_video.get("video_path"))
+    return None
+
+
+def _execution_video_status(summary: dict[str, Any]) -> str | None:
+    execution_video = summary.get("execution_video")
+    if isinstance(execution_video, dict):
+        return _as_optional_str(execution_video.get("status"))
+    return None
 
 
 def _mean(values: Any) -> float:

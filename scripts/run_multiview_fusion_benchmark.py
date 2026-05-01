@@ -93,6 +93,8 @@ CSV_COLUMNS = [
     "place_target_source",
     "task_grasp_target_guard_applied",
     "task_grasp_target_guard_reason",
+    "execution_video_path",
+    "execution_video_status",
     "runtime_seconds",
     "detector_backend",
     "skip_clip",
@@ -136,6 +138,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--selected-object-continuity-distance-scale", type=float, default=1.0)
     parser.add_argument("--enable-post-reobserve-selection-continuity", action="store_true")
     parser.add_argument("--post-reobserve-selection-margin", type=float, default=0.03)
+    parser.add_argument("--capture-execution-video", action="store_true", help="Forward opt-in execution video capture to child runs.")
+    parser.add_argument("--execution-video-fps", type=float, default=24.0)
+    parser.add_argument("--execution-video-camera-name", default="base_camera")
+    parser.add_argument("--execution-video-every-n-steps", type=int, default=1)
     parser.add_argument("--fail-on-child-error", action="store_true", help="Exit nonzero if any child debug run fails.")
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
@@ -331,6 +337,11 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
     if args.enable_post_reobserve_selection_continuity:
         command.append("--enable-post-reobserve-selection-continuity")
         command.extend(["--post-reobserve-selection-margin", str(args.post_reobserve_selection_margin)])
+    if getattr(args, "capture_execution_video", False):
+        command.append("--capture-execution-video")
+        command.extend(["--execution-video-fps", str(getattr(args, "execution_video_fps", 24.0))])
+        command.extend(["--execution-video-camera-name", getattr(args, "execution_video_camera_name", "base_camera")])
+        command.extend(["--execution-video-every-n-steps", str(getattr(args, "execution_video_every_n_steps", 1))])
     return command
 
 
@@ -477,6 +488,8 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "place_target_source": _optional_str(summary.get("place_target_source")),
         "task_grasp_target_guard_applied": _as_bool(summary.get("task_grasp_target_guard_applied")),
         "task_grasp_target_guard_reason": _optional_str(summary.get("task_grasp_target_guard_reason")),
+        "execution_video_path": _execution_video_path(summary),
+        "execution_video_status": _execution_video_status(summary),
         "runtime_seconds": _as_float(summary.get("runtime_seconds"), 0.0),
         "detector_backend": str(summary.get("detector_backend") or ""),
         "skip_clip": _as_bool(summary.get("skip_clip")),
@@ -849,6 +862,20 @@ def _json_dumps_compact(value: Any) -> str:
         return json.dumps(value, separators=(",", ":"), sort_keys=True)
     except TypeError:
         return "[]"
+
+
+def _execution_video_path(summary: dict[str, Any]) -> str | None:
+    execution_video = summary.get("execution_video")
+    if isinstance(execution_video, dict):
+        return _optional_str(execution_video.get("video_path"))
+    return None
+
+
+def _execution_video_status(summary: dict[str, Any]) -> str | None:
+    execution_video = summary.get("execution_video")
+    if isinstance(execution_video, dict):
+        return _optional_str(execution_video.get("status"))
+    return None
 
 
 def _mean(values: Any) -> float:

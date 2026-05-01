@@ -160,6 +160,36 @@ def test_build_demo_video_pack_copies_existing_media(tmp_path: Path) -> None:
     assert "slideshow_path" in manifest["stories"][0]
 
 
+def test_build_demo_video_pack_prefers_execution_video(tmp_path: Path) -> None:
+    source = tmp_path / "debug_capture"
+    run_dir = source / "20260501_red_cube"
+    video_dir = run_dir / "execution_video"
+    video_dir.mkdir(parents=True)
+    (video_dir / "execution_video.mp4").write_bytes(b"fake mp4")
+    (run_dir / "detection_overlay.png").write_bytes(b"fake png")
+    (run_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "query": "red cube",
+                "artifacts": str(run_dir),
+                "pick_success": True,
+                "task_success": True,
+                "pick_stage": "success",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = build_demo_video_pack(
+        specs=[DemoStorySpec(label="debug", source_dir=source, caption="Debug capture.")],
+        output_dir=tmp_path / "pack",
+    )
+
+    story = manifest["stories"][0]
+    assert story["media_kind"] == "execution_video"
+    assert story["slideshow_path"].endswith("execution_video.mp4")
+
+
 def test_build_demo_video_pack_reads_direct_debug_summary(tmp_path: Path) -> None:
     source = tmp_path / "debug_capture"
     run_dir = source / "20260430_red_cube"

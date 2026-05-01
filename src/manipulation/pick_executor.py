@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import logging
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -100,6 +100,7 @@ class SimulatedTopDownPickExecutor:
     def __init__(
         self,
         env: Any,
+        step_callback: Callable[..., None] | None = None,
         approach_height: float = 0.12,
         grasp_height: float = 0.025,
         lift_height: float = 0.18,
@@ -111,6 +112,7 @@ class SimulatedTopDownPickExecutor:
         goal_tolerance: float = 0.015,
     ) -> None:
         self.env = env
+        self.step_callback = step_callback
         self.approach_height = float(approach_height)
         self.grasp_height = float(grasp_height)
         self.lift_height = float(lift_height)
@@ -248,7 +250,7 @@ class SimulatedTopDownPickExecutor:
                 raise RuntimeError("Could not read env.unwrapped.agent.tcp.pose.p.")
             delta = goal_xyz.astype(np.float32) - current.astype(np.float32)
             action = self._build_action(delta, gripper=gripper)
-            info = self._step(action)
+            info = self._step(action, stage=stage)
             info["stage"] = stage
             infos.append(info)
             if float(np.linalg.norm(delta)) <= self.goal_tolerance:
@@ -263,7 +265,7 @@ class SimulatedTopDownPickExecutor:
                 raise RuntimeError("Could not read env.unwrapped.agent.tcp.pose.p.")
             delta = goal_xyz.astype(np.float32) - current.astype(np.float32)
             action = self._build_action(delta, gripper=gripper)
-            info = self._step(action)
+            info = self._step(action, stage=stage)
             info["stage"] = stage
             infos.append(info)
         return infos
@@ -272,17 +274,23 @@ class SimulatedTopDownPickExecutor:
         scaled_delta = np.clip(delta_xyz / self.position_scale, -1.0, 1.0)
         return np.asarray([scaled_delta[0], scaled_delta[1], scaled_delta[2], gripper], dtype=np.float32)
 
-    def _step(self, action: np.ndarray) -> dict[str, Any]:
+    def _step(self, action: np.ndarray, stage: str) -> dict[str, Any]:
         result = self.env.step(action)
         if not isinstance(result, tuple):
             raise RuntimeError(f"env.step returned non-tuple result {type(result).__name__}.")
         if len(result) == 5:
-            _, _, _, _, info = result
+            observation, _, _, _, info = result
         elif len(result) == 4:
-            _, _, _, info = result
+            observation, _, _, info = result
         else:
             raise RuntimeError(f"env.step returned {len(result)} values; expected 4 or 5.")
-        return _json_safe_info(info)
+        safe_info = _json_safe_info(info)
+        if self.step_callback is not None:
+            try:
+                self.step_callback(stage=stage, action=action, observation=observation, info=safe_info)
+            except Exception:
+                LOGGER.exception("Execution step callback failed; continuing simulated control.")
+        return safe_info
 
     def _current_tcp_xyz(self) -> np.ndarray | None:
         env = self._unwrapped_env()
@@ -307,6 +315,7 @@ class SimulatedPickPlaceExecutor(SimulatedTopDownPickExecutor):
     def __init__(
         self,
         env: Any,
+        step_callback: Callable[..., None] | None = None,
         approach_height: float = 0.12,
         grasp_height: float = 0.025,
         lift_height: float = 0.18,
@@ -324,6 +333,7 @@ class SimulatedPickPlaceExecutor(SimulatedTopDownPickExecutor):
     ) -> None:
         super().__init__(
             env=env,
+            step_callback=step_callback,
             approach_height=approach_height,
             grasp_height=grasp_height,
             lift_height=lift_height,
@@ -527,16 +537,25 @@ class SimulatedPickPlaceExecutor(SimulatedTopDownPickExecutor):
         }
 
 
-def execute_pick_place_sim(env: Any, pick_xyz: np.ndarray, place_xyz: np.ndarray) -> dict[str, Any]:
+def execute_pick_place_sim(
+    env: Any,
+    pick_xyz: np.ndarray,
+    place_xyz: np.ndarray,
+    step_callback: Callable[..., None] | None = None,
+) -> dict[str, Any]:
     """Convenience helper for the simulated pick-place executor."""
 
-    return SimulatedPickPlaceExecutor(env=env).execute(pick_xyz=pick_xyz, place_xyz=place_xyz)
+    return SimulatedPickPlaceExecutor(env=env, step_callback=step_callback).execute(pick_xyz=pick_xyz, place_xyz=place_xyz)
 
 
-def execute_pick_sim_topdown(env: Any, target_xyz: np.ndarray) -> dict[str, Any]:
+def execute_pick_sim_topdown(
+    env: Any,
+    target_xyz: np.ndarray,
+    step_callback: Callable[..., None] | None = None,
+) -> dict[str, Any]:
     """Convenience helper for the simulated top-down executor."""
 
-    return SimulatedTopDownPickExecutor(env=env).execute(target_xyz)
+    return SimulatedTopDownPickExecutor(env=env, step_callback=step_callback).execute(target_xyz)
 
 
 def execute_pick_placeholder(env: Any, target_xyz: np.ndarray) -> dict[str, Any]:

@@ -214,8 +214,9 @@ def build_demo_video_pack(
             media_root=media_root,
             story_label=spec.label,
         )
-        slideshow_path = None
-        if make_slideshows and copied_media:
+        primary_video_path = first_video_path(copied_media, output_dir=output_dir)
+        slideshow_path = primary_video_path
+        if slideshow_path is None and make_slideshows and copied_media:
             slideshow_path = write_story_slideshow(
                 copied_media=copied_media,
                 output_dir=output_dir,
@@ -235,6 +236,7 @@ def build_demo_video_pack(
             "selected_rows": selected_rows,
             "available_media_count": len(media_files),
             "copied_media": copied_media,
+            "media_kind": media_kind(copied_media, slideshow_path=slideshow_path),
             "slideshow_path": slideshow_path,
         }
         stories.append(story)
@@ -392,7 +394,33 @@ def collect_media_files(source_dir: Path, selected_rows: list[dict[str, Any]]) -
                 continue
             seen.add(resolved)
             media.append(candidate)
-    return sorted(media)
+    return sorted(media, key=media_sort_key)
+
+
+def media_sort_key(path: Path) -> tuple[int, str]:
+    name = path.name.lower()
+    if name == "execution_video.mp4":
+        return (0, str(path))
+    if path.suffix.lower() in {".mp4", ".webm", ".gif"}:
+        return (1, str(path))
+    return (2, str(path))
+
+
+def first_video_path(copied_media: list[str], output_dir: Path) -> str | None:
+    for relative in copied_media:
+        if (output_dir / relative).suffix.lower() in {".mp4", ".webm", ".gif"}:
+            return relative
+    return None
+
+
+def media_kind(copied_media: list[str], slideshow_path: str | None) -> str:
+    if slideshow_path is not None and "execution_video" in Path(slideshow_path).name.lower():
+        return "execution_video"
+    if slideshow_path is not None:
+        return "slideshow"
+    if copied_media:
+        return "images_only"
+    return "missing"
 
 
 def copy_media_files(media_files: list[Path], output_dir: Path, media_root: Path, story_label: str) -> list[str]:

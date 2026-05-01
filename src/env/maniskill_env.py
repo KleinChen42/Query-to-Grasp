@@ -188,7 +188,12 @@ class ManiSkillScene:
         self.last_raw_observation = observation
         return observation
 
-    def execute_pick(self, target_xyz: np.ndarray, executor: str = "placeholder") -> dict[str, Any]:
+    def execute_pick(
+        self,
+        target_xyz: np.ndarray,
+        executor: str = "placeholder",
+        step_callback: Any | None = None,
+    ) -> dict[str, Any]:
         """Execute a minimal pick attempt for a 3D target.
 
         The current default is a safe placeholder that validates the target and
@@ -200,15 +205,20 @@ class ManiSkillScene:
         if executor == "placeholder":
             return execute_pick_placeholder(self.env, target_xyz)
         if executor == "sim_topdown":
-            return execute_pick_sim_topdown(self.env, target_xyz)
+            return execute_pick_sim_topdown(self.env, target_xyz, step_callback=step_callback)
         raise ValueError(f"Unknown pick executor '{executor}'. Expected 'placeholder' or 'sim_topdown'.")
 
-    def execute_pick_place(self, pick_xyz: np.ndarray, place_xyz: np.ndarray) -> dict[str, Any]:
+    def execute_pick_place(
+        self,
+        pick_xyz: np.ndarray,
+        place_xyz: np.ndarray,
+        step_callback: Any | None = None,
+    ) -> dict[str, Any]:
         """Execute a minimal simulated pick-place attempt for oracle bridge baselines."""
 
         from src.manipulation.pick_executor import execute_pick_place_sim
 
-        return execute_pick_place_sim(self.env, pick_xyz=pick_xyz, place_xyz=place_xyz)
+        return execute_pick_place_sim(self.env, pick_xyz=pick_xyz, place_xyz=place_xyz, step_callback=step_callback)
 
     def close(self) -> None:
         """Close the wrapped simulator environment."""

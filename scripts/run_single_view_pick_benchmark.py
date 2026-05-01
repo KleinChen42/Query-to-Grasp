@@ -41,6 +41,8 @@ CSV_COLUMNS = [
     "task_success",
     "is_grasped",
     "pick_stage",
+    "execution_video_path",
+    "execution_video_status",
     "runtime_seconds",
     "artifacts",
 ]
@@ -68,6 +70,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown", "sim_pick_place"])
     parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
     parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose"])
+    parser.add_argument("--capture-execution-video", action="store_true", help="Forward opt-in execution video capture to child runs.")
+    parser.add_argument("--execution-video-fps", type=float, default=24.0)
+    parser.add_argument("--execution-video-camera-name", default="base_camera")
+    parser.add_argument("--execution-video-every-n-steps", type=int, default=1)
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
 
@@ -230,6 +236,11 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         command.extend(["--control-mode", args.control_mode])
     if args.skip_clip:
         command.append("--skip-clip")
+    if getattr(args, "capture_execution_video", False):
+        command.append("--capture-execution-video")
+        command.extend(["--execution-video-fps", str(getattr(args, "execution_video_fps", 24.0))])
+        command.extend(["--execution-video-camera-name", getattr(args, "execution_video_camera_name", "base_camera")])
+        command.extend(["--execution-video-every-n-steps", str(getattr(args, "execution_video_every_n_steps", 1))])
     return command
 
 

@@ -39,6 +39,7 @@ class Segment:
     caption: str
     duration_seconds: float
     video_path: Path | None = None
+    media_kind: str | None = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -280,6 +281,7 @@ def story_segment(
         caption=caption,
         duration_seconds=duration_seconds,
         video_path=video_path,
+        media_kind=story.get("media_kind"),
     )
 
 
@@ -297,10 +299,65 @@ def write_clip_segment(writer: Any, segment: Segment, fps: float, width: int, he
     if not frames:
         raise RuntimeError(f"No readable frames in {segment.video_path}")
     total = int(round(segment.duration_seconds * fps))
-    captioned = [overlay_caption(frame, segment.title, segment.caption, cv2=cv2) for frame in frames]
+    transition_frames = max(1, int(round(0.35 * fps)))
     for index in range(total):
-        writer.write(captioned[index % len(captioned)])
+        if segment.media_kind == "execution_video":
+            frame = continuous_story_frame(frames, index=index, total_frames=total)
+        else:
+            frame = smooth_story_frame(
+                frames,
+                index=index,
+                total_frames=total,
+                transition_frames=transition_frames,
+                cv2=cv2,
+            )
+        writer.write(overlay_caption(frame, segment.title, segment.caption, cv2=cv2))
     return total
+
+
+def continuous_story_frame(frames: list[Any], index: int, total_frames: int) -> Any:
+    """Map output time to source time for real execution videos."""
+
+    if not frames:
+        raise ValueError("frames must be non-empty.")
+    if len(frames) == 1 or total_frames <= 1:
+        return frames[0]
+    source_index = int(round(index * (len(frames) - 1) / max(total_frames - 1, 1)))
+    return frames[min(max(source_index, 0), len(frames) - 1)]
+
+
+def smooth_story_frame(
+    frames: list[Any],
+    index: int,
+    total_frames: int,
+    transition_frames: int,
+    cv2: Any,
+) -> Any:
+    """Return a stable story frame with optional crossfade between stills.
+
+    Demo story clips are often lightweight slideshows made from a few PNGs. Holding
+    each source frame for its share of the segment avoids rapid modulo cycling.
+    """
+
+    if not frames:
+        raise ValueError("frames must be non-empty.")
+    if len(frames) == 1 or total_frames <= 1:
+        return frames[0]
+
+    frames_per_source = max(total_frames / len(frames), 1.0)
+    source_index = min(int(index / frames_per_source), len(frames) - 1)
+    if source_index >= len(frames) - 1 or transition_frames <= 0:
+        return frames[source_index]
+
+    next_boundary = (source_index + 1) * frames_per_source
+    max_transition = max(1, int(frames_per_source / 2))
+    effective_transition = min(max_transition, transition_frames)
+    fade_start = next_boundary - effective_transition
+    if index < fade_start:
+        return frames[source_index]
+
+    alpha = min(max((index - fade_start) / effective_transition, 0.0), 1.0)
+    return cv2.addWeighted(frames[source_index], 1.0 - alpha, frames[source_index + 1], alpha, 0)
 
 
 def read_video_frames(video_path: Path, width: int, height: int, cv2: Any) -> list[Any]:
@@ -374,6 +431,7 @@ def segment_to_caption(segment: Segment) -> dict[str, Any]:
         "caption": segment.caption,
         "duration_seconds": segment.duration_seconds,
         "video_path": None if segment.video_path is None else str(segment.video_path),
+        "media_kind": segment.media_kind,
     }
 
 

@@ -89,6 +89,26 @@ def test_simulated_topdown_builds_four_dimensional_actions() -> None:
     json.dumps(result)
 
 
+def test_simulated_topdown_invokes_step_callback_without_changing_result() -> None:
+    env = _FakeDeltaPosEnv()
+    calls = []
+    executor = SimulatedTopDownPickExecutor(
+        env=env,
+        step_callback=lambda **kwargs: calls.append(kwargs),
+        move_above_steps=1,
+        descend_steps=1,
+        close_steps=1,
+        lift_steps=1,
+    )
+
+    result = executor.execute(np.array([0.0, 0.0, 0.05], dtype=np.float32))
+
+    assert result["grasp_attempted"] is True
+    assert len(calls) == result["trajectory_summary"]["num_env_steps"]
+    assert {call["stage"] for call in calls} == {"move_above_target", "descend", "close_gripper", "lift"}
+    assert all(call["action"].shape == (4,) for call in calls)
+
+
 def test_simulated_topdown_accepts_task_specific_grasp_flag() -> None:
     env = _FakeDeltaPosEnv(grasp_info_key="is_cubeA_grasped")
     executor = SimulatedTopDownPickExecutor(
@@ -236,4 +256,18 @@ class _FakeDeltaPosEnv:
         }
         if self.grasp_info_key is not None:
             info[self.grasp_info_key] = self.num_steps >= 5 and action[3] < 0
-        return {}, 0.0, False, False, info
+        observation = {
+            "sensor_data": {
+                "base_camera": {
+                    "rgb": np.zeros((1, 4, 5, 3), dtype=np.uint8),
+                    "depth": np.ones((1, 4, 5, 1), dtype=np.float32),
+                }
+            },
+            "sensor_param": {
+                "base_camera": {
+                    "intrinsic_cv": np.eye(3, dtype=np.float32),
+                    "cam2world_gl": np.eye(4, dtype=np.float32),
+                }
+            },
+        }
+        return observation, 0.0, False, False, info
