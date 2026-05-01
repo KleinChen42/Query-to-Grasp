@@ -534,6 +534,30 @@ DEFAULT_ARTIFACTS = (
             "oracle-placement disclosure."
         ),
     ),
+    ArtifactSpec(
+        label="submission_audit_report",
+        source_path=Path("outputs/paper_submission_audit_latest/audit_report.md"),
+        category="paper",
+        caption=(
+            "Submission-readiness audit covering required artifacts, final metrics, "
+            "and unsupported-claim checks."
+        ),
+    ),
+    ArtifactSpec(
+        label="final_main_results_table",
+        source_path=Path("outputs/paper_submission_audit_latest/final_main_results_table.md"),
+        category="tables",
+        caption=(
+            "Frozen paper-facing main results table with target-source, place-source, "
+            "pick, place, and task success metrics."
+        ),
+    ),
+    ArtifactSpec(
+        label="final_main_results_rows",
+        source_path=Path("outputs/paper_submission_audit_latest/final_main_results_table.csv"),
+        category="tables",
+        caption="CSV companion for the frozen main results table.",
+    ),
 )
 
 

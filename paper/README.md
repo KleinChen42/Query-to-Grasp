@@ -62,3 +62,20 @@ Refresh copied artifacts with:
 $env:PYTHONPATH=(Get-Location).Path
 python scripts/build_paper_figure_pack.py --output-dir outputs/paper_figure_pack_latest --skip-missing
 ```
+
+## Submission Package Audit
+
+Before freezing a submission snapshot, regenerate the video and audit artifacts
+in this order:
+
+```powershell
+$env:PYTHONPATH=(Get-Location).Path
+python scripts/build_supplemental_video.py --input outputs/demo_video_pack_latest/manifest.json --output-dir outputs/supplemental_video_latest
+python scripts/audit_paper_submission_package.py --output-dir outputs/paper_submission_audit_latest
+python scripts/build_paper_figure_pack.py --output-dir outputs/paper_figure_pack_latest --skip-missing
+python scripts/check_paper_latex.py --tex paper/main.tex --bib paper/references.bib
+```
+
+The audit writes `audit_report.md/json` and the frozen main results table under
+`outputs/paper_submission_audit_latest`. These are generated submission
+artifacts and should not be committed directly.

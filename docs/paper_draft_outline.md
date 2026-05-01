@@ -1196,3 +1196,13 @@ experiment: captions must explicitly name `memory_grasp_world_xyz` for the
 PickCube executable-target result, `oracle_cubeB_pose` for the StackCube
 query-pick plus oracle-place bridge, and the closed-loop StackCube clips as a
 diagnostic limitation rather than a universal manipulation improvement.
+
+## Submission Readiness Freeze
+
+Core functionality is frozen for the simulated IROS/ICRA v1. The submission
+package should now be checked with `scripts/audit_paper_submission_package.py`,
+which regenerates the final main results table and verifies required artifacts,
+key accepted metrics, and unsupported-claim boundaries. Any future technical
+milestone such as non-oracle placement targets or action-phase video capture
+should be treated as a stretch branch, not as a requirement for the current
+paper freeze.

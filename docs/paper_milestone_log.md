@@ -1387,3 +1387,16 @@ Supplemental video assembly checkpoint:
 | `scripts/build_supplemental_video.py` | added | Assembles the six H200 demo story clips into a 60-90 second IROS/ICRA-style supplemental video with title cards, captions, and claim-boundary metadata. |
 | `outputs/supplemental_video_latest/query_to_grasp_supplemental_video.mp4` | generated artifact | Presentation-only MP4 derived from accepted representative demo captures; not a new benchmark result. |
 | `outputs/supplemental_video_latest/storyboard.md` | generated artifact | Segment-by-segment captions and claim-boundary notes for paper submission packaging. |
+
+Submission-readiness audit checkpoint:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `scripts/audit_paper_submission_package.py` | added | Generates the frozen main results table and checks required paper/video artifacts, key H200 metrics, and unsupported claims. |
+| `outputs/paper_submission_audit_latest/audit_report.md` | generated artifact | Pass/fail report for final package consistency before venue formatting. |
+| `outputs/paper_submission_audit_latest/final_main_results_table.md` | generated artifact | Paper-facing table freezing target-source, place-source, pick, place, and task success rates. |
+
+At this checkpoint, the simulated IROS/ICRA v1 feature set is frozen. Remaining
+work should focus on page-budget editing, citation verification, figure polish,
+and final reproducibility instructions unless a deliberate stretch branch is
+opened for non-oracle StackCube placement.

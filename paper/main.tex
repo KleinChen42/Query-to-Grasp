@@ -341,6 +341,12 @@ python scripts/build_supplemental_video.py \
   --output-dir outputs/supplemental_video_latest
 \end{verbatim}
 
+The final submission-readiness audit and frozen main table are generated with:
+\begin{verbatim}
+python scripts/audit_paper_submission_package.py \
+  --output-dir outputs/paper_submission_audit_latest
+\end{verbatim}
+
 The LaTeX structure check is:
 \begin{verbatim}
 python scripts/check_paper_latex.py \
@@ -357,6 +363,7 @@ The main benchmark artifacts referenced by this draft are:
   \item \texttt{outputs/h200\_60071\_query\_stackcube\_place\_bridge\_seed0\_49}
   \item \texttt{outputs/demo\_video\_pack\_latest}
   \item \texttt{outputs/supplemental\_video\_latest}
+  \item \texttt{outputs/paper\_submission\_audit\_latest}
   \item \texttt{outputs/paper\_figure\_pack\_latest}
 \end{itemize}
 

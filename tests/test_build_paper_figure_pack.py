@@ -76,6 +76,9 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "supplemental_video_storyboard" in labels
     assert "supplemental_video_manifest" in labels
     assert "supplemental_video_captions" in labels
+    assert "submission_audit_report" in labels
+    assert "final_main_results_table" in labels
+    assert "final_main_results_rows" in labels
 
 
 def test_build_paper_figure_pack_copies_artifacts_and_writes_readme(tmp_path: Path) -> None:
