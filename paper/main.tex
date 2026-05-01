@@ -21,30 +21,29 @@
 \maketitle
 
 \begin{abstract}
-Language-conditioned manipulation systems need more than a 2D language
-grounding result: they need a 3D target that is geometrically consistent,
-diagnosable under ambiguity, and usable by an action executor. We present
-Query-to-Grasp, a modular high-fidelity ManiSkill prototype for
-language-queryable RGB-D target retrieval, multi-view object memory,
-confidence-aware re-observation diagnostics, and opt-in simulated manipulation
-evaluation. The system connects
-GroundingDINO detections, optional CLIP reranking, RGB-D lifting, object-centric
-3D fusion, deterministic target selection, and a scripted top-down ManiSkill
-pick and pick-place controllers. The default executor remains a safe
-placeholder, while simulated executors report downstream \texttt{pick\_success},
-\texttt{place\_success}, and task-level \texttt{task\_success} separately. On \texttt{PickCube-v1}, fused memory grasp
-points yield full-query multi-view and closed-loop simulated pick success of
-\texttt{1.0000}. On \texttt{StackCube-v1}, task-aware guarded multi-view
-targets reach \texttt{0.6200} tabletop and \texttt{0.5200} closed-loop
-pick-only success over 50 seeds, while oracle object poses reach
-\texttt{0.9400} pick success and \texttt{0.8800} privileged pick-place task
-success. The accepted query-pick/oracle-place bridge reaches
-\texttt{0.7200} single-view task success, \texttt{0.5200} tabletop task
-success, and \texttt{0.4800} closed-loop task success with an oracle cubeB
-destination. These results
-support Query-to-Grasp as a reproducible diagnostic baseline for studying the
-gap between open-vocabulary RGB-D retrieval, executable simulated targets, and
-task-level manipulation outcomes.
+Open-vocabulary detectors can localize language-relevant objects in 2D, but
+robots require 3D action targets that are geometrically consistent, associated
+across views, and executable by a controller. This paper studies that
+retrieval-to-execution gap. We present Query-to-Grasp, a diagnostic RGB-D
+manipulation system that connects GroundingDINO proposals, optional CLIP
+reranking, RGB-D lifting, multi-view object memory, confidence-aware
+re-observation, and high-fidelity simulated pick and pick-place evaluation in
+ManiSkill. The evaluation separates semantic retrieval from downstream control
+by reporting \texttt{pick\_success}, \texttt{place\_success}, and task-level
+\texttt{task\_success}. The results show that semantic reranking is not the
+dominant bottleneck under the current candidate pools; target-source quality
+and cross-view geometry are. After camera-frame alignment, fused memory grasp
+points achieve \texttt{1.0000} simulated pick success on \texttt{PickCube-v1}
+under the validated multi-view and closed-loop settings. On
+\texttt{StackCube-v1}, task-aware guarded targets reach \texttt{0.6200}
+tabletop and \texttt{0.5200} closed-loop pick-only success over 50 seeds. A
+privileged oracle pick-place baseline reaches \texttt{0.9400} pick success and
+\texttt{0.8800} task success, while a query-pick/oracle-place bridge reaches
+\texttt{0.7200}, \texttt{0.5200}, and \texttt{0.4800} task success in
+single-view, tabletop, and closed-loop settings. These results position
+Query-to-Grasp as a diagnostic systems baseline for studying how
+open-vocabulary RGB-D retrieval becomes, or fails to become, executable
+simulated manipulation.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -55,37 +54,40 @@ language-conditioned manipulation, simulated grasping, diagnostic evaluation.
 \section{Introduction}
 
 Open-vocabulary detectors can localize language-described objects in images,
-but robotic manipulation requires a stronger interface. A manipulation system
-must lift detections into a consistent 3D frame, merge evidence across views,
-decide whether the selected target is sufficiently supported, and expose when
-an apparently confident target is not yet graspable. Query-to-Grasp studies
-this intermediate layer between language grounding and action execution.
+but robotic manipulation requires a stronger interface: the selected object
+must become a spatial target that can survive RGB-D lifting, cross-view fusion,
+and contact-rich execution. This intermediate layer is often hidden inside
+larger manipulation systems. Query-to-Grasp isolates it as the object of study.
+The central question is not only whether a detector finds the right pixels, but
+whether the resulting target source is geometrically stable and physically
+usable.
 
-The system is deliberately modular. It parses a natural-language query, obtains
-2D proposals with GroundingDINO~\cite{liu2023groundingdino}, optionally reranks
-candidates with CLIP~\cite{radford2021learning}, lifts RGB-D observations into
-world coordinates, fuses multi-view detections into object memory, and selects
-a query-matching 3D target. A placeholder pick executor remains the default so
-retrieval and uncertainty metrics can be benchmarked without overstating
-control capability. An opt-in simulated top-down executor then tests whether
-the selected target can drive ManiSkill actions.
+The system parses a natural-language query, obtains 2D proposals with
+GroundingDINO~\cite{liu2023groundingdino}, optionally reranks candidates with
+CLIP~\cite{radford2021learning}, lifts RGB-D observations into world
+coordinates, fuses multi-view detections into object memory, and selects a
+query-matching 3D target. A controlled retrieval-only baseline measures
+perception and uncertainty without conflating them with control, while
+simulated pick and pick-place executors test whether selected targets can drive
+ManiSkill actions.
 
-This paper makes three claims. First, careful RGB-D geometry matters: after an
-OpenCV-to-OpenGL camera-convention correction, multi-view memory becomes
-compact enough for deterministic fusion and traceable target selection. Second,
-downstream pick success depends on preserving a grasp target separately from a
-semantic object center: fused \texttt{memory\_grasp\_world\_xyz} targets lift
-\texttt{PickCube-v1} multi-view and closed-loop pick success to \texttt{1.0000}.
-Third, broader tasks expose useful limitations: \texttt{StackCube-v1} supports
-pick-only compatibility, oracle pick-place establishes a privileged placement
-upper bound, and the accepted bridge shows that query-derived cubeA targets can
-support placement when cubeB is oracle-provided.
+The paper is organized around four diagnostic observations. First, reranking is
+not the main bottleneck in the current candidate regime: optional CLIP
+reranking rarely changes the top selection, so failures are better explained by
+3D target quality. Second, camera-frame consistency is a prerequisite for
+multi-view object memory: once RGB-D lifting and simulator camera poses are
+aligned, cross-view spread and memory fragmentation drop sharply. Third,
+\texttt{PickCube-v1} demonstrates executability: fused grasp targets carried
+through object memory reach \texttt{1.0000} simulated pick success. Fourth,
+\texttt{StackCube-v1} exposes the remaining retrieval-to-execution gap through
+pick-only transfer, privileged oracle baselines, and a query-pick/oracle-place
+bridge.
 
 No real-robot execution is claimed. The controller is scripted, not learned,
 and StackCube results do not claim stack placement completion. The contribution
-is instead a benchmarkable systems scaffold with per-run artifacts, target
-source diagnostics, and reproducible limitations for language-conditioned
-RGB-D manipulation research.
+is a benchmarkable diagnostic system for target-source quality, cross-view
+geometric consistency, and re-observation association in language-conditioned
+RGB-D manipulation.
 
 \section{Related Work}
 
@@ -169,11 +171,11 @@ also absorbed the extra view.
 
 \subsection{Simulated Pick and Pick-Place Execution}
 
-The default executor returns a structured placeholder result. The opt-in
+The retrieval-only baseline returns a structured non-execution result. The
 \texttt{sim\_topdown} executor uses ManiSkill \texttt{pd\_ee\_delta\_pos}
 actions to move the TCP above the target, descend, close the gripper, and lift.
-The opt-in \texttt{sim\_pick\_place} executor extends the sequence with a
-scripted move-to-place, release, and settle stage. Both executors report
+The \texttt{sim\_pick\_place} executor extends the sequence with a move-to-place,
+release, and settle stage. Both executors report
 \texttt{grasp\_attempted}, \texttt{pick\_success}, \texttt{place\_success},
 \texttt{task\_success}, stage diagnostics, final TCP position, and simulator
 info. \texttt{pick\_success} measures task-specific grasp or lift evidence,
@@ -182,21 +184,21 @@ while \texttt{task\_success} is the raw ManiSkill task success flag.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/pipeline_overview.pdf}
-\caption{Query-to-Grasp pipeline: language query, RGB-D grounding, 3D lifting,
-multi-view memory, re-observation diagnostics, and optional simulated pick
-execution.}
+\caption{Diagnostic retrieval-to-execution pipeline. Query-to-Grasp keeps
+semantic retrieval, multi-view memory, target-source selection, and simulated
+execution separable so failures can be attributed to 2D grounding, 3D geometry,
+association, or control.}
 \label{fig:pipeline}
 \end{figure}
 
 \section{Experimental Setup}
 
-Experiments run in ManiSkill with RGB-D observations. H200 HF/ManiSkill runs
-are the source of paper-scale claims; local and Colab paths are retained for
-smoke testing. The primary benchmark is \texttt{PickCube-v1}. \texttt{StackCube-v1}
-is the cross-task bridge benchmark: accepted rows test query-driven cubeA
-picking, oracle rows test privileged cubeA-to-cubeB placement, and the accepted
-query-pick/oracle-place bridge tests query-derived cubeA targets with an oracle
-cubeB placement target.
+Experiments run in ManiSkill with RGB-D observations and the high-fidelity
+GroundingDINO backend. The primary benchmark is \texttt{PickCube-v1}.
+\texttt{StackCube-v1} is the cross-task bridge benchmark: query-driven rows
+test cubeA picking, oracle rows test privileged cubeA-to-cubeB placement, and
+the query-pick/oracle-place bridge tests query-derived cubeA targets with an
+oracle cubeB placement target.
 
 Metrics are split into retrieval, uncertainty, and control groups. Retrieval
 metrics include detection count, 3D target availability, memory size, selected
@@ -205,20 +207,18 @@ closed-loop resolution, and still-needed rate. Control metrics include
 \texttt{grasp\_attempted\_rate}, \texttt{pick\_success\_rate},
 \texttt{place\_success\_rate}, \texttt{task\_success\_rate}, and stage counts.
 
-The main paper artifacts are collected in \texttt{outputs/paper\_figure\_pack\_latest}.
 Table~\ref{tab:target-source} and Fig.~\ref{fig:target-source-results}
-summarize the final target-source results.
-Additional reports include the single-view ablation table, corrected geometry
-reports, full PickCube grasp comparison, StackCube expanded failure report,
-oracle target-source comparison, and the accepted query-driven StackCube
+summarize the final target-source results. Additional diagnostic tables cover
+single-view ambiguity, corrected geometry, PickCube grasp success, StackCube
+failure taxonomy, oracle target sources, and the query-driven StackCube
 placement bridge.
 
 \begin{table*}[t]
 \centering
-\caption{Target-source and simulated manipulation results used by the current
-paper draft. The StackCube bridge uses query-derived cubeA targets and a
-privileged oracle cubeB placement target; oracle pick-place is fully
-privileged.}
+\caption{Final target-source ablation. PickCube uses fused memory grasp points;
+StackCube guarded rows are pick-only; query-pick/oracle-place rows use
+query-derived cubeA targets and a privileged cubeB destination; oracle
+pick-place is fully privileged.}
 \label{tab:target-source}
 \begin{tabular}{llrrrrrl}
 \toprule
@@ -240,10 +240,10 @@ Oracle pick-place & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.8800 & 0.8800 & 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/target_source_results.pdf}
-\caption{Frozen target-source comparison for the paper. PickCube demonstrates
-that fused memory grasp points can be executed reliably, while StackCube
-separates pick-only transfer, privileged oracle pick-place, and the
-query-pick/oracle-place bridge.}
+\caption{Target-source quality, rather than semantic reranking alone, explains
+the execution gap. PickCube becomes executable with fused memory grasp targets;
+StackCube separates pick-only transfer, fully privileged pick-place, and
+query-derived pick with oracle placement.}
 \label{fig:target-source-results}
 \end{figure*}
 
@@ -252,10 +252,11 @@ query-pick/oracle-place bridge.}
 \subsection{Grounding and Reranking Baseline}
 
 The single-view baseline establishes that the language-to-3D chain is stable
-before adding multi-view memory. Exact PickCube queries produce a 3D target in
-all validated runs. Ambiguity queries increase candidate counts but do not
-show CLIP as the main source of improvement in the current benchmarks: top-1
-changes are rare because candidate multiplicity is low.
+before adding multi-view memory. Exact PickCube queries produce a 3D target
+across the validated settings. Ambiguity queries increase candidate counts, but
+CLIP reranking does not emerge as the primary improvement source: top-1 changes
+are rare because candidate multiplicity is low. This motivates the rest of the
+paper, which focuses on 3D action-target quality rather than semantic reranking.
 
 \subsection{Camera Geometry Enables Memory}
 
@@ -268,8 +269,9 @@ visualizes this change.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/geometry_memory_ablation.pdf}
-\caption{Correcting the camera convention turns multi-view coordinates from a
-dominant failure mode into a usable object-memory signal.}
+\caption{Cross-view consistency requires camera-frame alignment. After the
+correction, same-label spread and memory fragmentation drop enough for
+multi-view object memory to become a useful action-target source.}
 \label{fig:geometry}
 \end{figure}
 
@@ -279,9 +281,9 @@ Semantic fused centers are useful for retrieval, but they are not always good
 pick targets. Propagating per-view grasp points into fused memory and using
 \texttt{memory\_grasp\_world\_xyz} for refined multi-view simulated picking
 raises compact and full-query PickCube pick success to \texttt{1.0000}. This is
-the strongest positive result in the current paper: the retrieval target, fused
-memory, and scripted controller can agree well enough to execute successful
-simulated picks across the full ambiguity set.
+the strongest positive result: the retrieval target, fused memory, and
+controller can agree well enough to execute successful simulated picks across
+the full ambiguity set.
 
 \subsection{StackCube Exposes Cross-Task Limits}
 
@@ -292,7 +294,7 @@ as the effective refined multi-view target, yielding \texttt{0.6200} tabletop
 and \texttt{0.5200} closed-loop pick success over 50 seeds. The oracle baseline
 reaches \texttt{0.9400}, which indicates that many remaining StackCube failures
 are target-source and association limitations rather than an absolute inability
-of the scripted controller to pick cubeA.
+of the controller to pick cubeA.
 
 \subsection{Closed-Loop Re-Observation Is Diagnostic, Not Always Beneficial}
 
@@ -309,16 +311,16 @@ improvement. Fig.~\ref{fig:stackcube-failures} summarizes the expanded
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/stackcube_failure_taxonomy.pdf}
-\caption{Expanded StackCube failure taxonomy. Closed-loop re-observation
-introduces additional association failures even when uncertainty diagnostics
-improve, so lower ambiguity does not automatically imply higher manipulation
-success.}
+\caption{Expanded StackCube failure taxonomy over 50 seeds per mode. Wrong
+fused grasp observations dominate tabletop failures, while closed-loop
+re-observation adds third-object absorption, showing that lower uncertainty
+does not automatically imply higher manipulation success.}
 \label{fig:stackcube-failures}
 \end{figure}
 
 \section{Limitations}
 
-Query-to-Grasp is a simulated systems prototype. It does not claim real-robot
+Query-to-Grasp is a simulated systems study. It does not claim real-robot
 deployment, a learned controller, or full long-horizon manipulation. The
 \texttt{sim\_topdown} executor is a scripted top-down pick policy, and
 \texttt{sim\_pick\_place} is a scripted placement probe rather than a learned
@@ -342,67 +344,20 @@ The current system shows that careful camera geometry and separate grasp-point
 memory are enough to turn PickCube from a retrieval-only benchmark into a
 strong simulated pick benchmark. StackCube demonstrates useful cross-task
 transfer while exposing target-source, placement-target, and closed-loop
-association limits. These results provide a reproducible H200-scale basis for
-an IROS/ICRA-style simulated systems paper and a clear roadmap toward broader
-task success.
+association limits. These results provide a reproducible basis for a simulated
+diagnostic systems paper and a clear roadmap toward broader task success.
 
 \appendices
-\section{Artifact and Command Notes}
+\section{Reproducibility Notes}
 
-The current paper pack is generated with:
-\begin{verbatim}
-python scripts/build_paper_figure_pack.py \
-  --output-dir outputs/paper_figure_pack_latest \
-  --skip-missing
-\end{verbatim}
-
-The native-resolution supplemental demo captures are generated with:
-\begin{verbatim}
-python scripts/run_demo_execution_capture_pack.py \
-  --output-dir outputs/h200_60071_demo_execution_capture_native720_latest \
-  --demo-pack-output-dir outputs/demo_video_pack_latest \
-  --sensor-width 720 --sensor-height 720 \
-  --width 1920 --height 1080
-\end{verbatim}
-
-The conference supplemental video storyboard and MP4 are assembled with:
-\begin{verbatim}
-python scripts/build_supplemental_video.py \
-  --input outputs/demo_video_pack_latest/manifest.json \
-  --output-dir outputs/supplemental_video_latest \
-  --width 1920 --height 1080
-\end{verbatim}
-
-The six supplemental clips are presentation artifacts. Their execution-video
-metadata records native ManiSkill RGB source frames of \texttt{720x720} and a
-letterboxed \texttt{1920x1080} output video.
-
-The final submission-readiness audit and frozen main table are generated with:
-\begin{verbatim}
-python scripts/audit_paper_submission_package.py \
-  --output-dir outputs/paper_submission_audit_latest
-\end{verbatim}
-
-The LaTeX structure check is:
-\begin{verbatim}
-python scripts/check_paper_latex.py \
-  --tex paper/main.tex \
-  --bib paper/references.bib
-\end{verbatim}
-
-The main benchmark artifacts referenced by this draft are:
-\begin{itemize}
-  \item \texttt{outputs/h200\_60071\_multiview\_memory\_grasp\_point\_full\_ambiguity\_seed01234}
-  \item \texttt{outputs/h200\_60071\_stackcube\_task\_guard\_expanded\_seed0\_49}
-  \item \texttt{outputs/h200\_60071\_oracle\_pick\_ablation}
-  \item \texttt{outputs/h200\_60071\_oracle\_stackcube\_place\_seed0\_49}
-  \item \texttt{outputs/h200\_60071\_query\_stackcube\_place\_bridge\_seed0\_49}
-  \item \texttt{outputs/h200\_60071\_demo\_execution\_capture\_native720\_latest}
-  \item \texttt{outputs/demo\_video\_pack\_latest}
-  \item \texttt{outputs/supplemental\_video\_latest}
-  \item \texttt{outputs/paper\_submission\_audit\_latest}
-  \item \texttt{outputs/paper\_figure\_pack\_latest}
-\end{itemize}
+The paper pack, frozen main table, and supplemental-video manifest are generated
+under \texttt{outputs/paper\_figure\_pack\_latest},
+\texttt{outputs/paper\_submission\_audit\_latest}, and
+\texttt{outputs/supplemental\_video\_latest}. Detailed commands are maintained
+in the project README and paper-source README. The supplemental video uses six
+representative ManiSkill execution clips captured from native \texttt{720x720}
+RGB frames and letterboxed to \texttt{1920x1080}; these clips are presentation
+artifacts, not additional benchmark rows.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}

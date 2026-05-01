@@ -1160,9 +1160,11 @@ detector, fusion weights, controller timing, or benchmark claims:
    with the provided `IEEEtran.cls`, first-pass BibTeX in
    `paper/references.bib`, and structural checks in
    `scripts/check_paper_latex.py`.
-8. Next writing task: tighten the LaTeX draft to the target page budget,
-   polish final captions around the frozen target-source and failure-taxonomy
-   figures, and complete citation cleanup.
+8. The LaTeX draft now uses the diagnostic-systems title and four-layer
+   narrative. Captions and the reproducibility appendix have been compressed
+   for page budget, and core BibTeX entries have been cleaned. Next writing
+   task: run a true PDF compile once a TeX toolchain is available, then polish
+   page breaks and optional related-work additions.
 
 ## Video/Figure Evidence Plan
 

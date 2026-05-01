@@ -1,9 +1,24 @@
 # Related Work Citation Plan
 
-This file is a planning artifact for the conference manuscript, not the final
-bibliography. Exact titles, venues, years, author lists, and BibTeX entries must
-be verified from primary sources before submission. The manuscript should cite
-the final verified papers, not this checklist.
+This file is a planning artifact for the conference manuscript. The core
+BibTeX entries currently used by `paper/main.tex` have been cleaned in
+`paper/references.bib` using primary proceedings/arXiv/OpenReview sources;
+additional optional references below still need exact metadata verification
+before they are added.
+
+## Verified Core Bibliography
+
+The current LaTeX draft cites the following verified core entries:
+
+- `radford2021learning`: CLIP, ICML 2021 / PMLR 139.
+- `liu2023groundingdino`: Grounding DINO, ECCV 2024.
+- `shridhar2022cliport`: CLIPort, CoRL 2021 / PMLR 164.
+- `shridhar2022peract`: Perceiver-Actor, CoRL 2022 / PMLR 205.
+- `ahn2022saycan`: SayCan, CoRL 2022 / PMLR 205.
+- `jiang2023vima`: VIMA, ICML 2023 / PMLR 202.
+- `brohan2022rt1`: RT-1, RSS 2023.
+- `brohan2023rt2`: RT-2, arXiv 2023.
+- `gu2023maniskill2`: ManiSkill2, ICLR 2023.
 
 ## Open-Vocabulary Grounding
 
@@ -32,10 +47,12 @@ Search terms:
 - `GLIP grounded language image pretraining paper`
 - `OWL-ViT open vocabulary object detection paper`
 
-Verification needed:
+Optional additions still needing verification:
 
-- Exact venue/year and official BibTeX for all grounding models.
-- Whether to cite GroundingDINO implementation, paper, or both.
+- GLIP-style grounded language-image pretraining.
+- OWL-ViT / OWL-style open-vocabulary detection.
+- Segment Anything only if the final paper discusses mask prompting or
+  segmentation extensions.
 
 ## Language-Conditioned Manipulation
 
@@ -64,11 +81,12 @@ Search terms:
 - `VIMA multimodal prompts robot manipulation`
 - `RT-1 RT-2 robotic manipulation language vision action`
 
-Verification needed:
+Optional additions still needing verification:
 
-- Which works are close enough to cite in the main related-work paragraph versus
-  which should appear only as broad context.
-- Exact claims about policy learning and real-robot validation.
+- Whether to cite additional robot-learning policy papers beyond CLIPort,
+  PerAct, SayCan, VIMA, RT-1, and RT-2.
+- Exact claims about policy learning and real-robot validation for any optional
+  additions.
 
 ## RGB-D and Multi-View Object Memory
 
@@ -94,7 +112,7 @@ Search terms:
 - `open vocabulary 3D scene understanding language grounding`
 - `semantic object map RGB-D robot`
 
-Verification needed:
+Verification still needed:
 
 - The closest prior work for persistent object hypotheses with label votes and
   view support.
@@ -127,7 +145,7 @@ Search terms:
 - `closed-loop perception re-observation manipulation`
 - `next best view object manipulation RGB-D`
 
-Verification needed:
+Verification still needed:
 
 - Which active perception references evaluate downstream manipulation success.
 - Whether any cited method uses virtual views in simulation, to compare fairly
@@ -155,7 +173,7 @@ Search terms:
 - `simulated robotic manipulation benchmark grasp success`
 - `scripted controller baseline robotic manipulation simulation`
 
-Verification needed:
+Verification still needed:
 
 - Correct ManiSkill version citation for the tasks used here.
 - Whether venue formatting should cite simulator docs, benchmark paper, or both.
@@ -177,4 +195,4 @@ Claims that require more evidence before submission:
 - Real-robot execution.
 - Learned active perception or learned grasping.
 - Robust relation-heavy language grounding.
-- StackCube stacking completion.
+- Full non-oracle StackCube stacking completion.

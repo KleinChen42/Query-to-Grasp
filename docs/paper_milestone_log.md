@@ -1367,6 +1367,21 @@ Latest conference-format writing checkpoint:
 | `paper/references.bib` | scaffolded | Core citation buckets for CLIP, GroundingDINO, CLIPort, PerAct, SayCan, VIMA, RT-1/RT-2, and ManiSkill; exact metadata still needs final primary-source verification. |
 | `scripts/check_paper_latex.py` | added | Structural guard that checks required sections, current key metrics, artifact references, and unsupported real-robot / StackCube completion claims. |
 
+Latest narrative-polish checkpoint:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `paper/main.tex` | polished | Main text now follows the diagnostic-systems narrative: reranking is not the bottleneck, camera-frame alignment enables memory, PickCube demonstrates executability, and StackCube exposes the retrieval-to-execution gap. |
+| paper title | updated | Current title is `Query-to-Grasp: Diagnosing the Retrieval-to-Execution Gap in Open-Vocabulary RGB-D Manipulation`, which better matches an IROS/ICRA systems submission than the earlier implementation-oriented titles. |
+| `paper/main.tex` captions/appendix | compressed | Figure/table captions now state the evidence chain directly, and the reproducibility appendix was shortened from command listings to a compact artifact summary for page-budget control. |
+
+Latest citation-cleanup checkpoint:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `paper/references.bib` | cleaned | Core bibliography entries now use verified proceedings/arXiv/OpenReview-style metadata for CLIP, GroundingDINO, CLIPort, PerAct, SayCan, VIMA, RT-1, RT-2, and ManiSkill2. |
+| `docs/paper_related_work_citation_plan.md` | updated | Separates verified core citations from optional related-work additions that still need metadata checks before inclusion. |
+
 Latest video/figure packaging checkpoint:
 
 | artifact | status | notes |
