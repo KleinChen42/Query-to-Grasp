@@ -60,3 +60,34 @@ def test_execution_video_recorder_reports_missing_rgb(tmp_path: Path) -> None:
     assert manifest["status"] == "not_written_no_frames"
     assert manifest["frame_count"] == 0
     assert manifest["capture_failures"][0]["reason"] == "capture_failed_missing_rgb"
+
+
+def test_execution_video_recorder_letterboxes_requested_output_resolution(tmp_path: Path) -> None:
+    recorder = ExecutionVideoRecorder(
+        output_dir=tmp_path / "video",
+        fps=2.0,
+        camera_name="base_camera",
+        output_width=16,
+        output_height=9,
+    )
+
+    recorder.record_step(
+        stage="move_above",
+        action=np.zeros(4, dtype=np.float32),
+        observation=maniskill_like_observation(180),
+        info={},
+    )
+    manifest = recorder.finalize()
+
+    frame_path = Path(manifest["records"][0]["frame"])
+    frame = cv2.imread(str(frame_path))
+    assert frame is not None
+    assert frame.shape[:2] == (9, 16)
+    assert manifest["resize_mode"] == "letterbox"
+    assert manifest["records"][0]["source_resolution"] == [5, 4]
+    assert manifest["records"][0]["output_resolution"] == [16, 9]
+
+
+def test_execution_video_recorder_rejects_partial_output_resolution(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="provided together"):
+        ExecutionVideoRecorder(output_dir=tmp_path / "video", output_width=16)

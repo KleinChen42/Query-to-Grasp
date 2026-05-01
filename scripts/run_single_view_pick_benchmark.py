@@ -74,6 +74,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--execution-video-fps", type=float, default=24.0)
     parser.add_argument("--execution-video-camera-name", default="base_camera")
     parser.add_argument("--execution-video-every-n-steps", type=int, default=1)
+    parser.add_argument("--execution-video-width", type=int, default=None)
+    parser.add_argument("--execution-video-height", type=int, default=None)
     parser.add_argument("--log-level", default="INFO", help="Benchmark logging level.")
     return parser.parse_args()
 
@@ -241,6 +243,10 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         command.extend(["--execution-video-fps", str(getattr(args, "execution_video_fps", 24.0))])
         command.extend(["--execution-video-camera-name", getattr(args, "execution_video_camera_name", "base_camera")])
         command.extend(["--execution-video-every-n-steps", str(getattr(args, "execution_video_every_n_steps", 1))])
+        if getattr(args, "execution_video_width", None) is not None:
+            command.extend(["--execution-video-width", str(args.execution_video_width)])
+        if getattr(args, "execution_video_height", None) is not None:
+            command.extend(["--execution-video-height", str(args.execution_video_height)])
     return command
 
 

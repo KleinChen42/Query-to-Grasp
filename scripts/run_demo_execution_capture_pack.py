@@ -36,6 +36,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fps", type=float, default=24.0)
     parser.add_argument("--camera-name", default="base_camera")
     parser.add_argument("--every-n-steps", type=int, default=1)
+    parser.add_argument("--width", type=int, default=1920, help="Output width for high-resolution execution videos.")
+    parser.add_argument("--height", type=int, default=1080, help="Output height for high-resolution execution videos.")
     parser.add_argument("--continue-on-error", action="store_true")
     return parser.parse_args()
 
@@ -228,6 +230,10 @@ def build_story_command(story: DemoExecutionStory, args: argparse.Namespace, sto
         args.camera_name,
         "--execution-video-every-n-steps",
         str(args.every_n_steps),
+        "--execution-video-width",
+        str(args.width),
+        "--execution-video-height",
+        str(args.height),
     ]
 
 
@@ -257,6 +263,7 @@ def render_readme(manifest: dict[str, Any]) -> str:
         "",
         f"- Failed stories: {manifest['failed_count']}",
         f"- Demo pack: `{manifest['demo_pack_output_dir']}`",
+        "- Video capture: continuous execution frames, letterboxed to the requested output resolution.",
         "",
         "| story | seed | returncode | execution video |",
         "| --- | ---: | ---: | --- |",

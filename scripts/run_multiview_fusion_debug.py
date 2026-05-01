@@ -207,6 +207,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--execution-video-fps", type=float, default=24.0, help="FPS for opt-in execution demo videos.")
     parser.add_argument("--execution-video-camera-name", default="base_camera", help="Camera used for execution video extraction.")
     parser.add_argument("--execution-video-every-n-steps", type=int, default=1, help="Frame sampling interval for execution video capture.")
+    parser.add_argument("--execution-video-width", type=int, default=None, help="Optional output width for captured execution video frames.")
+    parser.add_argument("--execution-video-height", type=int, default=None, help="Optional output height for captured execution video frames.")
     parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
@@ -1342,6 +1344,8 @@ def make_execution_recorder(
         fps=float(getattr(args, "execution_video_fps", 24.0)),
         camera_name=getattr(args, "execution_video_camera_name", "base_camera"),
         every_n_steps=int(getattr(args, "execution_video_every_n_steps", 1)),
+        output_width=getattr(args, "execution_video_width", None),
+        output_height=getattr(args, "execution_video_height", None),
         fallback_observation_fn=scene.capture_sensor_observation,
         metadata=metadata,
     )

@@ -17,8 +17,8 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.io.export_utils import write_json  # noqa: E402
 
 
-DEFAULT_WIDTH = 1280
-DEFAULT_HEIGHT = 720
+DEFAULT_WIDTH = 1920
+DEFAULT_HEIGHT = 1080
 DEFAULT_FPS = 24.0
 FORBIDDEN_CLAIMS = (
     "real robot",

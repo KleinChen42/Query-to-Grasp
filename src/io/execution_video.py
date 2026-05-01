@@ -21,6 +21,8 @@ class ExecutionVideoRecorder:
     fps: float = 24.0
     camera_name: str | None = "base_camera"
     every_n_steps: int = 1
+    output_width: int | None = None
+    output_height: int | None = None
     fallback_observation_fn: Callable[[], Any] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -29,6 +31,12 @@ class ExecutionVideoRecorder:
             raise ValueError("fps must be positive.")
         if self.every_n_steps <= 0:
             raise ValueError("every_n_steps must be positive.")
+        if (self.output_width is None) != (self.output_height is None):
+            raise ValueError("output_width and output_height must be provided together.")
+        if self.output_width is not None and self.output_width <= 0:
+            raise ValueError("output_width must be positive.")
+        if self.output_height is not None and self.output_height <= 0:
+            raise ValueError("output_height must be positive.")
         self.output_dir = Path(self.output_dir)
         self.frames_dir = self.output_dir / "execution_frames"
         self.frames_dir.mkdir(parents=True, exist_ok=True)
@@ -59,6 +67,9 @@ class ExecutionVideoRecorder:
             )
             return
 
+        source_height, source_width = rgb.shape[:2]
+        rgb = self._prepare_output_frame(rgb)
+        output_height, output_width = rgb.shape[:2]
         frame_path = self.frames_dir / f"{self._step_index:05d}_{_slug(stage)}.png"
         save_rgb_png(rgb, frame_path)
         self._frames.append(frame_path)
@@ -70,6 +81,8 @@ class ExecutionVideoRecorder:
                 "capture_source": capture_source,
                 "action": np.asarray(action, dtype=float).reshape(-1).tolist(),
                 "info_keys": sorted(str(key) for key in info),
+                "source_resolution": [int(source_width), int(source_height)],
+                "output_resolution": [int(output_width), int(output_height)],
             }
         )
 
@@ -90,6 +103,11 @@ class ExecutionVideoRecorder:
             "fps": float(self.fps),
             "camera_name": self.camera_name,
             "every_n_steps": int(self.every_n_steps),
+            "output_width": self.output_width,
+            "output_height": self.output_height,
+            "resize_mode": "letterbox" if self.output_width is not None else "native",
+            "source_resolutions": sorted({tuple(record["source_resolution"]) for record in self._records}),
+            "output_resolutions": sorted({tuple(record["output_resolution"]) for record in self._records}),
             "records": self._records,
             "capture_failures": self._capture_failures,
             "metadata": self.metadata,
@@ -107,6 +125,30 @@ class ExecutionVideoRecorder:
         if frame.rgb is None:
             return None
         return np.asarray(frame.rgb, dtype=np.uint8)
+
+    def _prepare_output_frame(self, rgb: np.ndarray) -> np.ndarray:
+        """Return an RGB frame at the requested output size without changing aspect ratio."""
+
+        if self.output_width is None or self.output_height is None:
+            return rgb
+        try:
+            from PIL import Image
+        except ImportError as exc:  # pragma: no cover - dependency checked by frame export tests
+            raise RuntimeError("Pillow is required for high-resolution execution video resizing.") from exc
+
+        source_height, source_width = rgb.shape[:2]
+        target_width = int(self.output_width)
+        target_height = int(self.output_height)
+        scale = min(target_width / max(source_width, 1), target_height / max(source_height, 1))
+        resized_width = max(1, int(round(source_width * scale)))
+        resized_height = max(1, int(round(source_height * scale)))
+        image = Image.fromarray(rgb.astype(np.uint8, copy=False), mode="RGB")
+        resampling = getattr(getattr(Image, "Resampling", Image), "LANCZOS")
+        image = image.resize((resized_width, resized_height), resample=resampling)
+        canvas = Image.new("RGB", (target_width, target_height), color=(12, 16, 20))
+        offset = ((target_width - resized_width) // 2, (target_height - resized_height) // 2)
+        canvas.paste(image, offset)
+        return np.asarray(canvas, dtype=np.uint8)
 
 
 def write_frames_to_video(frame_paths: list[Path], video_path: Path, fps: float) -> str:
