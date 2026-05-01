@@ -131,6 +131,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown", "sim_pick_place"])
     parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
     parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose"])
+    parser.add_argument("--sensor-width", type=int, default=None)
+    parser.add_argument("--sensor-height", type=int, default=None)
     parser.add_argument("--merge-distance", type=float, default=0.08)
     parser.add_argument("--enable-closed-loop-reobserve", action="store_true")
     parser.add_argument("--closed-loop-max-extra-views", type=int, default=1)
@@ -325,6 +327,10 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         command.append("--skip-clip")
     else:
         command.append("--use-clip")
+    if getattr(args, "sensor_width", None) is not None:
+        command.extend(["--sensor-width", str(args.sensor_width)])
+    if getattr(args, "sensor_height", None) is not None:
+        command.extend(["--sensor-height", str(args.sensor_height)])
     if args.enable_closed_loop_reobserve:
         command.append("--enable-closed-loop-reobserve")
         command.extend(["--closed-loop-max-extra-views", str(args.closed_loop_max_extra_views)])

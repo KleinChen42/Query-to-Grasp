@@ -70,6 +70,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown", "sim_pick_place"])
     parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
     parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose"])
+    parser.add_argument("--sensor-width", type=int, default=None)
+    parser.add_argument("--sensor-height", type=int, default=None)
     parser.add_argument("--capture-execution-video", action="store_true", help="Forward opt-in execution video capture to child runs.")
     parser.add_argument("--execution-video-fps", type=float, default=24.0)
     parser.add_argument("--execution-video-camera-name", default="base_camera")
@@ -238,6 +240,10 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         command.extend(["--control-mode", args.control_mode])
     if args.skip_clip:
         command.append("--skip-clip")
+    if getattr(args, "sensor_width", None) is not None:
+        command.extend(["--sensor-width", str(args.sensor_width)])
+    if getattr(args, "sensor_height", None) is not None:
+        command.extend(["--sensor-height", str(args.sensor_height)])
     if getattr(args, "capture_execution_video", False):
         command.append("--capture-execution-video")
         command.extend(["--execution-video-fps", str(getattr(args, "execution_video_fps", 24.0))])

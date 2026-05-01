@@ -179,6 +179,60 @@ def test_single_view_pick_benchmark_forwards_place_target_source(monkeypatch, tm
     assert summary["aggregate_metrics"]["place_attempted_rate"] == 1.0
 
 
+def test_single_view_pick_benchmark_forwards_sensor_resolution(monkeypatch, tmp_path) -> None:
+    seen_commands = []
+
+    def fake_run(command, cwd, capture_output, text, check):
+        seen_commands.append(command)
+        output_dir = Path(command[command.index("--output-dir") + 1])
+        run_dir = output_dir / "fake_run"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "query": "red cube",
+            "num_detections": 1,
+            "num_ranked_candidates": 1,
+            "camera_xyz": [0.1, 0.2, 0.3],
+            "world_xyz": [0.1, 0.2, 0.3],
+            "num_3d_points": 12,
+            "pick_success": False,
+            "pick_stage": "placeholder_not_executed",
+            "runtime_seconds": 1.5,
+            "artifacts": str(run_dir),
+        }
+        (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    output_dir = tmp_path / "benchmark"
+    monkeypatch.setattr(benchmark.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_single_view_pick_benchmark.py",
+            "--queries",
+            "red cube",
+            "--seeds",
+            "0",
+            "--detector-backend",
+            "mock",
+            "--skip-clip",
+            "--sensor-width",
+            "720",
+            "--sensor-height",
+            "720",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    benchmark.main()
+
+    assert seen_commands
+    command = seen_commands[0]
+    assert command[command.index("--sensor-width") + 1] == "720"
+    assert command[command.index("--sensor-height") + 1] == "720"
+
+
 def test_single_view_pick_benchmark_defaults_to_clip_enabled(monkeypatch, tmp_path) -> None:
     seen_commands = []
 

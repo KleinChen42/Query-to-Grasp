@@ -36,6 +36,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fps", type=float, default=24.0)
     parser.add_argument("--camera-name", default="base_camera")
     parser.add_argument("--every-n-steps", type=int, default=1)
+    parser.add_argument("--sensor-width", type=int, default=720, help="Native ManiSkill RGB-D sensor width for recapture.")
+    parser.add_argument("--sensor-height", type=int, default=720, help="Native ManiSkill RGB-D sensor height for recapture.")
     parser.add_argument("--width", type=int, default=1920, help="Output width for high-resolution execution videos.")
     parser.add_argument("--height", type=int, default=1080, help="Output height for high-resolution execution videos.")
     parser.add_argument("--continue-on-error", action="store_true")
@@ -223,6 +225,10 @@ def build_story_command(story: DemoExecutionStory, args: argparse.Namespace, sto
         str(story.seed),
         "--output-dir",
         str(story_dir),
+        "--sensor-width",
+        str(args.sensor_width),
+        "--sensor-height",
+        str(args.sensor_height),
         "--capture-execution-video",
         "--execution-video-fps",
         str(args.fps),
@@ -263,6 +269,7 @@ def render_readme(manifest: dict[str, Any]) -> str:
         "",
         f"- Failed stories: {manifest['failed_count']}",
         f"- Demo pack: `{manifest['demo_pack_output_dir']}`",
+        "- Native sensor capture: requested via ManiSkill `sensor_configs`.",
         "- Video capture: continuous execution frames, letterboxed to the requested output resolution.",
         "",
         "| story | seed | returncode | execution video |",

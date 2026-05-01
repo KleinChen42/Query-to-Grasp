@@ -128,6 +128,8 @@ def parse_args() -> argparse.Namespace:
         help="Optional place target source for sim_pick_place.",
     )
     parser.add_argument("--camera-name", default=None, help="Camera key to extract or recapture for preset views.")
+    parser.add_argument("--sensor-width", type=int, default=None, help="Optional ManiSkill RGB-D sensor width.")
+    parser.add_argument("--sensor-height", type=int, default=None, help="Optional ManiSkill RGB-D sensor height.")
     parser.add_argument("--seed", type=int, default=0, help="Environment reset seed.")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs") / "multiview_fusion_debug")
     parser.add_argument("--prefer-llm-parser", action="store_true", help="Try LLM parsing before deterministic rules.")
@@ -236,6 +238,7 @@ def main() -> None:
         obs_mode=args.obs_mode,
         control_mode=args.control_mode,
         camera_name=args.camera_name,
+        **build_sensor_kwargs(args),
     )
     try:
         scene.reset(seed=args.seed)
@@ -577,6 +580,20 @@ def normalize_view_ids(view_ids: Sequence[str] | None, camera_name: str | None) 
     if cleaned:
         return cleaned
     return [camera_name.strip()] if camera_name and camera_name.strip() else [None]
+
+
+def build_sensor_kwargs(args: argparse.Namespace) -> dict[str, Any]:
+    """Build optional ManiSkill sensor config kwargs for presentation captures."""
+
+    width = getattr(args, "sensor_width", None)
+    height = getattr(args, "sensor_height", None)
+    if width is None and height is None:
+        return {}
+    if width is None or height is None:
+        raise ValueError("--sensor-width and --sensor-height must be provided together.")
+    if int(width) <= 0 or int(height) <= 0:
+        raise ValueError("--sensor-width and --sensor-height must be positive.")
+    return {"sensor_configs": {"width": int(width), "height": int(height)}}
 
 
 def collect_frames(

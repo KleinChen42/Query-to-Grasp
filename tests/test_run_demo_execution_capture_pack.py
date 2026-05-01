@@ -14,10 +14,20 @@ def test_demo_execution_capture_command_forwards_high_resolution_video_flags(tmp
         caption="Demo.",
         args=("--query", "red cube"),
     )
-    args = argparse.Namespace(fps=24.0, camera_name="base_camera", every_n_steps=1, width=1920, height=1080)
+    args = argparse.Namespace(
+        fps=24.0,
+        camera_name="base_camera",
+        every_n_steps=1,
+        sensor_width=720,
+        sensor_height=720,
+        width=1920,
+        height=1080,
+    )
 
     command = build_story_command(story, args=args, story_dir=tmp_path / "story")
 
     assert "--capture-execution-video" in command
+    assert command[command.index("--sensor-width") + 1] == "720"
+    assert command[command.index("--sensor-height") + 1] == "720"
     assert command[command.index("--execution-video-width") + 1] == "1920"
     assert command[command.index("--execution-video-height") + 1] == "1080"

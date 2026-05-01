@@ -73,6 +73,17 @@ def test_build_child_command_forwards_place_target_source(tmp_path: Path) -> Non
     assert command[command.index("--place-target-source") + 1] == "oracle_cubeB_pose"
 
 
+def test_build_child_command_forwards_sensor_resolution(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+    args.sensor_width = 720
+    args.sensor_height = 720
+
+    command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
+
+    assert command[command.index("--sensor-width") + 1] == "720"
+    assert command[command.index("--sensor-height") + 1] == "720"
+
+
 def test_build_child_command_forwards_closed_loop_reobserve(tmp_path: Path) -> None:
     args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
     args.enable_closed_loop_reobserve = True
@@ -667,6 +678,8 @@ def _args(
             "pick_executor": "placeholder",
             "grasp_target_mode": "semantic",
             "place_target_source": "none",
+            "sensor_width": None,
+            "sensor_height": None,
             "detector_backend": "mock",
             "mock_box_position": "center",
             "depth_scale": 1000.0,
