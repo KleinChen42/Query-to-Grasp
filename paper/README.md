@@ -70,11 +70,23 @@ in this order:
 
 ```powershell
 $env:PYTHONPATH=(Get-Location).Path
-python scripts/build_supplemental_video.py --input outputs/demo_video_pack_latest/manifest.json --output-dir outputs/supplemental_video_latest
+python scripts/run_demo_execution_capture_pack.py `
+  --output-dir outputs/h200_60071_demo_execution_capture_native720_latest `
+  --demo-pack-output-dir outputs/demo_video_pack_latest `
+  --sensor-width 720 --sensor-height 720 `
+  --width 1920 --height 1080
+python scripts/build_supplemental_video.py `
+  --input outputs/demo_video_pack_latest/manifest.json `
+  --output-dir outputs/supplemental_video_latest `
+  --width 1920 --height 1080
 python scripts/audit_paper_submission_package.py --output-dir outputs/paper_submission_audit_latest
 python scripts/build_paper_figure_pack.py --output-dir outputs/paper_figure_pack_latest --skip-missing
 python scripts/check_paper_latex.py --tex paper/main.tex --bib paper/references.bib
 ```
+
+The frozen supplemental video uses native ManiSkill RGB frames requested with
+`sensor_configs = {"width": 720, "height": 720}` and writes a `1920x1080`
+conference MP4. Generated video outputs remain untracked.
 
 The audit writes `audit_report.md/json` and the frozen main results table under
 `outputs/paper_submission_audit_latest`. These are generated submission

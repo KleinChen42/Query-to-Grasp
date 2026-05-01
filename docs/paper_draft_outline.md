@@ -1159,9 +1159,9 @@ detector, fusion weights, controller timing, or benchmark claims:
 7. ICRA/IROS-style LaTeX draft v0.1 now lives in `paper/main.tex`, with
    first-pass BibTeX in `paper/references.bib` and structural checks in
    `scripts/check_paper_latex.py`.
-8. Next writing task: verify exact BibTeX metadata from primary sources,
-   tighten the LaTeX draft to the target page budget, and replace figure/table
-   placeholders with final camera-ready assets.
+8. Next writing task: tighten the LaTeX draft to the target page budget,
+   convert the remaining result/failure-analysis material into final figures,
+   and polish captions around the frozen target-source table.
 
 ## Video/Figure Evidence Plan
 
@@ -1189,13 +1189,15 @@ Generated video-pack files are supplemental artifacts and should remain
 untracked under `outputs/`. If local media are missing, only recapture the
 listed representative seeds; do not rerun 50-seed benchmarks for video.
 
-The first assembled conference supplemental video should be built from
+The frozen conference supplemental video is built from native ManiSkill RGB
+execution captures: the demo recapture requests `sensor_configs` with
+`width = 720` and `height = 720`, then assembles a `1920x1080` video from
 `outputs/demo_video_pack_latest/manifest.json` into
 `outputs/supplemental_video_latest`. It is a presentation artifact, not a new
-experiment: captions must explicitly name `memory_grasp_world_xyz` for the
-PickCube executable-target result, `oracle_cubeB_pose` for the StackCube
-query-pick plus oracle-place bridge, and the closed-loop StackCube clips as a
-diagnostic limitation rather than a universal manipulation improvement.
+experiment: captions explicitly name `memory_grasp_world_xyz` for the PickCube
+executable-target result, `oracle_cubeB_pose` for the StackCube query-pick plus
+oracle-place bridge, and the closed-loop StackCube clips as a diagnostic
+limitation rather than a universal manipulation improvement.
 
 ## Submission Readiness Freeze
 
@@ -1203,6 +1205,7 @@ Core functionality is frozen for the simulated IROS/ICRA v1. The submission
 package should now be checked with `scripts/audit_paper_submission_package.py`,
 which regenerates the final main results table and verifies required artifacts,
 key accepted metrics, and unsupported-claim boundaries. Any future technical
-milestone such as non-oracle placement targets or action-phase video capture
-should be treated as a stretch branch, not as a requirement for the current
-paper freeze.
+milestone such as non-oracle placement targets should be treated as a stretch
+branch, not as a requirement for the current paper freeze. The current
+paper-preparation focus is LaTeX page-budget editing, final figure rendering,
+and camera-ready citation cleanup.

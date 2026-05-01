@@ -214,6 +214,22 @@ DEFAULT_ARTIFACTS = (
         caption="Maintenance notes and structural-check commands for the LaTeX paper scaffold.",
     ),
     ArtifactSpec(
+        label="paper_pipeline_overview_figure",
+        source_path=Path("paper/figures/pipeline_overview.pdf"),
+        category="paper",
+        caption=(
+            "Camera-ready pipeline overview figure used by the LaTeX draft."
+        ),
+    ),
+    ArtifactSpec(
+        label="paper_geometry_memory_ablation_figure",
+        source_path=Path("paper/figures/geometry_memory_ablation.pdf"),
+        category="paper",
+        caption=(
+            "Camera-ready geometry and memory ablation figure used by the LaTeX draft."
+        ),
+    ),
+    ArtifactSpec(
         label="fused_memory_grasp_targeted_summary",
         source_path=Path(
             "outputs/h200_60071_multiview_memory_grasp_point_targeted/"

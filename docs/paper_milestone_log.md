@@ -1388,6 +1388,22 @@ Supplemental video assembly checkpoint:
 | `outputs/supplemental_video_latest/query_to_grasp_supplemental_video.mp4` | generated artifact | Presentation-only MP4 derived from accepted representative demo captures; not a new benchmark result. |
 | `outputs/supplemental_video_latest/storyboard.md` | generated artifact | Segment-by-segment captions and claim-boundary notes for paper submission packaging. |
 
+Native-resolution supplemental video freeze:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `scripts/run_demo_execution_capture_pack.py` | updated | Recaptures the six representative stories with ManiSkill `sensor_configs` requesting native `720x720` RGB and writes `1920x1080` execution videos. |
+| `outputs/h200_60071_demo_execution_capture_native720_latest` | generated artifact | All six representative stories completed with `source_resolutions = [[720, 720]]`, `output_resolutions = [[1920, 1080]]`, and `status = ok`. |
+| `outputs/demo_video_pack_latest` and `outputs/supplemental_video_latest` | generated artifacts | Now serve as the frozen conference-video sources; earlier 128x128 letterbox-only recaptures are historical artifacts and should not be cited as the submission video. |
+
+Camera-ready figure checkpoint:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `scripts/generate_paper_figures.py` | added | Generates the first tracked PDF/PNG figures for the LaTeX draft without depending on generated `outputs/` at compile time. |
+| `paper/figures/pipeline_overview.pdf` | added | Replaces the pipeline placeholder with a compact language-to-3D-action-target system diagram. |
+| `paper/figures/geometry_memory_ablation.pdf` | added | Replaces the geometry placeholder with the accepted camera-frame alignment and memory-fragmentation diagnostic. |
+
 Submission-readiness audit checkpoint:
 
 | artifact | status | notes |

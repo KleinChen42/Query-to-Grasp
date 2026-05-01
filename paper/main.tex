@@ -171,8 +171,7 @@ while \texttt{task\_success} is the raw ManiSkill task success flag.
 
 \begin{figure}[t]
 \centering
-\fbox{\parbox{0.92\linewidth}{Fig.~1 placeholder. Pipeline diagram from
-\texttt{outputs/paper\_figure\_pack\_latest/notes/implemented\_architecture.md}.}}
+\includegraphics[width=\linewidth]{figures/pipeline_overview.pdf}
 \caption{Query-to-Grasp pipeline: language query, RGB-D grounding, 3D lifting,
 multi-view memory, re-observation diagnostics, and optional simulated pick
 execution.}
@@ -210,19 +209,19 @@ paper draft. The StackCube bridge uses query-derived cubeA targets and a
 privileged oracle cubeB placement target; oracle pick-place is fully
 privileged.}
 \label{tab:target-source}
-\begin{tabular}{llrrrrl}
+\begin{tabular}{llrrrrrl}
 \toprule
-Benchmark & Environment & Runs & Failed & Pick success & Task success & Effective target source \\
+Benchmark & Environment & Runs & Failed & Pick & Place & Task & Effective target source \\
 \midrule
-Full multi-view/closed-loop & \texttt{PickCube-v1} & 55 & 0 & 1.0000 & 0.1455 & \texttt{memory\_grasp\_world\_xyz} \\
-Expanded tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
-Expanded closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
-Query-pick/oracle-place single-view & \texttt{StackCube-v1} & 50 & 0 & 0.8800 & 0.7200 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
-Query-pick/oracle-place tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & 0.5200 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
-Query-pick/oracle-place closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & 0.4800 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
-Oracle pick & \texttt{PickCube-v1} & 50 & 0 & 1.0000 & 0.0400 & \texttt{oracle\_object\_pose} \\
-Oracle pick & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.0000 & \texttt{oracle\_object\_pose} \\
-Oracle pick-place & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.8800 & \texttt{oracle\_cubeA\_pose}\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
+Full multi-view/closed-loop & \texttt{PickCube-v1} & 55 & 0 & 1.0000 & n/a & 0.1455 & \texttt{memory\_grasp\_world\_xyz} \\
+Expanded tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & n/a & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
+Expanded closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & n/a & 0.0000 & \texttt{task\_guard\_selected\_object\_world\_xyz} \\
+Query-pick/oracle-place single-view & \texttt{StackCube-v1} & 50 & 0 & 0.8800 & 0.7200 & 0.7200 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
+Query-pick/oracle-place tabletop & \texttt{StackCube-v1} & 50 & 0 & 0.6200 & 0.5200 & 0.5200 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
+Query-pick/oracle-place closed-loop & \texttt{StackCube-v1} & 50 & 0 & 0.5200 & 0.4800 & 0.4800 & query target\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
+Oracle pick & \texttt{PickCube-v1} & 50 & 0 & 1.0000 & n/a & 0.0400 & \texttt{oracle\_object\_pose} \\
+Oracle pick & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & n/a & 0.0000 & \texttt{oracle\_object\_pose} \\
+Oracle pick-place & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.8800 & 0.8800 & \texttt{oracle\_cubeA\_pose}\,$\rightarrow$\,\texttt{oracle\_cubeB\_pose} \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -247,9 +246,7 @@ should use the geometry reports from the paper pack to visualize this change.
 
 \begin{figure}[t]
 \centering
-\fbox{\parbox{0.92\linewidth}{Fig.~2 placeholder. Camera-convention and
-cross-view geometry reports from
-\texttt{outputs/paper\_figure\_pack\_latest/geometry/}.}}
+\includegraphics[width=\linewidth]{figures/geometry_memory_ablation.pdf}
 \caption{Correcting the camera convention turns multi-view coordinates from a
 dominant failure mode into a usable object-memory signal.}
 \label{fig:geometry}
@@ -327,19 +324,26 @@ python scripts/build_paper_figure_pack.py \
   --skip-missing
 \end{verbatim}
 
-The supplemental-video planning pack is generated with:
+The native-resolution supplemental demo captures are generated with:
 \begin{verbatim}
-python scripts/build_demo_video_pack.py \
-  --output-dir outputs/demo_video_pack_latest \
-  --skip-missing
+python scripts/run_demo_execution_capture_pack.py \
+  --output-dir outputs/h200_60071_demo_execution_capture_native720_latest \
+  --demo-pack-output-dir outputs/demo_video_pack_latest \
+  --sensor-width 720 --sensor-height 720 \
+  --width 1920 --height 1080
 \end{verbatim}
 
 The conference supplemental video storyboard and MP4 are assembled with:
 \begin{verbatim}
 python scripts/build_supplemental_video.py \
   --input outputs/demo_video_pack_latest/manifest.json \
-  --output-dir outputs/supplemental_video_latest
+  --output-dir outputs/supplemental_video_latest \
+  --width 1920 --height 1080
 \end{verbatim}
+
+The six supplemental clips are presentation artifacts. Their execution-video
+metadata records native ManiSkill RGB source frames of \texttt{720x720} and a
+letterboxed \texttt{1920x1080} output video.
 
 The final submission-readiness audit and frozen main table are generated with:
 \begin{verbatim}
@@ -361,6 +365,7 @@ The main benchmark artifacts referenced by this draft are:
   \item \texttt{outputs/h200\_60071\_oracle\_pick\_ablation}
   \item \texttt{outputs/h200\_60071\_oracle\_stackcube\_place\_seed0\_49}
   \item \texttt{outputs/h200\_60071\_query\_stackcube\_place\_bridge\_seed0\_49}
+  \item \texttt{outputs/h200\_60071\_demo\_execution\_capture\_native720\_latest}
   \item \texttt{outputs/demo\_video\_pack\_latest}
   \item \texttt{outputs/supplemental\_video\_latest}
   \item \texttt{outputs/paper\_submission\_audit\_latest}

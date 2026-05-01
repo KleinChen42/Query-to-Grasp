@@ -47,6 +47,8 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "paper_latex_main" in labels
     assert "paper_latex_references" in labels
     assert "paper_latex_readme" in labels
+    assert "paper_pipeline_overview_figure" in labels
+    assert "paper_geometry_memory_ablation_figure" in labels
     assert "fused_memory_grasp_targeted_summary" in labels
     assert "fused_memory_grasp_ablation_no_clip" in labels
     assert "fused_memory_grasp_ablation_closed_loop" in labels
