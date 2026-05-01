@@ -507,6 +507,33 @@ DEFAULT_ARTIFACTS = (
             "when local media artifacts are unavailable."
         ),
     ),
+    ArtifactSpec(
+        label="supplemental_video_storyboard",
+        source_path=Path("outputs/supplemental_video_latest/storyboard.md"),
+        category="video",
+        caption=(
+            "IROS/ICRA-style supplemental video storyboard assembled from representative "
+            "PickCube and StackCube demo captures."
+        ),
+    ),
+    ArtifactSpec(
+        label="supplemental_video_manifest",
+        source_path=Path("outputs/supplemental_video_latest/manifest.json"),
+        category="video",
+        caption=(
+            "Machine-readable supplemental-video manifest with segment timings, captions, "
+            "and claim-boundary metadata."
+        ),
+    ),
+    ArtifactSpec(
+        label="supplemental_video_captions",
+        source_path=Path("outputs/supplemental_video_latest/captions.json"),
+        category="video",
+        caption=(
+            "Per-segment supplemental-video captions, including target-source and "
+            "oracle-placement disclosure."
+        ),
+    ),
 )
 
 

@@ -1188,3 +1188,11 @@ The required supplemental-video stories are:
 Generated video-pack files are supplemental artifacts and should remain
 untracked under `outputs/`. If local media are missing, only recapture the
 listed representative seeds; do not rerun 50-seed benchmarks for video.
+
+The first assembled conference supplemental video should be built from
+`outputs/demo_video_pack_latest/manifest.json` into
+`outputs/supplemental_video_latest`. It is a presentation artifact, not a new
+experiment: captions must explicitly name `memory_grasp_world_xyz` for the
+PickCube executable-target result, `oracle_cubeB_pose` for the StackCube
+query-pick plus oracle-place bridge, and the closed-loop StackCube clips as a
+diagnostic limitation rather than a universal manipulation improvement.

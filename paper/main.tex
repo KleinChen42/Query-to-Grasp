@@ -334,6 +334,13 @@ python scripts/build_demo_video_pack.py \
   --skip-missing
 \end{verbatim}
 
+The conference supplemental video storyboard and MP4 are assembled with:
+\begin{verbatim}
+python scripts/build_supplemental_video.py \
+  --input outputs/demo_video_pack_latest/manifest.json \
+  --output-dir outputs/supplemental_video_latest
+\end{verbatim}
+
 The LaTeX structure check is:
 \begin{verbatim}
 python scripts/check_paper_latex.py \
@@ -349,6 +356,7 @@ The main benchmark artifacts referenced by this draft are:
   \item \texttt{outputs/h200\_60071\_oracle\_stackcube\_place\_seed0\_49}
   \item \texttt{outputs/h200\_60071\_query\_stackcube\_place\_bridge\_seed0\_49}
   \item \texttt{outputs/demo\_video\_pack\_latest}
+  \item \texttt{outputs/supplemental\_video\_latest}
   \item \texttt{outputs/paper\_figure\_pack\_latest}
 \end{itemize}
 

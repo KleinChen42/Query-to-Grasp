@@ -1379,3 +1379,11 @@ conference-paper v1 and shifts the next work to camera-ready evidence:
 representative videos, final figure assets, citation verification, and
 LaTeX tightening. Video recapture should be limited to the selected seeds in
 the demo pack; it should not create new benchmark claims.
+
+Supplemental video assembly checkpoint:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `scripts/build_supplemental_video.py` | added | Assembles the six H200 demo story clips into a 60-90 second IROS/ICRA-style supplemental video with title cards, captions, and claim-boundary metadata. |
+| `outputs/supplemental_video_latest/query_to_grasp_supplemental_video.mp4` | generated artifact | Presentation-only MP4 derived from accepted representative demo captures; not a new benchmark result. |
+| `outputs/supplemental_video_latest/storyboard.md` | generated artifact | Segment-by-segment captions and claim-boundary notes for paper submission packaging. |
