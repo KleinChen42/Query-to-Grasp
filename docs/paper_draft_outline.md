@@ -2,7 +2,7 @@
 
 Working title:
 
-`Query-to-Grasp: From Open-Vocabulary RGB-D Retrieval to Graspable 3D Action Targets`
+`Query-to-Grasp: Diagnosing the Retrieval-to-Execution Gap in Open-Vocabulary RGB-D Manipulation`
 
 ## Current Claim
 
@@ -1156,12 +1156,13 @@ detector, fusion weights, controller timing, or benchmark claims:
 6. Manuscript draft v0.2 now includes a related-work scaffold, figure/table
    callouts, and conference-style result framing; the citation buckets are
    tracked in `docs/paper_related_work_citation_plan.md`.
-7. ICRA/IROS-style LaTeX draft v0.1 now lives in `paper/main.tex`, with
-   first-pass BibTeX in `paper/references.bib` and structural checks in
+7. IEEEtran conference-style LaTeX draft v0.1 now lives in `paper/main.tex`,
+   with the provided `IEEEtran.cls`, first-pass BibTeX in
+   `paper/references.bib`, and structural checks in
    `scripts/check_paper_latex.py`.
 8. Next writing task: tighten the LaTeX draft to the target page budget,
-   convert the remaining result/failure-analysis material into final figures,
-   and polish captions around the frozen target-source table.
+   polish final captions around the frozen target-source and failure-taxonomy
+   figures, and complete citation cleanup.
 
 ## Video/Figure Evidence Plan
 
@@ -1208,4 +1209,4 @@ key accepted metrics, and unsupported-claim boundaries. Any future technical
 milestone such as non-oracle placement targets should be treated as a stretch
 branch, not as a requirement for the current paper freeze. The current
 paper-preparation focus is LaTeX page-budget editing, final figure rendering,
-and camera-ready citation cleanup.
+caption polish, and camera-ready citation cleanup.

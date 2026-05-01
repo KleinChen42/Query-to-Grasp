@@ -6,6 +6,7 @@ Query-to-Grasp H200-scale simulated manipulation paper.
 ## Files
 
 - `main.tex`: compact conference-style manuscript scaffold.
+- `IEEEtran.cls`: IEEE conference class file copied from the provided template.
 - `references.bib`: first-pass BibTeX scaffold for the related-work buckets.
 - `README.md`: notes for maintaining and checking the paper source.
 
@@ -27,16 +28,17 @@ such as real-robot success or StackCube task completion.
 If a TeX toolchain is installed:
 
 ```bash
-latexmk -pdf paper/main.tex
+latexmk -pdf -cd paper/main.tex
 ```
 
 or:
 
 ```bash
-pdflatex paper/main.tex
+cd paper
+pdflatex main
 bibtex main
-pdflatex paper/main.tex
-pdflatex paper/main.tex
+pdflatex main
+pdflatex main
 ```
 
 Compilation is optional for this scaffold checkpoint; the required acceptance

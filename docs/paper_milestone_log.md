@@ -11,7 +11,7 @@ committed.
 
 Working title:
 
-`Query-to-Grasp via Confidence-Aware 3D Semantic Fusion`
+`Query-to-Grasp: Diagnosing the Retrieval-to-Execution Gap in Open-Vocabulary RGB-D Manipulation`
 
 Current evidence supports the following narrower near-term claim:
 
@@ -1362,7 +1362,8 @@ Latest conference-format writing checkpoint:
 
 | artifact | status | notes |
 | --- | --- | --- |
-| `paper/main.tex` | drafted | ICRA/IROS-style LaTeX v0.1 with abstract, method, experiments, results, limitations, conclusion, and reproducibility appendix notes. |
+| `paper/main.tex` | drafted | IEEEtran conference-format LaTeX v0.1 with abstract, keywords, method, experiments, results, limitations, conclusion, and reproducibility appendix notes. |
+| `paper/IEEEtran.cls` | added | IEEE conference class copied from the provided template so the paper directory can compile independently. |
 | `paper/references.bib` | scaffolded | Core citation buckets for CLIP, GroundingDINO, CLIPort, PerAct, SayCan, VIMA, RT-1/RT-2, and ManiSkill; exact metadata still needs final primary-source verification. |
 | `scripts/check_paper_latex.py` | added | Structural guard that checks required sections, current key metrics, artifact references, and unsupported real-robot / StackCube completion claims. |
 
@@ -1403,6 +1404,8 @@ Camera-ready figure checkpoint:
 | `scripts/generate_paper_figures.py` | added | Generates the first tracked PDF/PNG figures for the LaTeX draft without depending on generated `outputs/` at compile time. |
 | `paper/figures/pipeline_overview.pdf` | added | Replaces the pipeline placeholder with a compact language-to-3D-action-target system diagram. |
 | `paper/figures/geometry_memory_ablation.pdf` | added | Replaces the geometry placeholder with the accepted camera-frame alignment and memory-fragmentation diagnostic. |
+| `paper/figures/target_source_results.pdf` | added | Converts the frozen main target-source table into a camera-ready manipulation-result figure for the Results section. |
+| `paper/figures/stackcube_failure_taxonomy.pdf` | added | Converts the expanded StackCube failure report into a camera-ready limitation figure for the Results and Limitations narrative. |
 
 Submission-readiness audit checkpoint:
 

@@ -4,10 +4,15 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{booktabs}
+\usepackage{cite}
 \usepackage{graphicx}
+\usepackage{textcomp}
 \usepackage{url}
+\usepackage{xcolor}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
-\title{Query-to-Grasp: Language-Queryable RGB-D Retrieval, Multi-View Memory, and H200-Scale Simulated Manipulation in ManiSkill}
+\title{Query-to-Grasp: Diagnosing the Retrieval-to-Execution Gap in Open-Vocabulary RGB-D Manipulation}
 
 \author{\IEEEauthorblockN{Anonymous Authors}
 \IEEEauthorblockA{Paper draft scaffold for internal development}}
@@ -19,7 +24,7 @@
 Language-conditioned manipulation systems need more than a 2D language
 grounding result: they need a 3D target that is geometrically consistent,
 diagnosable under ambiguity, and usable by an action executor. We present
-Query-to-Grasp, a modular H200-validated ManiSkill prototype for
+Query-to-Grasp, a modular high-fidelity ManiSkill prototype for
 language-queryable RGB-D target retrieval, multi-view object memory,
 confidence-aware re-observation diagnostics, and opt-in simulated manipulation
 evaluation. The system connects
@@ -41,6 +46,11 @@ support Query-to-Grasp as a reproducible diagnostic baseline for studying the
 gap between open-vocabulary RGB-D retrieval, executable simulated targets, and
 task-level manipulation outcomes.
 \end{abstract}
+
+\begin{IEEEkeywords}
+Open-vocabulary manipulation, RGB-D perception, multi-view object memory,
+language-conditioned manipulation, simulated grasping, diagnostic evaluation.
+\end{IEEEkeywords}
 
 \section{Introduction}
 
@@ -196,7 +206,8 @@ closed-loop resolution, and still-needed rate. Control metrics include
 \texttt{place\_success\_rate}, \texttt{task\_success\_rate}, and stage counts.
 
 The main paper artifacts are collected in \texttt{outputs/paper\_figure\_pack\_latest}.
-Table~\ref{tab:target-source} summarizes the final target-source results.
+Table~\ref{tab:target-source} and Fig.~\ref{fig:target-source-results}
+summarize the final target-source results.
 Additional reports include the single-view ablation table, corrected geometry
 reports, full PickCube grasp comparison, StackCube expanded failure report,
 oracle target-source comparison, and the accepted query-driven StackCube
@@ -226,6 +237,16 @@ Oracle pick-place & \texttt{StackCube-v1} & 50 & 0 & 0.9400 & 0.8800 & 0.8800 & 
 \end{tabular}
 \end{table*}
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/target_source_results.pdf}
+\caption{Frozen target-source comparison for the paper. PickCube demonstrates
+that fused memory grasp points can be executed reliably, while StackCube
+separates pick-only transfer, privileged oracle pick-place, and the
+query-pick/oracle-place bridge.}
+\label{fig:target-source-results}
+\end{figure*}
+
 \section{Results}
 
 \subsection{Grounding and Reranking Baseline}
@@ -242,7 +263,7 @@ The OpenCV-to-OpenGL camera-convention correction is the first critical
 systems result. After the correction, same-label cross-view spread drops from
 \texttt{1.0693 m} to \texttt{0.0518 m}, and memory fragmentation drops from
 \texttt{3.3333} to \texttt{1.3333} objects per run. Fig.~\ref{fig:geometry}
-should use the geometry reports from the paper pack to visualize this change.
+visualizes this change.
 
 \begin{figure}[t]
 \centering
@@ -282,7 +303,18 @@ fused grasp observations, memory fragmentation or low support, controller or
 contact residuals, and closed-loop third-object absorption. This supports a
 conservative interpretation: re-observation is useful for diagnosis and can
 resolve selection uncertainty, but it is not automatically a grasp-success
-improvement.
+improvement. Fig.~\ref{fig:stackcube-failures} summarizes the expanded
+50-seed failure taxonomy.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/stackcube_failure_taxonomy.pdf}
+\caption{Expanded StackCube failure taxonomy. Closed-loop re-observation
+introduces additional association failures even when uncertainty diagnostics
+improve, so lower ambiguity does not automatically imply higher manipulation
+success.}
+\label{fig:stackcube-failures}
+\end{figure}
 
 \section{Limitations}
 

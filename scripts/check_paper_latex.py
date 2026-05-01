@@ -21,6 +21,8 @@ REQUIRED_SECTIONS = (
 REQUIRED_METRICS = ("1.0000", "0.6200", "0.5200", "0.9400", "0.0000")
 
 REQUIRED_TERMS = (
+    "\\documentclass[conference]{IEEEtran}",
+    "\\begin{IEEEkeywords}",
     "PickCube-v1",
     "StackCube-v1",
     "task\\_success",

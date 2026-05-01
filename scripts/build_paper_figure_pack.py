@@ -198,6 +198,15 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="paper_latex_ieeetran_class",
+        source_path=Path("paper/IEEEtran.cls"),
+        category="paper",
+        caption=(
+            "IEEE conference LaTeX class bundled with the paper source for "
+            "reproducible local compilation."
+        ),
+    ),
+    ArtifactSpec(
         label="paper_latex_references",
         source_path=Path("paper/references.bib"),
         category="paper",
@@ -227,6 +236,22 @@ DEFAULT_ARTIFACTS = (
         category="paper",
         caption=(
             "Camera-ready geometry and memory ablation figure used by the LaTeX draft."
+        ),
+    ),
+    ArtifactSpec(
+        label="paper_target_source_results_figure",
+        source_path=Path("paper/figures/target_source_results.pdf"),
+        category="paper",
+        caption=(
+            "Camera-ready target-source manipulation result figure used by the LaTeX draft."
+        ),
+    ),
+    ArtifactSpec(
+        label="paper_stackcube_failure_taxonomy_figure",
+        source_path=Path("paper/figures/stackcube_failure_taxonomy.pdf"),
+        category="paper",
+        caption=(
+            "Camera-ready StackCube expanded failure taxonomy figure used by the LaTeX draft."
         ),
     ),
     ArtifactSpec(

@@ -20,12 +20,14 @@ def main() -> int:
 
 
 def generate_paper_figures(output_dir: Path) -> None:
-    """Generate the current paper's static overview and geometry figures."""
+    """Generate the current paper's static overview, result, and diagnostic figures."""
 
     output_dir.mkdir(parents=True, exist_ok=True)
     plt = _import_matplotlib()
     draw_pipeline_overview(plt, output_dir=output_dir)
     draw_geometry_memory_ablation(plt, output_dir=output_dir)
+    draw_target_source_results(plt, output_dir=output_dir)
+    draw_stackcube_failure_taxonomy(plt, output_dir=output_dir)
 
 
 def draw_pipeline_overview(plt, output_dir: Path) -> None:
@@ -123,6 +125,106 @@ def draw_geometry_memory_ablation(plt, output_dir: Path) -> None:
     )
     fig.tight_layout(rect=[0.02, 0.07, 0.98, 0.93])
     save_figure(fig, output_dir / "geometry_memory_ablation")
+
+
+def draw_target_source_results(plt, output_dir: Path) -> None:
+    """Draw the frozen target-source result summary for the main paper."""
+
+    rows = [
+        ("PickCube\nfull MV/CL", 1.00, None, 0.1455, "#2563eb"),
+        ("StackCube\npick-only tabletop", 0.62, None, 0.00, "#0f766e"),
+        ("StackCube\npick-only CL", 0.52, None, 0.00, "#0f766e"),
+        ("Oracle\npick-place", 0.94, 0.88, 0.88, "#7c3aed"),
+        ("Query pick +\noracle place\nsingle-view", 0.88, 0.72, 0.72, "#ea580c"),
+        ("Query pick +\noracle place\ntabletop", 0.62, 0.52, 0.52, "#ea580c"),
+        ("Query pick +\noracle place\nclosed-loop", 0.52, 0.48, 0.48, "#ea580c"),
+    ]
+
+    fig, ax = plt.subplots(figsize=(7.4, 3.5))
+    labels = [row[0] for row in rows]
+    y_positions = list(range(len(rows)))
+    bar_height = 0.22
+
+    pick_values = [row[1] for row in rows]
+    place_values = [0.0 if row[2] is None else row[2] for row in rows]
+    task_values = [row[3] for row in rows]
+
+    ax.barh([y + bar_height for y in y_positions], pick_values, height=bar_height, color="#2563eb", label="Pick")
+    ax.barh(y_positions, place_values, height=bar_height, color="#16a34a", label="Place")
+    ax.barh([y - bar_height for y in y_positions], task_values, height=bar_height, color="#f97316", label="Task")
+
+    for y, pick, place, task in zip(y_positions, pick_values, [row[2] for row in rows], task_values):
+        ax.text(pick + 0.018, y + bar_height, f"{pick:.2f}", va="center", fontsize=7.5, color="#1e293b")
+        if place is not None:
+            ax.text(place + 0.018, y, f"{place:.2f}", va="center", fontsize=7.5, color="#1e293b")
+        else:
+            ax.text(0.018, y, "n/a", va="center", fontsize=7.2, color="#64748b")
+        ax.text(task + 0.018, y - bar_height, f"{task:.2f}", va="center", fontsize=7.5, color="#1e293b")
+
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(labels, fontsize=7.5)
+    ax.set_xlim(0, 1.12)
+    ax.set_xlabel("Success rate", fontsize=8.5)
+    ax.set_title("Target-source quality determines executable manipulation success", fontsize=10.5)
+    ax.grid(axis="x", linestyle=":", linewidth=0.7, alpha=0.55)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(loc="lower right", fontsize=7.5, frameon=False)
+    ax.invert_yaxis()
+    fig.text(
+        0.5,
+        0.02,
+        "Frozen paper rows: PickCube uses memory grasp targets; StackCube bridge uses query pick with oracle cubeB placement.",
+        ha="center",
+        fontsize=7.6,
+        color="#475569",
+    )
+    fig.tight_layout(rect=[0.02, 0.07, 0.98, 0.96])
+    save_figure(fig, output_dir / "target_source_results")
+
+
+def draw_stackcube_failure_taxonomy(plt, output_dir: Path) -> None:
+    """Draw the expanded StackCube failure taxonomy used in the limitation section."""
+
+    benchmarks = [
+        ("Tabletop\nno CLIP", {"Wrong fused\ngrip obs.": 14, "Memory /\nlow support": 5, "Third-object\nabsorption": 0, "Controller /\ncontact": 0}),
+        ("Tabletop\nwith CLIP", {"Wrong fused\ngrip obs.": 14, "Memory /\nlow support": 5, "Third-object\nabsorption": 0, "Controller /\ncontact": 0}),
+        ("Closed-loop\nno CLIP", {"Wrong fused\ngrip obs.": 8, "Memory /\nlow support": 0, "Third-object\nabsorption": 11, "Controller /\ncontact": 5}),
+        ("Closed-loop\nwith CLIP", {"Wrong fused\ngrip obs.": 8, "Memory /\nlow support": 1, "Third-object\nabsorption": 10, "Controller /\ncontact": 5}),
+    ]
+    categories = ["Wrong fused\ngrip obs.", "Memory /\nlow support", "Third-object\nabsorption", "Controller /\ncontact"]
+    colors = {
+        "Wrong fused\ngrip obs.": "#dc2626",
+        "Memory /\nlow support": "#f59e0b",
+        "Third-object\nabsorption": "#7c3aed",
+        "Controller /\ncontact": "#64748b",
+    }
+
+    fig, ax = plt.subplots(figsize=(7.1, 3.25))
+    y_positions = list(range(len(benchmarks)))
+    left = [0] * len(benchmarks)
+
+    for category in categories:
+        values = [counts[category] for _, counts in benchmarks]
+        bars = ax.barh(y_positions, values, left=left, color=colors[category], label=category, height=0.58)
+        for bar, value, base in zip(bars, values, left):
+            if value > 0:
+                ax.text(base + value / 2, bar.get_y() + bar.get_height() / 2, str(value), ha="center", va="center", fontsize=7.5, color="white")
+        left = [base + value for base, value in zip(left, values)]
+
+    for y, total in zip(y_positions, left):
+        ax.text(total + 0.45, y, f"{total} failures", va="center", fontsize=7.6, color="#334155")
+
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels([label for label, _ in benchmarks], fontsize=8)
+    ax.set_xlabel("Failure count over 50 seeds", fontsize=8.5)
+    ax.set_title("StackCube exposes target-source and association limitations", fontsize=10.5)
+    ax.set_xlim(0, max(left) + 5)
+    ax.grid(axis="x", linestyle=":", linewidth=0.7, alpha=0.55)
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=4, fontsize=7.2, frameon=False)
+    ax.invert_yaxis()
+    fig.tight_layout(rect=[0.02, 0.12, 0.98, 0.97])
+    save_figure(fig, output_dir / "stackcube_failure_taxonomy")
 
 
 def save_figure(fig, stem: Path) -> None:
