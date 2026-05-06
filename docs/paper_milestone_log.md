@@ -1447,3 +1447,61 @@ Execution evidence figure and metadata correction checkpoint:
 This checkpoint improves paper presentation without changing benchmark metrics:
 the execution montage and supplemental video remain representative
 visualizations, while Table I remains the source of quantitative claims.
+
+500-seed predicted-place result freeze (2026-05-06):
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `outputs/h200_60071_predicted_place_object_seed0_199/` | pulled | 200-seed refined predicted-place (5 modes: single/tabletop/closed-loop × no-CLIP/with-CLIP) |
+| `outputs/h200_60071_predicted_place_object_single_no_clip_seed200_499/` | pulled | 300-seed extension for single-view no-CLIP |
+| `outputs/h200_60071_predicted_place_object_tabletop_no_clip_seed200_499/` | pulled | 300-seed extension for tabletop no-CLIP |
+| `outputs/h200_60071_predicted_place_object_closed_loop_no_clip_seed200_499/` | pulled | 300-seed extension for closed-loop no-CLIP |
+| `outputs/h200_60071_stackcube_semantic_predicted_place_*_seed0_199/` | pulled | 200-seed semantic-center baseline (3 modes) |
+| `outputs/h200_60071_predicted_place_broad_cube_seed0_199_v2/` | previously pulled | 200-seed broad `cube` specificity ablation (4 modes) |
+| `outputs/h200_60071_predicted_place_object_closed_loop_with_clip_seed0_199/` | previously pulled | 200-seed closed-loop with-CLIP |
+
+Merged 500-seed refined predicted-place results (no-CLIP, `green cube` explicit query):
+
+| mode | seeds | pick success | place attempted | place success | task success |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| single-view | 500 | 363/500 = 0.726 | 410/500 = 0.820 | 276/500 = 0.552 | 276/500 = 0.552 |
+| tabletop multi-view | 500 | 279/500 = 0.558 | 476/500 = 0.952 | 236/500 = 0.472 | 236/500 = 0.472 |
+| closed-loop | 500 | 267/500 = 0.534 | 466/500 = 0.932 | 223/500 = 0.446 | 223/500 = 0.446 |
+
+Semantic-center baseline (200 seeds, no-CLIP):
+
+| mode | runs | pick | place | task |
+| --- | ---: | ---: | ---: | ---: |
+| single-view | 200 | 0.745 | 0.565 | 0.565 |
+| tabletop | 200 | 0.520 | 0.435 | 0.435 |
+| closed-loop | 200 | 0.510 | 0.420 | 0.420 |
+
+Broad `cube` vs explicit `green cube` specificity ablation (200 seeds, no-CLIP):
+
+| mode | explicit task | broad task | delta |
+| --- | ---: | ---: | ---: |
+| single | 0.585 | 0.360 | -0.225 |
+| tabletop | 0.435 | 0.305 | -0.130 |
+| closed-loop | 0.420 | 0.290 | -0.130 |
+
+Task-diversity target-source formation (H200, 200 seeds):
+
+| env | detection rate | 3D target rate | note |
+| --- | ---: | ---: | --- |
+| PushCube-v1 | 1.000 | 1.000 | Target-source formation successful |
+| LiftPegUpright-v1 | 1.000 | 1.000 | Placeholder only; sim_topdown not compatible |
+| PegInsertionSide-v1 | 1.000 | 1.000 | Placeholder only; sim_topdown not compatible |
+| StackPyramid-v1 | 0.970 | 0.970 | 6/200 runs no detection |
+
+Architecture and roadmap document upgrade:
+
+| artifact | status | notes |
+| --- | --- | --- |
+| `docs/architecture_query_to_grasp.md` | upgraded | Pipeline diagram now includes sim_topdown, sim_pick_place, oracle and predicted place paths. Implemented Modes table expanded. Target-source ladder concept added. Evidence path updated through 500-seed predicted-place. Non-claims updated. |
+| `docs/iros_icra_full_paper_upgrade_roadmap.md` | upgraded | 50-seed "pending" table replaced with 500-seed frozen results. CLIP ablation, place-query specificity ablation, and task-diversity tables added. Engineering priorities and milestones marked done. |
+
+This checkpoint freezes the H200 result data. All 14 predicted-place benchmark
+runs have 0 failures. The 500-seed merge has been verified with consistent
+denominators. The target-source ladder table is ready for paper integration.
+Next work should focus on updating `paper/main.tex` with frozen 500-seed
+results and final LaTeX tightening.
