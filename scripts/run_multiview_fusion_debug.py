@@ -30,6 +30,7 @@ from src.memory.object_memory_3d import (  # noqa: E402
     ObjectObservation3D,
 )
 from src.manipulation.oracle_targets import find_stackcube_oracle_place_xyz  # noqa: E402
+from src.manipulation.place_targets import PredictedPlaceTarget, select_memory_place_target  # noqa: E402
 from src.policy.reobserve_policy import ReobserveDecision, ReobservePolicyConfig, decide_reobserve  # noqa: E402
 from src.policy.target_selector import (  # noqa: E402
     apply_selection_continuity,
@@ -124,8 +125,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--place-target-source",
         default="none",
-        choices=["none", "oracle_cubeB_pose"],
+        choices=["none", "oracle_cubeB_pose", "predicted_place_object"],
         help="Optional place target source for sim_pick_place.",
+    )
+    parser.add_argument(
+        "--place-query",
+        default="cube",
+        help="Reference-object query used when --place-target-source predicted_place_object.",
+    )
+    parser.add_argument(
+        "--place-min-distance-from-pick",
+        type=float,
+        default=0.05,
+        help="Minimum XY distance between pick target and predicted place object.",
+    )
+    parser.add_argument(
+        "--place-target-z",
+        type=float,
+        default=0.02,
+        help="World-frame Z used for predicted StackCube place object centers.",
     )
     parser.add_argument("--camera-name", default=None, help="Camera key to extract or recapture for preset views.")
     parser.add_argument("--sensor-width", type=int, default=None, help="Optional ManiSkill RGB-D sensor width.")
@@ -248,6 +266,7 @@ def main() -> None:
             view_preset=args.view_preset,
             preset_camera_name=args.camera_name or "base_camera",
         )
+        all_frames = list(frames)
         view_results: list[dict[str, Any]] = []
         total_observations_added = 0
         for view_id, frame in frames:
@@ -324,6 +343,7 @@ def main() -> None:
             )
             for view_id, frame in extra_frames:
                 closed_loop_executed = True
+                all_frames.append((view_id, frame))
                 view_result = process_view(
                     args=args,
                     frame=frame,
@@ -441,7 +461,22 @@ def main() -> None:
         reobserve_decision_path = run_dir / "reobserve_decision.json"
         write_json(final_decision.to_json_dict(), reobserve_decision_path)
 
-        pick_result = execute_selected_memory_pick(scene=scene, selected=selected, args=args, run_dir=run_dir)
+        predicted_place_memory = None
+        predicted_place_view_results: list[dict[str, Any]] = []
+        if args.pick_executor == "sim_pick_place" and args.place_target_source == "predicted_place_object":
+            predicted_place_memory, predicted_place_view_results = build_predicted_place_memory(
+                args=args,
+                frames=all_frames,
+                run_dir=run_dir,
+            )
+
+        pick_result = execute_selected_memory_pick(
+            scene=scene,
+            selected=selected,
+            args=args,
+            run_dir=run_dir,
+            predicted_place_memory=predicted_place_memory,
+        )
         pick_result_path = run_dir / "pick_result.json"
         write_json(pick_result, pick_result_path)
 
@@ -461,6 +496,11 @@ def main() -> None:
         summary["selection_trace_md"] = str(selection_trace_md)
         summary["reobserve_decision_json"] = str(reobserve_decision_path)
         summary["pick_result_json"] = str(pick_result_path)
+        summary["place_query"] = getattr(args, "place_query", None)
+        summary["predicted_place_num_memory_objects"] = (
+            0 if predicted_place_memory is None else len(predicted_place_memory.objects)
+        )
+        summary["predicted_place_view_ids"] = [result["view_id"] for result in predicted_place_view_results]
         summary["should_reobserve"] = bool(final_decision.should_reobserve)
         summary["reobserve_reason"] = final_decision.reason
         summary["initial_should_reobserve"] = bool(initial_decision.should_reobserve)
@@ -747,6 +787,49 @@ def process_view(
     }
     write_json(result, view_dir / "view_result.json")
     return result
+
+
+def build_predicted_place_memory(
+    args: argparse.Namespace,
+    frames: Sequence[tuple[str, ObservationFrame]],
+    run_dir: Path,
+) -> tuple[ObjectMemory3D, list[dict[str, Any]]]:
+    """Build a separate memory from a reference-object place query."""
+
+    place_query = str(getattr(args, "place_query", "cube") or "cube")
+    parsed_place_query = parse_query(place_query, prefer_llm=args.prefer_llm_parser)
+    place_clip_prompts = build_clip_prompts(parsed_place_query)
+    place_memory = ObjectMemory3D(build_memory_config(args))
+    place_dir = run_dir / "place_target_prediction"
+    place_dir.mkdir(parents=True, exist_ok=True)
+    write_json(parsed_place_query, place_dir / "parsed_place_query.json")
+
+    place_view_results: list[dict[str, Any]] = []
+    for view_id, frame in frames:
+        place_view_id = f"place_{view_id}"
+        place_view_results.append(
+            process_view(
+                args=args,
+                frame=frame,
+                view_id=place_view_id,
+                parsed_query=parsed_place_query,
+                clip_prompts=place_clip_prompts,
+                memory=place_memory,
+                run_dir=place_dir,
+            )
+        )
+    write_json(
+        {
+            "place_target_source": "predicted_place_object",
+            "place_query": place_query,
+            "min_xy_distance_from_pick": float(getattr(args, "place_min_distance_from_pick", 0.05)),
+            "place_target_z": float(getattr(args, "place_target_z", 0.02)),
+            "memory": place_memory.to_json_dict(),
+            "views": place_view_results,
+        },
+        place_dir / "place_memory_state.json",
+    )
+    return place_memory, place_view_results
 
 
 def rank_view_candidates(
@@ -1265,6 +1348,7 @@ def execute_selected_memory_pick(
     selected: MemoryObject3D | None,
     args: argparse.Namespace,
     run_dir: Path | None = None,
+    predicted_place_memory: ObjectMemory3D | None = None,
 ) -> dict[str, Any]:
     """Execute the requested pick mode against the final selected memory object."""
 
@@ -1291,15 +1375,35 @@ def execute_selected_memory_pick(
             "pick_executor": getattr(args, "pick_executor", None),
             "target_source": target_source,
             "place_target_source": getattr(args, "place_target_source", "none"),
+            "place_query": getattr(args, "place_query", None),
             "view_preset": getattr(args, "view_preset", None),
             "closed_loop_reobserve_enabled": bool(getattr(args, "enable_closed_loop_reobserve", False)),
         },
     )
     step_callback = None if recorder is None else recorder.record_step
     if args.pick_executor == "sim_pick_place":
-        if getattr(args, "place_target_source", "none") != "oracle_cubeB_pose":
-            return _pick_not_attempted("sim_pick_place requires --place-target-source oracle_cubeB_pose.")
-        place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
+        place_source = getattr(args, "place_target_source", "none")
+        if place_source == "oracle_cubeB_pose":
+            place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
+        elif place_source == "predicted_place_object":
+            predicted_place_target = select_memory_place_target(
+                objects=[] if predicted_place_memory is None else predicted_place_memory.objects,
+                pick_xyz=target,
+                selected_pick_object_id=None,
+                min_xy_distance=float(getattr(args, "place_min_distance_from_pick", 0.05)),
+                place_query=getattr(args, "place_query", None),
+                place_target_z=float(getattr(args, "place_target_z", 0.02)),
+            )
+            if predicted_place_target is None:
+                return _pick_not_attempted(
+                    "sim_pick_place could not find a predicted place object far enough from the pick target."
+                )
+            place_xyz = predicted_place_target.place_xyz
+            place_metadata = dict(predicted_place_target.metadata)
+        else:
+            return _pick_not_attempted(
+                "sim_pick_place requires --place-target-source oracle_cubeB_pose or predicted_place_object."
+            )
         if step_callback is None:
             result = scene.execute_pick_place(pick_xyz=target, place_xyz=place_xyz)
         else:
@@ -1324,8 +1428,11 @@ def execute_selected_memory_pick(
             "grasp_target_mode": args.grasp_target_mode,
             "grasp_target_mode_effective": target_source,
             "place_target_source": getattr(args, "place_target_source", "none"),
+            "place_query": getattr(args, "place_query", None),
             "place_target_xyz": None if place_xyz is None else np.asarray(place_xyz, dtype=float).tolist(),
             "place_target_metadata": place_metadata,
+            "place_selection_reason": place_metadata.get("selection_reason"),
+            "place_pick_xy_distance": place_metadata.get("place_pick_xy_distance"),
             "refined_grasp_point_available": selected.grasp_world_xyz is not None,
             **target_diagnostics,
             "semantic_world_xyz": np.asarray(selected.world_xyz, dtype=float).tolist(),
@@ -1457,6 +1564,7 @@ def build_summary(
         "pick_executor": getattr(args, "pick_executor", "placeholder"),
         "grasp_target_mode": getattr(args, "grasp_target_mode", "semantic"),
         "place_target_source": pick_metadata.get("place_target_source", getattr(args, "place_target_source", "none")),
+        "place_query": pick_metadata.get("place_query", getattr(args, "place_query", None)),
         "view_ids": view_ids,
         "num_views": len(view_ids),
         "num_memory_objects": len(memory.objects),
@@ -1473,6 +1581,8 @@ def build_summary(
         "pick_target_xyz": pick_result.get("target_xyz", []),
         "pick_target_source": pick_metadata.get("target_used_for_pick"),
         "place_target_xyz": pick_result.get("place_xyz", pick_metadata.get("place_target_xyz", [])),
+        "place_selection_reason": pick_metadata.get("place_selection_reason"),
+        "place_pick_xy_distance": pick_metadata.get("place_pick_xy_distance"),
         "place_attempted": bool(pick_result.get("place_attempted", False)),
         "place_success": pick_result.get("place_success"),
         "place_message": pick_result.get("message") if pick_result.get("place_attempted") else None,

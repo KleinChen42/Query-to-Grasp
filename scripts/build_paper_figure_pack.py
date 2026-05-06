@@ -189,6 +189,15 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="iros_icra_upgrade_roadmap",
+        source_path=Path("docs/iros_icra_full_paper_upgrade_roadmap.md"),
+        category="notes",
+        caption=(
+            "IROS/ICRA full-paper upgrade roadmap reframing Query-to-Grasp as a "
+            "target-source diagnostic benchmark and listing the next validation milestones."
+        ),
+    ),
+    ArtifactSpec(
         label="paper_latex_main",
         source_path=Path("paper/main.tex"),
         category="paper",

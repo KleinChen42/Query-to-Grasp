@@ -21,6 +21,7 @@ from src.env.maniskill_env import ManiSkillScene  # noqa: E402
 from src.io.execution_video import ExecutionVideoRecorder  # noqa: E402
 from src.io.export_utils import export_observation_frame, write_json  # noqa: E402
 from src.manipulation.oracle_targets import find_stackcube_oracle_place_xyz  # noqa: E402
+from src.manipulation.place_targets import PredictedPlaceTarget, select_candidate_place_target  # noqa: E402
 from src.perception.clip_rerank import rerank_candidates_with_clip  # noqa: E402
 from src.perception.grounding_dino import detect_candidates  # noqa: E402
 from src.perception.mask_projector import Candidate3D, lift_box_to_3d  # noqa: E402
@@ -50,8 +51,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--place-target-source",
         default="none",
-        choices=["none", "oracle_cubeB_pose"],
+        choices=["none", "oracle_cubeB_pose", "predicted_place_object"],
         help="Optional place target source for sim_pick_place.",
+    )
+    parser.add_argument(
+        "--place-query",
+        default="cube",
+        help="Reference-object query used when --place-target-source predicted_place_object.",
+    )
+    parser.add_argument(
+        "--place-min-distance-from-pick",
+        type=float,
+        default=0.05,
+        help="Minimum XY distance between pick target and predicted place object.",
+    )
+    parser.add_argument(
+        "--place-target-z",
+        type=float,
+        default=0.02,
+        help="World-frame Z used for predicted StackCube place object centers.",
     )
     parser.add_argument("--camera-name", default=None, help="Optional camera key to prefer.")
     parser.add_argument("--sensor-width", type=int, default=None, help="Optional ManiSkill RGB-D sensor width.")
@@ -221,12 +239,21 @@ def main() -> None:
             elif args.pick_executor in {"sim_topdown", "sim_pick_place"} and coordinate_frame != "world":
                 pick_result = _pick_not_attempted("Simulated execution requires a world-frame target.")
             else:
+                predicted_place_target = None
+                if args.pick_executor == "sim_pick_place" and args.place_target_source == "predicted_place_object":
+                    predicted_place_target = build_single_view_predicted_place_target(
+                        args=args,
+                        frame=frame,
+                        pick_xyz=target_xyz,
+                        run_dir=run_dir,
+                    )
                 pick_result = execute_single_view_target(
                     scene=scene,
                     target_xyz=target_xyz,
                     args=args,
                     run_dir=run_dir,
                     target_source=target_source,
+                    predicted_place_target=predicted_place_target,
                 )
                 pick_result.setdefault("metadata", {})
                 pick_result["metadata"]["target_coordinate_frame"] = coordinate_frame
@@ -295,6 +322,7 @@ def execute_single_view_target(
     args: argparse.Namespace,
     run_dir: Path | None = None,
     target_source: str | None = None,
+    predicted_place_target: PredictedPlaceTarget | None = None,
 ) -> dict[str, Any]:
     """Execute the selected single-view target with the requested executor."""
 
@@ -310,13 +338,25 @@ def execute_single_view_target(
             "pick_executor": args.pick_executor,
             "target_source": target_source,
             "place_target_source": args.place_target_source,
+            "place_query": getattr(args, "place_query", None),
         },
     )
     step_callback = None if recorder is None else recorder.record_step
     if args.pick_executor == "sim_pick_place":
-        if args.place_target_source != "oracle_cubeB_pose":
-            return _pick_not_attempted("sim_pick_place requires --place-target-source oracle_cubeB_pose.")
-        place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
+        if args.place_target_source == "oracle_cubeB_pose":
+            place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
+        elif args.place_target_source == "predicted_place_object":
+            if predicted_place_target is None:
+                return _pick_not_attempted(
+                    "sim_pick_place requires a valid predicted place object when "
+                    "--place-target-source predicted_place_object is used."
+                )
+            place_xyz = predicted_place_target.place_xyz
+            place_metadata = dict(predicted_place_target.metadata)
+        else:
+            return _pick_not_attempted(
+                "sim_pick_place requires --place-target-source oracle_cubeB_pose or predicted_place_object."
+            )
         if step_callback is None:
             result = scene.execute_pick_place(pick_xyz=target_xyz, place_xyz=place_xyz)
         else:
@@ -324,9 +364,12 @@ def execute_single_view_target(
         result.setdefault("metadata", {})
         result["metadata"].update(
             {
-                "place_target_source": "oracle_cubeB_pose",
+                "place_target_source": args.place_target_source,
+                "place_query": getattr(args, "place_query", None),
                 "place_target_xyz": _array_to_list(place_xyz),
                 "place_target_metadata": place_metadata,
+                "place_selection_reason": place_metadata.get("selection_reason"),
+                "place_pick_xy_distance": place_metadata.get("place_pick_xy_distance"),
             }
         )
         finalize_execution_recorder(recorder, result)
@@ -337,6 +380,127 @@ def execute_single_view_target(
         result = scene.execute_pick(target_xyz, executor=args.pick_executor, step_callback=step_callback)
     finalize_execution_recorder(recorder, result)
     return result
+
+
+def build_single_view_predicted_place_target(
+    args: argparse.Namespace,
+    frame: Any,
+    pick_xyz: np.ndarray,
+    run_dir: Path,
+) -> PredictedPlaceTarget | None:
+    """Predict a StackCube reference object place target from the same RGB-D view."""
+
+    place_query = str(getattr(args, "place_query", "cube") or "cube")
+    parsed_place_query = parse_query(place_query, prefer_llm=args.prefer_llm_parser)
+    place_prompts = build_clip_prompts(parsed_place_query)
+    place_dir = run_dir / "place_target_prediction"
+    place_dir.mkdir(parents=True, exist_ok=True)
+    write_json(parsed_place_query, place_dir / "parsed_place_query.json")
+
+    detections = detect_candidates(
+        image=frame.rgb,
+        text_prompt=parsed_place_query["normalized_prompt"],
+        box_threshold=args.box_threshold,
+        text_threshold=args.text_threshold,
+        top_k=args.top_k,
+        save_overlay_path=place_dir / "detection_overlay.png",
+        backend=args.detector_backend,
+        model_config_path=args.model_config_path,
+        model_checkpoint_path=args.model_checkpoint_path,
+        model_id=args.detector_model_id,
+        device=args.device,
+        mock_box_position=args.mock_box_position,
+    )
+    write_json(
+        {
+            "query": parsed_place_query,
+            "candidates": [candidate.to_json_dict() for candidate in detections],
+        },
+        place_dir / "detections.json",
+    )
+
+    if args.skip_clip:
+        reranked = rank_detections_without_clip(detections)
+    else:
+        reranked = rerank_candidates_with_clip(
+            image=frame.rgb,
+            candidates=detections,
+            text_prompt=place_prompts,
+            detector_weight=args.detector_weight,
+            clip_weight=args.clip_weight,
+            crop_output_dir=place_dir / "candidate_crops",
+            model_name=args.clip_model_name,
+            pretrained=args.clip_pretrained,
+            device=args.device,
+        )
+    write_json(
+        {
+            "clip_prompts": place_prompts,
+            "candidates": [candidate.to_json_dict() for candidate in reranked],
+        },
+        place_dir / "reranked_candidates.json",
+    )
+
+    candidates_3d: list[Candidate3D] = []
+    for index, ranked in enumerate(reranked):
+        pointcloud_path = (
+            place_dir / "candidate_pointclouds" / f"candidate_{index:03d}.ply"
+            if args.save_candidate_pointcloud
+            else None
+        )
+        candidates_3d.append(
+            lift_box_to_3d(
+                rgb=frame.rgb,
+                depth=frame.depth,
+                box_xyxy=ranked.box_xyxy,
+                intrinsic=frame.camera_info.intrinsic,
+                extrinsic=frame.camera_info.extrinsic,
+                extrinsic_source=frame.camera_info.extrinsic_key,
+                segmentation=frame.segmentation,
+                segmentation_id=args.segmentation_id,
+                use_segmentation=args.use_segmentation,
+                output_point_cloud_path=pointcloud_path,
+                depth_scale=args.depth_scale,
+                fallback_fov_degrees=args.fallback_fov_degrees,
+            )
+        )
+    write_json(
+        {
+            "candidates_3d": [candidate.to_json_dict() for candidate in candidates_3d],
+        },
+        place_dir / "candidates_3d.json",
+    )
+
+    selected = select_candidate_place_target(
+        candidates=candidates_3d,
+        pick_xyz=pick_xyz,
+        min_xy_distance=float(getattr(args, "place_min_distance_from_pick", 0.05)),
+        place_query=place_query,
+        place_target_z=float(getattr(args, "place_target_z", 0.02)),
+    )
+    if selected is not None:
+        selected_index = selected.metadata.get("selected_candidate_index")
+        if isinstance(selected_index, int) and 0 <= selected_index < len(reranked):
+            selected.metadata["selected_phrase"] = reranked[selected_index].phrase
+            selected.metadata["selected_det_score"] = float(reranked[selected_index].det_score)
+            selected.metadata["selected_clip_score"] = float(reranked[selected_index].clip_score)
+            selected.metadata["selected_fused_2d_score"] = float(reranked[selected_index].fused_2d_score)
+    write_json(
+        {
+            "place_target_source": "predicted_place_object",
+            "place_query": place_query,
+            "min_xy_distance_from_pick": float(getattr(args, "place_min_distance_from_pick", 0.05)),
+            "selected": None
+            if selected is None
+            else {
+                "place_xyz": selected.place_xyz.astype(float).tolist(),
+                "source": selected.source,
+                "metadata": selected.metadata,
+            },
+        },
+        place_dir / "place_target_prediction.json",
+    )
+    return selected
 
 
 def make_execution_recorder(
@@ -396,6 +560,7 @@ def build_summary(
         "normalized_prompt": parsed_query["normalized_prompt"],
         "grasp_target_mode": getattr(args, "grasp_target_mode", "semantic"),
         "place_target_source": metadata.get("place_target_source", getattr(args, "place_target_source", "none")),
+        "place_query": metadata.get("place_query", getattr(args, "place_query", None)),
         "raw_num_detections": num_detections,
         "num_detections": num_detections,
         "num_ranked_candidates": num_ranked,
@@ -418,6 +583,8 @@ def build_summary(
         "place_attempted": bool(pick_result.get("place_attempted", False)),
         "place_success": pick_result.get("place_success"),
         "place_target_xyz": pick_result.get("place_xyz", metadata.get("place_target_xyz")),
+        "place_selection_reason": metadata.get("place_selection_reason"),
+        "place_pick_xy_distance": metadata.get("place_pick_xy_distance"),
         "task_success": pick_result.get("task_success"),
         "is_grasped": pick_result.get("is_grasped"),
         "pick_stage": pick_result.get("stage"),

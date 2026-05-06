@@ -852,6 +852,94 @@ def test_execute_selected_memory_pick_rejects_pick_place_without_place_source() 
     assert "oracle_cubeB_pose" in result["message"]
 
 
+def test_execute_selected_memory_pick_uses_predicted_place_memory() -> None:
+    selected = ObjectMemory3D().add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.01, -0.02, 0.03], dtype=np.float32),
+            label="red cube",
+            det_score=0.9,
+            fused_2d_score=0.9,
+            view_id="front",
+            num_points=100,
+            depth_valid_ratio=1.0,
+        )
+    )
+    place_memory = ObjectMemory3D()
+    place_memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.011, -0.019, 0.03], dtype=np.float32),
+            label="cube",
+            det_score=0.8,
+            fused_2d_score=0.8,
+            view_id="place_front",
+            num_points=100,
+            depth_valid_ratio=1.0,
+        )
+    )
+    far = place_memory.add_observation(
+        ObjectObservation3D(
+            world_xyz=np.array([0.12, 0.02, 0.03], dtype=np.float32),
+            label="cube",
+            det_score=0.7,
+            fused_2d_score=0.7,
+            view_id="place_left",
+            num_points=100,
+            depth_valid_ratio=1.0,
+        )
+    )
+
+    class FakeScene:
+        env = object()
+
+        def __init__(self) -> None:
+            self.calls = []
+
+        def execute_pick_place(self, pick_xyz, place_xyz):
+            self.calls.append(
+                (
+                    np.asarray(pick_xyz, dtype=float).tolist(),
+                    np.asarray(place_xyz, dtype=float).tolist(),
+                )
+            )
+            return {
+                "success": True,
+                "pick_success": True,
+                "grasp_attempted": True,
+                "place_attempted": True,
+                "place_success": True,
+                "task_success": True,
+                "is_grasped": False,
+                "stage": "success",
+                "target_xyz": np.asarray(pick_xyz, dtype=float).tolist(),
+                "place_xyz": np.asarray(place_xyz, dtype=float).tolist(),
+                "message": "success",
+                "trajectory_summary": {"planned_stages": [], "executed_stages": [], "num_env_steps": 0},
+                "metadata": {"executor": "SimulatedPickPlaceExecutor"},
+            }
+
+    result = multiview.execute_selected_memory_pick(
+        scene=FakeScene(),
+        selected=selected,
+        args=argparse.Namespace(
+            pick_executor="sim_pick_place",
+            grasp_target_mode="semantic",
+            env_id="StackCube-v1",
+            place_target_source="predicted_place_object",
+            place_query="cube",
+            place_min_distance_from_pick=0.05,
+            place_target_z=0.02,
+        ),
+        predicted_place_memory=place_memory,
+    )
+
+    assert result["place_attempted"] is True
+    np.testing.assert_allclose(result["metadata"]["place_target_xyz"], [far.world_xyz[0], far.world_xyz[1], 0.02])
+    assert result["metadata"]["place_target_source"] == "predicted_place_object"
+    assert result["metadata"]["place_query"] == "cube"
+    assert result["metadata"]["place_selection_reason"] == "highest_confidence_memory_object_far_from_pick"
+    assert result["metadata"]["place_pick_xy_distance"] >= 0.05
+
+
 def test_choose_memory_pick_target_semantic_ignores_memory_grasp_point() -> None:
     selected = ObjectMemory3D().add_observation(
         ObjectObservation3D(

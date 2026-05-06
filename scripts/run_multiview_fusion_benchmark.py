@@ -91,6 +91,9 @@ CSV_COLUMNS = [
     "place_success",
     "place_target_xyz",
     "place_target_source",
+    "place_query",
+    "place_selection_reason",
+    "place_pick_xy_distance",
     "task_grasp_target_guard_applied",
     "task_grasp_target_guard_reason",
     "execution_video_path",
@@ -130,7 +133,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--control-mode", default=None)
     parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown", "sim_pick_place"])
     parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
-    parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose"])
+    parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose", "predicted_place_object"])
+    parser.add_argument("--place-query", default="cube")
+    parser.add_argument("--place-min-distance-from-pick", type=float, default=0.05)
+    parser.add_argument("--place-target-z", type=float, default=0.02)
     parser.add_argument("--sensor-width", type=int, default=None)
     parser.add_argument("--sensor-height", type=int, default=None)
     parser.add_argument("--merge-distance", type=float, default=0.08)
@@ -196,6 +202,9 @@ def main() -> None:
         "pick_executor": args.pick_executor,
         "grasp_target_mode": args.grasp_target_mode,
         "place_target_source": args.place_target_source,
+        "place_query": args.place_query,
+        "place_min_distance_from_pick": float(args.place_min_distance_from_pick),
+        "place_target_z": float(args.place_target_z),
         "detector_backend": args.detector_backend,
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),
@@ -303,6 +312,12 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         args.grasp_target_mode,
         "--place-target-source",
         args.place_target_source,
+        "--place-query",
+        args.place_query,
+        "--place-min-distance-from-pick",
+        str(args.place_min_distance_from_pick),
+        "--place-target-z",
+        str(args.place_target_z),
         "--detector-backend",
         args.detector_backend,
         "--mock-box-position",
@@ -498,6 +513,9 @@ def summarize_fusion_run(summary: dict[str, Any]) -> dict[str, Any]:
         "place_success": _as_bool(summary.get("place_success")),
         "place_target_xyz": _join_sequence(summary.get("place_target_xyz")),
         "place_target_source": _optional_str(summary.get("place_target_source")),
+        "place_query": _optional_str(summary.get("place_query")),
+        "place_selection_reason": _optional_str(summary.get("place_selection_reason")),
+        "place_pick_xy_distance": _as_float(summary.get("place_pick_xy_distance"), 0.0),
         "task_grasp_target_guard_applied": _as_bool(summary.get("task_grasp_target_guard_applied")),
         "task_grasp_target_guard_reason": _optional_str(summary.get("task_grasp_target_guard_reason")),
         "execution_video_path": _execution_video_path(summary),
@@ -777,6 +795,9 @@ def failed_row(
         "place_success": False,
         "place_target_xyz": "",
         "place_target_source": None,
+        "place_query": None,
+        "place_selection_reason": None,
+        "place_pick_xy_distance": 0.0,
         "task_grasp_target_guard_applied": False,
         "task_grasp_target_guard_reason": None,
         "runtime_seconds": 0.0,

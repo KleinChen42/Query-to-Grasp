@@ -73,6 +73,22 @@ def test_build_child_command_forwards_place_target_source(tmp_path: Path) -> Non
     assert command[command.index("--place-target-source") + 1] == "oracle_cubeB_pose"
 
 
+def test_build_child_command_forwards_predicted_place_options(tmp_path: Path) -> None:
+    args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
+    args.pick_executor = "sim_pick_place"
+    args.place_target_source = "predicted_place_object"
+    args.place_query = "cube"
+    args.place_min_distance_from_pick = 0.07
+    args.place_target_z = 0.02
+
+    command = benchmark.build_child_command(args=args, query="red cube", seed=3, output_dir=tmp_path / "child")
+
+    assert command[command.index("--place-target-source") + 1] == "predicted_place_object"
+    assert command[command.index("--place-query") + 1] == "cube"
+    assert command[command.index("--place-min-distance-from-pick") + 1] == "0.07"
+    assert command[command.index("--place-target-z") + 1] == "0.02"
+
+
 def test_build_child_command_forwards_sensor_resolution(tmp_path: Path) -> None:
     args = _args(output_dir=tmp_path, skip_clip=True, view_preset="tabletop_3")
     args.sensor_width = 720
@@ -171,6 +187,9 @@ def test_summarize_fusion_run_defaults_missing_fields() -> None:
     assert row["place_success"] is False
     assert row["place_target_xyz"] == ""
     assert row["place_target_source"] is None
+    assert row["place_query"] is None
+    assert row["place_selection_reason"] is None
+    assert row["place_pick_xy_distance"] == 0.0
     assert row["task_grasp_target_guard_applied"] is False
     assert row["task_grasp_target_guard_reason"] is None
 
@@ -678,6 +697,9 @@ def _args(
             "pick_executor": "placeholder",
             "grasp_target_mode": "semantic",
             "place_target_source": "none",
+            "place_query": "cube",
+            "place_min_distance_from_pick": 0.05,
+            "place_target_z": 0.02,
             "sensor_width": None,
             "sensor_height": None,
             "detector_backend": "mock",

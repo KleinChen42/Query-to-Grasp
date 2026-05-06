@@ -38,6 +38,9 @@ CSV_COLUMNS = [
     "place_success",
     "place_target_xyz",
     "place_target_source",
+    "place_query",
+    "place_selection_reason",
+    "place_pick_xy_distance",
     "task_success",
     "is_grasped",
     "pick_stage",
@@ -69,7 +72,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--control-mode", default=None)
     parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown", "sim_pick_place"])
     parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
-    parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose"])
+    parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose", "predicted_place_object"])
+    parser.add_argument("--place-query", default="cube")
+    parser.add_argument("--place-min-distance-from-pick", type=float, default=0.05)
+    parser.add_argument("--place-target-z", type=float, default=0.02)
     parser.add_argument("--sensor-width", type=int, default=None)
     parser.add_argument("--sensor-height", type=int, default=None)
     parser.add_argument("--capture-execution-video", action="store_true", help="Forward opt-in execution video capture to child runs.")
@@ -118,6 +124,9 @@ def main() -> None:
         "pick_executor": args.pick_executor,
         "grasp_target_mode": args.grasp_target_mode,
         "place_target_source": args.place_target_source,
+        "place_query": args.place_query,
+        "place_min_distance_from_pick": float(args.place_min_distance_from_pick),
+        "place_target_z": float(args.place_target_z),
         "aggregate_metrics": aggregate_runs(rows),
         "per_query_metrics": aggregate_runs_by_query(rows),
     }
@@ -227,6 +236,12 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         args.grasp_target_mode,
         "--place-target-source",
         args.place_target_source,
+        "--place-query",
+        args.place_query,
+        "--place-min-distance-from-pick",
+        str(args.place_min_distance_from_pick),
+        "--place-target-z",
+        str(args.place_target_z),
         "--detector-backend",
         args.detector_backend,
         "--mock-box-position",
@@ -298,6 +313,9 @@ def failed_row(
         "place_success": False,
         "place_target_xyz": None,
         "place_target_source": None,
+        "place_query": None,
+        "place_selection_reason": None,
+        "place_pick_xy_distance": None,
         "task_success": False,
         "is_grasped": False,
         "pick_stage": "run_failed",

@@ -44,6 +44,7 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "paper_multitask_sim_grasp_section" in labels
     assert "paper_manuscript_draft" in labels
     assert "paper_related_work_citation_plan" in labels
+    assert "iros_icra_upgrade_roadmap" in labels
     assert "paper_latex_main" in labels
     assert "paper_latex_ieeetran_class" in labels
     assert "paper_latex_references" in labels
