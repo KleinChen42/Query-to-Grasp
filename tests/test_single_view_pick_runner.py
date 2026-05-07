@@ -377,3 +377,65 @@ def test_single_view_pick_benchmark_defaults_to_clip_enabled(monkeypatch, tmp_pa
     assert summary["skip_clip"] is False
     assert seen_commands
     assert all("--skip-clip" not in command for command in seen_commands)
+
+
+def test_single_view_pick_benchmark_forwards_seed_range_and_oracle_noise(monkeypatch, tmp_path) -> None:
+    seen_commands = []
+
+    def fake_run(command, cwd, capture_output, text, check):
+        seen_commands.append(command)
+        output_dir = Path(command[command.index("--output-dir") + 1])
+        seed = int(command[command.index("--seed") + 1])
+        run_dir = output_dir / f"fake_run_{seed}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "query": command[command.index("--query") + 1],
+            "num_detections": 1,
+            "num_ranked_candidates": 1,
+            "camera_xyz": [0.1, 0.2, 0.3],
+            "world_xyz": [0.1, 0.2, 0.3],
+            "num_3d_points": 12,
+            "pick_success": True,
+            "pick_stage": "success",
+            "runtime_seconds": 1.5,
+            "artifacts": str(run_dir),
+        }
+        pick_result = {"success": True, "stage": "success", "target_xyz": [0.1, 0.2, 0.3]}
+        (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+        (run_dir / "pick_result.json").write_text(json.dumps(pick_result), encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    output_dir = tmp_path / "benchmark"
+    monkeypatch.setattr(benchmark.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_single_view_pick_benchmark.py",
+            "--queries",
+            "red cube",
+            "--start-seed",
+            "5",
+            "--num-seeds",
+            "3",
+            "--detector-backend",
+            "mock",
+            "--skip-clip",
+            "--oracle-pick-noise-std",
+            "0.02",
+            "--oracle-place-noise-std",
+            "0.01",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    benchmark.main()
+
+    assert [int(command[command.index("--seed") + 1]) for command in seen_commands] == [5, 6, 7]
+    assert all(command[command.index("--oracle-pick-noise-std") + 1] == "0.02" for command in seen_commands)
+    assert all(command[command.index("--oracle-place-noise-std") + 1] == "0.01" for command in seen_commands)
+    summary = json.loads((output_dir / "benchmark_summary.json").read_text(encoding="utf-8"))
+    assert summary["oracle_pick_noise_std"] == 0.02
+    assert summary["oracle_place_noise_std"] == 0.01
+    assert summary["total_runs"] == 3

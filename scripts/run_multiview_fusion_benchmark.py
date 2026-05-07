@@ -115,6 +115,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--queries", nargs="*", default=[], help="Inline queries.")
     parser.add_argument("--seeds", nargs="*", type=int, default=None, help="Integer seeds. Defaults to range(num-runs).")
     parser.add_argument("--num-runs", type=int, default=1, help="Fallback number of seeds when --seeds is omitted.")
+    parser.add_argument("--start-seed", type=int, default=None, help="Convenience: generate seeds from start-seed to start-seed+num-seeds-1.")
+    parser.add_argument("--num-seeds", type=int, default=None, help="Convenience: number of seeds starting from --start-seed.")
     parser.add_argument("--view-ids", nargs="*", default=[], help="Optional camera keys forwarded to the debug runner.")
     parser.add_argument("--view-preset", default="none", help="Optional virtual camera pose preset forwarded to the debug runner.")
     parser.add_argument("--camera-name", default=None, help="Fallback camera key when --view-ids is omitted.")
@@ -164,9 +166,18 @@ def main() -> None:
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
 
     queries = load_queries(args.queries_file, args.queries)
-    seeds = args.seeds if args.seeds else list(range(args.num_runs))
-    if args.num_runs < 1 and not args.seeds:
-        raise ValueError("--num-runs must be at least 1 when --seeds is not supplied.")
+    if (args.start_seed is None) != (args.num_seeds is None):
+        raise ValueError("--start-seed and --num-seeds must be supplied together.")
+    if args.num_seeds is not None and args.num_seeds < 1:
+        raise ValueError("--num-seeds must be at least 1.")
+    if args.start_seed is not None and args.num_seeds is not None:
+        seeds = list(range(args.start_seed, args.start_seed + args.num_seeds))
+    elif args.seeds:
+        seeds = args.seeds
+    else:
+        seeds = list(range(args.num_runs))
+    if not seeds:
+        raise ValueError("No seeds specified. Use --seeds, --start-seed/--num-seeds, or --num-runs.")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     child_runs_dir = args.output_dir / "runs"

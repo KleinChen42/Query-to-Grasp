@@ -106,6 +106,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--execution-video-every-n-steps", type=int, default=1, help="Frame sampling interval for execution video capture.")
     parser.add_argument("--execution-video-width", type=int, default=None, help="Optional output width for captured execution video frames.")
     parser.add_argument("--execution-video-height", type=int, default=None, help="Optional output height for captured execution video frames.")
+    parser.add_argument("--oracle-pick-noise-std", type=float, default=0.0, help="Gaussian noise std (meters) added to the pick target for sensitivity analysis.")
+    parser.add_argument("--oracle-place-noise-std", type=float, default=0.0, help="Gaussian noise std (meters) added to the oracle place target for sensitivity analysis.")
     parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
@@ -234,6 +236,16 @@ def main() -> None:
                 candidate_3d,
                 grasp_target_mode=args.grasp_target_mode,
             )
+            noise_std = float(getattr(args, "oracle_pick_noise_std", 0.0))
+            if target_xyz is not None and noise_std > 0.0:
+                rng = np.random.default_rng(seed=args.seed)
+                noise = rng.normal(0.0, noise_std, size=3).astype(np.float32)
+                target_xyz_before_noise = target_xyz.copy()
+                target_xyz = target_xyz + noise
+                LOGGER.info(
+                    "Applied oracle noise std=%.4f: before=%s after=%s noise=%s",
+                    noise_std, target_xyz_before_noise.tolist(), target_xyz.tolist(), noise.tolist(),
+                )
             if target_xyz is None:
                 pick_result = _pick_not_attempted("Top candidate had no valid 3D target point.")
             elif args.pick_executor in {"sim_topdown", "sim_pick_place"} and coordinate_frame != "world":
@@ -260,6 +272,10 @@ def main() -> None:
                 pick_result["metadata"]["target_used_for_pick"] = target_source
                 pick_result["metadata"]["pick_executor_cli"] = args.pick_executor
                 pick_result["metadata"]["grasp_target_mode"] = args.grasp_target_mode
+                pick_result["metadata"]["oracle_pick_noise_std"] = float(getattr(args, "oracle_pick_noise_std", 0.0))
+                if noise_std > 0.0:
+                    pick_result["metadata"]["target_xyz_before_noise"] = _array_to_list(target_xyz_before_noise)
+                    pick_result["metadata"]["applied_noise"] = noise.tolist()
                 pick_result["metadata"]["semantic_world_xyz"] = _array_to_list(candidate_3d.world_xyz)
                 pick_result["metadata"]["grasp_world_xyz"] = _array_to_list(candidate_3d.grasp_world_xyz)
                 pick_result["metadata"]["grasp_metadata"] = candidate_3d.grasp_metadata
@@ -345,6 +361,19 @@ def execute_single_view_target(
     if args.pick_executor == "sim_pick_place":
         if args.place_target_source == "oracle_cubeB_pose":
             place_xyz, place_metadata = find_stackcube_oracle_place_xyz(scene.env)
+            place_noise_std = float(getattr(args, "oracle_place_noise_std", 0.0))
+            if place_noise_std > 0.0:
+                place_rng = np.random.default_rng(seed=args.seed + 10000)
+                place_noise = place_rng.normal(0.0, place_noise_std, size=3).astype(np.float32)
+                place_xyz_before_noise = place_xyz.copy()
+                place_xyz = place_xyz + place_noise
+                place_metadata["oracle_place_noise_std"] = place_noise_std
+                place_metadata["place_xyz_before_noise"] = place_xyz_before_noise.tolist()
+                place_metadata["applied_place_noise"] = place_noise.tolist()
+                LOGGER.info(
+                    "Applied oracle place noise std=%.4f: before=%s after=%s",
+                    place_noise_std, place_xyz_before_noise.tolist(), place_xyz.tolist(),
+                )
         elif args.place_target_source == "predicted_place_object":
             if predicted_place_target is None:
                 return _pick_not_attempted(

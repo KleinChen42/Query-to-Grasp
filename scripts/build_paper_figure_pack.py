@@ -198,6 +198,37 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="h200_paper_revision_report",
+        source_path=Path("docs/h200_paper_revision_experiment_report.md"),
+        category="notes",
+        caption=(
+            "Frozen H200 paper-revision experiment report covering noisy-oracle "
+            "sensitivity, CLIP ablation, target-point ablation, and 500-seed "
+            "predicted-place results."
+        ),
+    ),
+    ArtifactSpec(
+        label="paper_revision_results_summary",
+        source_path=Path("outputs/paper_revision_results_summary_latest/paper_revision_results_summary.md"),
+        category="tables",
+        caption=(
+            "Generated paper-revision results summary used as the source for "
+            "Noisy Oracle, CLIP, target-point, target-source, and task-diversity tables."
+        ),
+    ),
+    ArtifactSpec(
+        label="paper_revision_results_rows",
+        source_path=Path("outputs/paper_revision_results_summary_latest/paper_revision_results_summary.csv"),
+        category="tables",
+        caption="Machine-readable rows for the frozen paper-revision result summary.",
+    ),
+    ArtifactSpec(
+        label="paper_revision_results_json",
+        source_path=Path("outputs/paper_revision_results_summary_latest/paper_revision_results_summary.json"),
+        category="tables",
+        caption="JSON version of the frozen paper-revision result summary.",
+    ),
+    ArtifactSpec(
         label="paper_latex_main",
         source_path=Path("paper/main.tex"),
         category="paper",
@@ -233,10 +264,10 @@ DEFAULT_ARTIFACTS = (
     ),
     ArtifactSpec(
         label="paper_pipeline_overview_figure",
-        source_path=Path("paper/figures/pipeline_overview.pdf"),
+        source_path=Path("paper/figures/pipeline_overview_ai.png"),
         category="paper",
         caption=(
-            "Camera-ready pipeline overview figure used by the LaTeX draft."
+            "Camera-ready diagnostic variable-flow overview figure used by the LaTeX draft."
         ),
     ),
     ArtifactSpec(

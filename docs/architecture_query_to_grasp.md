@@ -1,149 +1,172 @@
 # Query-to-Grasp Implemented Architecture
 
-This note records the architecture that is currently implemented and tested.
-It is intended as a paper/demo support artifact, not as a future-roadmap wish
-list.
+This note records the architecture that is currently implemented, tested, and
+used by the paper artifacts. It is a support document for the IROS/ICRA-style
+diagnostic paper, not a wishlist.
+
+## Current Positioning
+
+Query-to-Grasp is now best described as a reproducible target-source diagnostic
+framework for open-vocabulary RGB-D manipulation. The main question is not only
+whether a detector can localize an object in 2D, but whether the resulting 3D
+target source is precise enough to drive simulated robot execution.
 
 ## Pipeline Diagram
 
 ```mermaid
 flowchart LR
-    Q["Natural-language query"] --> Parser["Rule query parser<br/>src/perception/query_parser.py"]
-    Parser --> Prompt["Normalized prompt"]
+    Q["Language query"] --> Parser["Query parser"]
+    Parser --> Prompt["Grounding prompt"]
 
-    Env["ManiSkill RGB-D observation<br/>src/env/maniskill_env.py"] --> Obs["RGB, depth, intrinsics, extrinsics"]
-    Obs --> Detector["GroundingDINO detector<br/>HF / original / mock"]
-    Prompt --> Detector
+    Env["ManiSkill RGB-D observation"] --> Obs["RGB, depth, intrinsics, camera pose"]
+    Prompt --> Detector["GroundingDINO detector"]
+    Obs --> Detector
 
-    Detector --> ClipGate{"CLIP enabled?"}
-    ClipGate -->|skip-clip| DetRank["Detector-score ranking"]
-    ClipGate -->|use-clip| ClipRank["OpenCLIP crop reranking<br/>src/perception/clip_rerank.py"]
+    Detector --> RankGate{"CLIP enabled?"}
+    RankGate -->|no| DetRank["Detector-score ranking"]
+    RankGate -->|yes| ClipRank["OpenCLIP crop reranking"]
 
-    DetRank --> Lift["2D-to-3D lifting<br/>src/perception/mask_projector.py"]
+    DetRank --> Lift["RGB-D lifting"]
     ClipRank --> Lift
     Obs --> Lift
 
-    Lift --> SingleTarget["Single-view 3D target"]
-    Lift --> Memory["ObjectMemory3D<br/>src/memory/object_memory_3d.py"]
-    Memory --> Fusion["Confidence-aware fusion<br/>src/memory/fusion.py"]
-    Fusion --> Selector["Target selector + trace<br/>src/policy/target_selector.py"]
-    Selector --> Reobserve["Rule-based re-observation decision<br/>src/policy/reobserve_policy.py"]
+    Lift --> SingleTarget["Single-view target source"]
+    Lift --> Memory["ObjectMemory3D"]
+    Memory --> Fusion["Cross-view fusion"]
+    Fusion --> Selector["Target-source selector"]
+    Selector --> Reobserve["Rule-based re-observation diagnostic"]
 
-    SingleTarget --> PickExec{"Pick executor<br/>mode?"}
-    Selector --> PickExec
-    Reobserve --> PickExec
+    SingleTarget --> ExecGate{"Executor mode"}
+    Selector --> ExecGate
+    Reobserve --> ExecGate
 
-    PickExec -->|placeholder| Placeholder["SafePlaceholderPickExecutor<br/>src/manipulation/pick_executor.py"]
-    PickExec -->|sim_topdown| SimPick["SimulatedTopDownPickExecutor<br/>src/manipulation/sim_topdown_executor.py"]
-    PickExec -->|sim_pick_place| SimPickPlace["SimPickPlaceExecutor<br/>src/manipulation/sim_pick_place_executor.py"]
+    ExecGate -->|placeholder| Placeholder["Safe placeholder executor"]
+    ExecGate -->|sim_topdown| PickExec["SimulatedTopDownPickExecutor"]
+    ExecGate -->|sim_pick_place| PlaceExec["SimulatedPickPlaceExecutor"]
 
-    SimPickPlace --> PlaceTarget{"Place target<br/>source?"}
-    PlaceTarget -->|oracle_cubeB_pose| OraclePlace["Privileged cubeB pose<br/>src/manipulation/oracle_targets.py"]
-    PlaceTarget -->|predicted_place_object| PredPlace["Perception-derived place target<br/>src/manipulation/place_targets.py"]
+    PlaceExec --> PlaceGate{"Place target source"}
+    PlaceGate -->|oracle_cubeB_pose| OraclePlace["Privileged cubeB pose"]
+    PlaceGate -->|predicted_place_object| PredPlace["Perception-derived reference object"]
 
-    Placeholder --> Artifacts["JSON / CSV / Markdown artifacts"]
-    SimPick --> Artifacts
-    SimPickPlace --> Artifacts
+    PickExec --> Recorder["Optional continuous RGB execution recorder"]
+    PlaceExec --> Recorder
+    Placeholder --> Reports["JSON, CSV, Markdown reports"]
+    Recorder --> Reports
 ```
 
 ## Implemented Modes
 
 | mode | command family | purpose |
 | --- | --- | --- |
-| Mock single-view | `run_single_view_pick.py --detector-backend mock --skip-clip` | Stable dependency-light smoke path. |
-| HF single-view | `run_single_view_pick.py --detector-backend hf` | Real GroundingDINO perception baseline. |
-| Ambiguity benchmark | `run_ambiguity_benchmark.py` | Tests whether broader queries create reranking headroom. |
-| Corrected multi-view fusion | `run_multiview_fusion_benchmark.py --view-preset tabletop_3` | Virtual RGB-D views and object memory fusion. |
-| Closed-loop re-observation | `run_multiview_fusion_benchmark.py --enable-closed-loop-reobserve` | Confidence-policy triggered extra views. |
-| Sim top-down pick | `run_single_view_pick.py --pick-executor sim_topdown` | ManiSkill PickCube/StackCube simulated pick execution. |
-| Sim pick-place (oracle) | `run_single_view_pick.py --pick-executor sim_pick_place --place-target-source oracle_cubeB_pose` | Privileged place target for upper-bound stacking. |
-| Sim pick-place (predicted) | `run_single_view_pick.py --pick-executor sim_pick_place --place-target-source predicted_place_object --place-query "green cube"` | Non-oracle predicted placement from perception. |
-| Fusion comparison table | `generate_fusion_comparison_table.py` | Paper-ready single-view vs fusion comparisons. |
-| Re-observation diagnostics | `generate_reobserve_policy_report.py` | Open-loop and closed-loop confidence-policy decisions. |
-| Paper figure pack | `build_paper_figure_pack.py` | Collects paper-ready figures and evidence artifacts. |
-| Demo video pack | `build_demo_video_pack.py` | Representative demo story manifest for supplemental video. |
+| Dependency-light smoke | `run_single_view_pick.py --detector-backend mock --skip-clip` | Fast local sanity checks without model downloads. |
+| HF single-view perception | `run_single_view_pick.py --detector-backend hf` | GroundingDINO RGB-D target-source baseline. |
+| CLIP reranking | `run_single_view_pick.py --use-clip` | Measures whether crop reranking changes top-1 under current candidate pools. |
+| Multi-view memory | `run_multiview_fusion_benchmark.py --view-preset tabletop_3` | Cross-view target-source formation after camera-frame alignment. |
+| Closed-loop re-observation | `run_multiview_fusion_benchmark.py --enable-closed-loop-reobserve` | Rule-based diagnostic for uncertainty and association. |
+| Simulated pick | `--pick-executor sim_topdown` | Scripted top-down ManiSkill pick execution. |
+| Oracle pick-place | `--pick-executor sim_pick_place --place-target-source oracle_cubeB_pose` | Privileged StackCube upper-bound and controller diagnostic. |
+| Predicted pick-place | `--pick-executor sim_pick_place --place-target-source predicted_place_object --place-query "green cube"` | Non-oracle reference-object placement bridge. |
+| Noisy oracle sensitivity | `--oracle-pick-noise-std`, `--oracle-place-noise-std` | Centimeter-scale target precision sensitivity analysis. |
+| Seed-range launcher | `--start-seed`, `--num-seeds` | Long H200 validation without explicit seed lists. |
+| Continuous video capture | `--capture-execution-video` and native sensor resolution flags | Representative execution videos for supplemental material. |
 
 ## Target-Source Ladder
 
-The main paper evidence is organized by target source rather than implementation history:
+The paper evidence should be organized by target source rather than by code
+history.
 
-| level | pick target source | place target source | diagnostic scope |
-| --- | --- | --- | --- |
-| 1 | Oracle object pose | — | Scripted controller upper bound |
-| 2 | Fused memory grasp point | — | Multi-view perception → execution |
-| 3 | Task-guard semantic center | — | StackCube pick-only diagnostic |
-| 4 | Oracle cubeA + oracle cubeB | Oracle cubeB | Full oracle pick-place upper bound |
-| 5 | Query-derived pick target | Oracle cubeB | Query-pick + privileged-place bridge |
-| 6 | Query-derived pick target | Semantic-center predicted `green cube` | Semantic predicted-place baseline |
-| 7 | Query-derived pick target | Refined predicted `green cube` | **Main non-oracle result** (500 seeds) |
-| 8 | Query-derived pick target | Refined predicted `cube` (broad) | Place-query specificity ablation |
+| level | pick source | place source | diagnostic role |
+| ---: | --- | --- | --- |
+| 1 | oracle object pose | none | Pick controller upper bound. |
+| 2 | semantic center | none | Raw RGB-D target-source baseline. |
+| 3 | refined grasp point | none | Workspace-filtered grasp target. |
+| 4 | fused memory grasp point | none | Multi-view target-source to simulated pick. |
+| 5 | task-guard selected target | none | StackCube pick-only compatibility. |
+| 6 | oracle cubeA pose | oracle cubeB pose | Fully privileged pick-place upper bound. |
+| 7 | query-derived cubeA target | oracle cubeB pose | Query-pick plus privileged-place bridge. |
+| 8 | query-derived cubeA target | predicted `green cube` reference | Main non-oracle reference-object placement bridge. |
+| 9 | query-derived cubeA target | predicted broad `cube` reference | Reference-query specificity ablation. |
+| 10 | noisy oracle targets | noisy oracle targets | Centimeter-scale target precision sensitivity. |
 
 ## Evidence Path
 
-The current paper evidence follows this chain:
+1. GroundingDINO can produce RGB-D target sources in the main cube tasks and in
+   additional ManiSkill target-source formation tasks.
+2. CLIP reranking does not change top-1 in the current low-candidate scenes,
+   so semantic reranking is not the observed bottleneck.
+3. Camera-frame alignment is required before multi-view memory is meaningful;
+   otherwise cross-view object memories fragment.
+4. PickCube demonstrates that a fused memory grasp target can be executable:
+   the refined/memory target reaches 1.000 pick success in the validated setting.
+5. StackCube pick-only results show cross-task compatibility but not stacking
+   completion.
+6. Oracle pick-place establishes that the scripted controller can complete
+   StackCube under privileged target sources.
+7. Query-pick plus oracle-place isolates the quality of the query-derived pick
+   target while keeping the destination privileged.
+8. Predicted-place uses an explicit `green cube` reference query to remove the
+   oracle destination. The frozen 500-seed no-CLIP result is 0.552 single-view,
+   0.472 tabletop multi-view, and 0.446 closed-loop task success.
+9. The broad `cube` reference query is much weaker than explicit `green cube`,
+   which turns reference-query specificity into a paper limitation and
+   diagnostic result.
+10. Noisy oracle sensitivity shows that 2 cm target perturbations sharply reduce
+    execution success, explaining why recall gains can fail to improve control.
 
-1. HF GroundingDINO runs are debuggable and runnable with cache fallback.
-2. Single-view outputs include runtime, candidate multiplicity, top-1 rerank
-   changes, 3D target availability, and placeholder pick results.
-3. Ambiguity benchmarks show that candidate multiplicity remains modest and
-   CLIP does not currently change top-1.
-4. Multi-view debugging identified a camera-frame convention mismatch between
-   OpenCV-style RGB-D points and ManiSkill `cam2world_gl`.
-5. Applying the OpenCV-to-OpenGL conversion before `cam2world_gl` reduced
-   same-label cross-view spread from `1.0693 m` to `0.0518 m`.
-6. Corrected `tabletop_3` fusion reduces memory fragmentation from `3.3333`
-   to `1.3333` objects per run in the current small HF benchmark.
-7. The target selector and re-observation policy now emit traceable artifacts,
-   and the closed-loop policy can reduce compact ambiguity triggers.
-8. The `sim_topdown` executor connects selected 3D targets to ManiSkill
-   actions and lifts PickCube pick success to `1.0000` for compact and full
-   ambiguity queries across single-view, multi-view, and closed-loop modes.
-9. StackCube pick-only compatibility uses a task-aware guard to achieve
-   `0.620` tabletop and `0.520` closed-loop pick success (50 expanded seeds).
-10. Oracle pick-place validates the scripted controller can complete StackCube
-    at `0.880` task success under privileged targets.
-11. Query-pick + oracle-place bridges query-derived picks with privileged
-    placement at `0.720` single-view task success.
-12. Predicted-place uses perception-derived `green cube` reference-object
-    targets for non-oracle stacking. The 500-seed frozen result gives
-    `0.552` single-view, `0.472` tabletop, `0.446` closed-loop task success.
-13. Place-query specificity ablation shows that broad `cube` degrades task
-    success by `0.130`–`0.225` compared to explicit `green cube`.
+## Paper-Revision Result Freeze
+
+The current frozen paper-revision summary is generated by:
+
+```powershell
+python scripts/generate_paper_revision_results_summary.py `
+  --output-dir outputs/paper_revision_results_summary_latest `
+  --strict
+```
+
+It covers:
+
+- noisy oracle pick sensitivity;
+- noisy oracle pick-place sensitivity;
+- noisy oracle place sensitivity;
+- PickCube semantic vs refined target-point ablation;
+- CLIP reranking ablation;
+- StackCube 500-seed predicted-place refined and semantic baselines;
+- broad vs explicit reference-query specificity;
+- PushCube, LiftPeg, PegInsertion, and StackPyramid target-source formation.
 
 ## Artifact Map
 
-| module | main files | representative outputs |
+| subsystem | main files | representative outputs |
 | --- | --- | --- |
-| Query parsing | `src/perception/query_parser.py` | `parsed_query.json` |
-| Detection | `src/perception/grounding_dino.py` | `summary.json`, detection counts |
-| CLIP reranking | `src/perception/clip_rerank.py` | ranked candidate metrics |
-| RGB-D lifting | `src/perception/mask_projector.py` | `target_3d.json`, point clouds |
-| Object memory | `src/memory/object_memory_3d.py` | `memory_state.json` |
-| Fusion scoring | `src/memory/fusion.py` | confidence terms in memory objects |
-| Target selection | `src/policy/target_selector.py` | `selection_trace.json`, `selection_trace.md` |
-| Re-observation policy | `src/policy/reobserve_policy.py` | `reobserve_decision.json` |
-| Sim top-down pick | `src/manipulation/sim_topdown_executor.py` | `pick_result.json`, execution videos |
-| Sim pick-place | `src/manipulation/sim_pick_place_executor.py` | `pick_result.json`, place metrics |
+| Query parsing | `src/perception/query_parser.py` | normalized query metadata |
+| Detection | `src/perception/grounding_dino.py` | detection counts, boxes, scores |
+| CLIP reranking | `src/perception/clip_rerank.py` | ranked candidates, top-1 change flags |
+| RGB-D lifting | `src/perception/mask_projector.py` | semantic centers and refined grasp points |
+| Object memory | `src/memory/object_memory_3d.py` | memory state and fused object tracks |
+| Fusion scoring | `src/memory/fusion.py` | confidence and support-view statistics |
+| Target selection | `src/policy/target_selector.py` | selection trace JSON/Markdown |
+| Re-observation | `src/policy/reobserve_policy.py` | rule-based re-observation decision |
+| Sim pick | `src/manipulation/pick_executor.py` | pick result and execution stages |
 | Oracle targets | `src/manipulation/oracle_targets.py` | privileged cubeA/cubeB poses |
-| Predicted place targets | `src/manipulation/place_targets.py` | predicted place xyz, selection metadata |
-| Reports | `scripts/generate_*report*.py`, `scripts/build_paper_figure_pack.py` | Markdown, CSV, JSON tables |
-| Native video capture | `scripts/run_demo_execution_capture_pack.py` | 1920×1080 execution videos |
+| Place targets | `src/manipulation/place_targets.py` | predicted reference-object place targets |
+| Benchmark launchers | `scripts/run_*benchmark.py` | benchmark rows and summaries |
+| Paper summaries | `scripts/generate_paper_revision_results_summary.py` | frozen paper-revision tables |
+| Video capture | `scripts/run_demo_execution_capture_pack.py` | native-resolution execution videos |
+| Paper pack | `scripts/build_paper_figure_pack.py` | packed paper support artifacts |
 
-## Current Non-Claims
+## Current Claim Boundaries
 
-The current implementation should not be presented as:
+The implementation should not be presented as:
 
-- real low-level robot grasp execution (this is a scripted diagnostic controller);
-- a closed-loop active perception system (re-observation is rule-based, not learned);
-- a trained perception or grasping model;
-- a finished web demo;
-- evidence that CLIP improves target selection in the current benchmark;
-- full non-oracle StackCube stacking completion (place success is partial);
-- a general conclusion about active perception being unhelpful.
+- real-robot execution;
+- a learned controller, learned grasping method, or learned active-perception
+  method;
+- robust relation-heavy language grounding;
+- full non-oracle StackCube stacking completion;
+- evidence that CLIP improves selection in the current low-candidate scenes;
+- a universal conclusion that active perception is unhelpful.
 
-The strongest current claim is: a runnable language-query-to-3D-action-target
-baseline demonstrates that target-source quality — not just open-vocabulary
-detection accuracy — determines downstream simulated manipulation success.
-The 500-seed predicted-place result provides the first non-oracle evidence that
-explicit reference-object perception can bridge the retrieval-to-execution gap
-for a multi-cube stacking diagnostic.
+The strongest current claim is that Query-to-Grasp provides a reproducible
+diagnostic bridge from open-vocabulary RGB-D detections to executable simulated
+3D action targets, and that target-source quality, reference-object specificity,
+and centimeter-scale geometry determine downstream manipulation success.

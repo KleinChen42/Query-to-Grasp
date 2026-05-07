@@ -57,6 +57,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--queries", nargs="*", default=[], help="Inline queries.")
     parser.add_argument("--seeds", nargs="*", type=int, default=None, help="Integer seeds. Defaults to range(num-runs).")
     parser.add_argument("--num-runs", type=int, default=1, help="Fallback number of seeds when --seeds is omitted.")
+    parser.add_argument("--start-seed", type=int, default=None, help="Convenience: generate seeds from start-seed to start-seed+num-seeds-1.")
+    parser.add_argument("--num-seeds", type=int, default=None, help="Convenience: number of seeds starting from --start-seed.")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs") / "benchmark_mock_pick")
     parser.add_argument(
         "--detector-backend",
@@ -76,6 +78,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--place-query", default="cube")
     parser.add_argument("--place-min-distance-from-pick", type=float, default=0.05)
     parser.add_argument("--place-target-z", type=float, default=0.02)
+    parser.add_argument("--oracle-pick-noise-std", type=float, default=0.0, help="Gaussian noise std (meters) added to oracle pick target for sensitivity analysis.")
+    parser.add_argument("--oracle-place-noise-std", type=float, default=0.0, help="Gaussian noise std (meters) added to oracle place target for sensitivity analysis.")
     parser.add_argument("--sensor-width", type=int, default=None)
     parser.add_argument("--sensor-height", type=int, default=None)
     parser.add_argument("--capture-execution-video", action="store_true", help="Forward opt-in execution video capture to child runs.")
@@ -93,9 +97,18 @@ def main() -> None:
     logging.basicConfig(level=getattr(logging, args.log_level.upper()), format="%(levelname)s:%(name)s:%(message)s")
 
     queries = load_queries(args.queries_file, args.queries)
-    seeds = args.seeds if args.seeds else list(range(args.num_runs))
-    if args.num_runs < 1 and not args.seeds:
-        raise ValueError("--num-runs must be at least 1 when --seeds is not supplied.")
+    if (args.start_seed is None) != (args.num_seeds is None):
+        raise ValueError("--start-seed and --num-seeds must be supplied together.")
+    if args.num_seeds is not None and args.num_seeds < 1:
+        raise ValueError("--num-seeds must be at least 1.")
+    if args.start_seed is not None and args.num_seeds is not None:
+        seeds = list(range(args.start_seed, args.start_seed + args.num_seeds))
+    elif args.seeds:
+        seeds = args.seeds
+    else:
+        seeds = list(range(args.num_runs))
+    if not seeds:
+        raise ValueError("No seeds specified. Use --seeds, --start-seed/--num-seeds, or --num-runs.")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     child_runs_dir = args.output_dir / "runs"
@@ -127,6 +140,8 @@ def main() -> None:
         "place_query": args.place_query,
         "place_min_distance_from_pick": float(args.place_min_distance_from_pick),
         "place_target_z": float(args.place_target_z),
+        "oracle_pick_noise_std": float(getattr(args, "oracle_pick_noise_std", 0.0)),
+        "oracle_place_noise_std": float(getattr(args, "oracle_place_noise_std", 0.0)),
         "aggregate_metrics": aggregate_runs(rows),
         "per_query_metrics": aggregate_runs_by_query(rows),
     }
@@ -259,6 +274,12 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         command.extend(["--sensor-width", str(args.sensor_width)])
     if getattr(args, "sensor_height", None) is not None:
         command.extend(["--sensor-height", str(args.sensor_height)])
+    oracle_noise = float(getattr(args, "oracle_pick_noise_std", 0.0))
+    if oracle_noise > 0.0:
+        command.extend(["--oracle-pick-noise-std", str(oracle_noise)])
+    oracle_place_noise = float(getattr(args, "oracle_place_noise_std", 0.0))
+    if oracle_place_noise > 0.0:
+        command.extend(["--oracle-place-noise-std", str(oracle_place_noise)])
     if getattr(args, "capture_execution_video", False):
         command.append("--capture-execution-video")
         command.extend(["--execution-video-fps", str(getattr(args, "execution_video_fps", 24.0))])

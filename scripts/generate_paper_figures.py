@@ -31,57 +31,104 @@ def generate_paper_figures(output_dir: Path) -> None:
 
 
 def draw_pipeline_overview(plt, output_dir: Path) -> None:
-    """Draw a compact left-to-right Query-to-Grasp system diagram."""
+    """Draw a variable-flow overview for the Query-to-Grasp diagnostic system."""
 
-    fig, ax = plt.subplots(figsize=(7.2, 2.7))
+    fig, ax = plt.subplots(figsize=(7.35, 3.15))
     ax.set_axis_off()
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
-    nodes = [
-        ("Language\nquery", 0.06, 0.62, "#d9e8ff"),
-        ("Open-vocab\n2D grounding", 0.22, 0.62, "#e4f5df"),
-        ("RGB-D lifting\n+ frame alignment", 0.40, 0.62, "#fff2cc"),
-        ("Multi-view\nobject memory", 0.59, 0.62, "#efe1ff"),
-        ("Target-source\nselection", 0.76, 0.62, "#ffe3dc"),
-        ("Simulated\npick/place", 0.91, 0.62, "#d9ead3"),
-    ]
-    for label, x, y, color in nodes:
+    def box(label: str, x: float, y: float, w: float, h: float, color: str, fontsize: float = 6.8) -> None:
         ax.text(
             x,
             y,
             label,
             ha="center",
             va="center",
-            fontsize=8.5,
-            bbox=dict(boxstyle="round,pad=0.42", facecolor=color, edgecolor="#334155", linewidth=1.0),
+            fontsize=fontsize,
+            linespacing=1.15,
+            bbox=dict(
+                boxstyle="round,pad=0.23",
+                facecolor=color,
+                edgecolor="#334155",
+                linewidth=0.9,
+            ),
         )
-    for (_, x0, y0, _), (_, x1, y1, _) in zip(nodes[:-1], nodes[1:]):
+
+    def arrow(x0: float, y0: float, x1: float, y1: float, label: str = "") -> None:
         ax.annotate(
             "",
-            xy=(x1 - 0.075, y1),
-            xytext=(x0 + 0.075, y0),
-            arrowprops=dict(arrowstyle="->", linewidth=1.2, color="#334155"),
+            xy=(x1, y1),
+            xytext=(x0, y0),
+            arrowprops=dict(arrowstyle="->", linewidth=1.05, color="#334155", shrinkA=2, shrinkB=2),
         )
+        if label:
+            ax.text(
+                (x0 + x1) / 2,
+                (y0 + y1) / 2 + 0.035,
+                label,
+                ha="center",
+                va="center",
+                fontsize=5.7,
+                color="#334155",
+            )
+
+    ax.text(0.02, 0.94, "Inputs", fontsize=8.0, fontweight="bold", color="#0f172a")
+    ax.text(0.25, 0.94, "Retrieval to 3D action targets", fontsize=8.0, fontweight="bold", color="#0f172a")
+    ax.text(0.75, 0.94, "Execution and diagnosis", fontsize=8.0, fontweight="bold", color="#0f172a")
+
+    # Main variable flow.
+    box("Query\n$q$", 0.055, 0.73, 0.08, 0.10, "#dbeafe")
+    box("RGB-D views\n$(I_v,D_v,T_v)$", 0.055, 0.51, 0.11, 0.12, "#e0f2fe")
+    box("2D grounding\n$b_i,c_i,s_i$", 0.175, 0.62, 0.11, 0.13, "#dcfce7")
+    box("Lift + align\n$X_i, g_i$", 0.315, 0.62, 0.11, 0.13, "#fef3c7")
+    box("Object memory\n$m_k=\\{X,g,v,s\\}$", 0.455, 0.62, 0.12, 0.13, "#ede9fe")
+    box("Target source\nSC/RG/MG/TG\nQ/OP/PG", 0.610, 0.62, 0.12, 0.15, "#ffedd5")
+    box("Executor\npick/place", 0.765, 0.62, 0.10, 0.12, "#dcfce7")
+    box("Metrics\npick/place/task\nfailure type", 0.910, 0.62, 0.10, 0.13, "#f1f5f9")
+
+    arrow(0.085, 0.72, 0.130, 0.65)
+    arrow(0.092, 0.52, 0.130, 0.59)
+    arrow(0.225, 0.62, 0.265, 0.62)
+    arrow(0.365, 0.62, 0.405, 0.62)
+    arrow(0.510, 0.62, 0.555, 0.62)
+    arrow(0.665, 0.62, 0.715, 0.62)
+    arrow(0.815, 0.62, 0.860, 0.62)
+
+    # StackCube reference branch.
+    box("Reference query\n$q_p$: green cube", 0.315, 0.36, 0.12, 0.10, "#e0f2fe", fontsize=6.5)
+    box("Place reference\n$p_B$ or OB", 0.610, 0.36, 0.12, 0.10, "#ffe4e6", fontsize=6.5)
+    arrow(0.370, 0.36, 0.550, 0.36, "StackCube branch")
+    arrow(0.610, 0.41, 0.610, 0.535)
+
+    # Diagnostic taps are shown below the variable flow, not as another module chain.
+    diagnostics = [
+        ("CLIP top-1\nchange", 0.175),
+        ("spread +\nfragmentation", 0.315),
+        ("views +\ngeom. conf.", 0.455),
+        ("target-source\nablation", 0.610),
+        ("stage counts\n+ RawEnv", 0.765),
+    ]
+    for label, x in diagnostics:
+        ax.text(
+            x,
+            0.18,
+            label,
+            ha="center",
+            va="center",
+            fontsize=6.2,
+            color="#0f172a",
+            bbox=dict(boxstyle="round,pad=0.22", facecolor="#f8fafc", edgecolor="#94a3b8", linewidth=0.75),
+        )
+        arrow(x, 0.28, x, 0.245)
 
     ax.text(
         0.50,
-        0.25,
-        "Diagnostics: CLIP top-1 changes, cross-view spread, re-observation state,\n"
-        "target-source ablations, pick/place/task success, and failure taxonomy",
-        ha="center",
-        va="center",
-        fontsize=8.2,
-        color="#111827",
-        bbox=dict(boxstyle="round,pad=0.45", facecolor="#f8fafc", edgecolor="#94a3b8", linewidth=0.9),
-    )
-    ax.text(
-        0.50,
         0.06,
-        "Claim boundary: high-fidelity simulation only; no real-robot or full non-oracle StackCube stacking claim.",
+        "Diagnostic boundary: modules are separable; oracle/noisy-oracle rows are privileged probes, not deployable perception claims.",
         ha="center",
         va="center",
-        fontsize=7.4,
+        fontsize=7.0,
         color="#475569",
     )
     save_figure(fig, output_dir / "pipeline_overview")
@@ -128,57 +175,66 @@ def draw_geometry_memory_ablation(plt, output_dir: Path) -> None:
 
 
 def draw_target_source_results(plt, output_dir: Path) -> None:
-    """Draw the frozen target-source result summary for the main paper."""
+    """Draw a compact primary-metric ladder without overloaded grouped bars."""
 
     rows = [
-        ("PickCube\nfull MV/CL", 1.00, None, 0.1455, "#2563eb"),
-        ("StackCube\npick-only tabletop", 0.62, None, 0.00, "#0f766e"),
-        ("StackCube\npick-only CL", 0.52, None, 0.00, "#0f766e"),
-        ("Oracle\npick-place", 0.94, 0.88, 0.88, "#7c3aed"),
-        ("Query pick +\noracle place\nsingle-view", 0.88, 0.72, 0.72, "#ea580c"),
-        ("Query pick +\noracle place\ntabletop", 0.62, 0.52, 0.52, "#ea580c"),
-        ("Query pick +\noracle place\nclosed-loop", 0.52, 0.48, 0.48, "#ea580c"),
+        ("PickCube refined grasp\nRG -> sim_topdown", 1.0000, "pick", "#2563eb"),
+        ("PickCube memory grasp\nMG -> sim_topdown", 1.0000, "pick", "#2563eb"),
+        ("StackCube pick-only\nTG tabletop", 0.6200, "pick", "#0f766e"),
+        ("StackCube pick-only\nTG closed-loop", 0.5200, "pick", "#0f766e"),
+        ("Q-pick + predicted place\nsingle", 0.5520, "task", "#ea580c"),
+        ("Q-pick + predicted place\ntabletop", 0.4720, "task", "#ea580c"),
+        ("Q-pick + predicted place\nclosed-loop", 0.4460, "task", "#ea580c"),
+        ("Q-pick + oracle place\nsingle", 0.7200, "task", "#7c3aed"),
+        ("Oracle pick-place\nOA -> OB", 0.8800, "task", "#7c3aed"),
     ]
 
-    fig, ax = plt.subplots(figsize=(7.4, 3.5))
-    labels = [row[0] for row in rows]
+    fig, ax = plt.subplots(figsize=(7.25, 3.55))
     y_positions = list(range(len(rows)))
-    bar_height = 0.22
+    labels = [row[0] for row in rows]
+    values = [row[1] for row in rows]
+    colors = [row[3] for row in rows]
 
-    pick_values = [row[1] for row in rows]
-    place_values = [0.0 if row[2] is None else row[2] for row in rows]
-    task_values = [row[3] for row in rows]
+    for y, value, metric, color in zip(y_positions, values, [row[2] for row in rows], colors):
+        ax.hlines(y, 0, value, color=color, linewidth=2.4, alpha=0.8)
+        ax.scatter(value, y, s=46, color=color, edgecolor="white", linewidth=0.8, zorder=3)
+        ax.text(value + 0.025, y, f"{value:.3f} {metric}", va="center", fontsize=7.2, color="#1e293b")
 
-    ax.barh([y + bar_height for y in y_positions], pick_values, height=bar_height, color="#2563eb", label="Pick")
-    ax.barh(y_positions, place_values, height=bar_height, color="#16a34a", label="Place")
-    ax.barh([y - bar_height for y in y_positions], task_values, height=bar_height, color="#f97316", label="Task")
-
-    for y, pick, place, task in zip(y_positions, pick_values, [row[2] for row in rows], task_values):
-        ax.text(pick + 0.018, y + bar_height, f"{pick:.2f}", va="center", fontsize=7.5, color="#1e293b")
-        if place is not None:
-            ax.text(place + 0.018, y, f"{place:.2f}", va="center", fontsize=7.5, color="#1e293b")
-        else:
-            ax.text(0.018, y, "n/a", va="center", fontsize=7.2, color="#64748b")
-        ax.text(task + 0.018, y - bar_height, f"{task:.2f}", va="center", fontsize=7.5, color="#1e293b")
-
+    ax.axvline(1.0, color="#94a3b8", linestyle=":", linewidth=0.9)
     ax.set_yticks(y_positions)
-    ax.set_yticklabels(labels, fontsize=7.5)
+    ax.set_yticklabels(labels, fontsize=7.1)
     ax.set_xlim(0, 1.12)
-    ax.set_xlabel("Success rate", fontsize=8.5)
-    ax.set_title("Target-source quality determines executable manipulation success", fontsize=10.5)
+    ax.set_xlabel("Primary success rate", fontsize=8.5)
+    ax.set_title("Target-source ladder: from query targets to diagnostic upper bounds", fontsize=10.0)
     ax.grid(axis="x", linestyle=":", linewidth=0.7, alpha=0.55)
     ax.spines[["top", "right"]].set_visible(False)
-    ax.legend(loc="lower right", fontsize=7.5, frameon=False)
     ax.invert_yaxis()
+
+    legend_handles = [
+        plt.Line2D([0], [0], marker="o", color="#2563eb", label="PickCube pick", markersize=5, linewidth=2),
+        plt.Line2D([0], [0], marker="o", color="#0f766e", label="StackCube pick-only", markersize=5, linewidth=2),
+        plt.Line2D([0], [0], marker="o", color="#ea580c", label="Non-oracle place bridge", markersize=5, linewidth=2),
+        plt.Line2D([0], [0], marker="o", color="#7c3aed", label="Privileged diagnostic", markersize=5, linewidth=2),
+    ]
+    ax.legend(
+        handles=legend_handles,
+        loc="upper center",
+        bbox_to_anchor=(0.56, -0.18),
+        ncol=4,
+        fontsize=6.8,
+        frameon=False,
+        columnspacing=1.1,
+        handlelength=1.8,
+    )
     fig.text(
         0.5,
-        0.02,
-        "Frozen paper rows: PickCube uses memory grasp targets; StackCube bridge uses query pick with oracle cubeB placement.",
+        0.005,
+        "Pick-only rows use pick success as the primary metric; pick-place rows use task success. Oracle rows are diagnostic probes.",
         ha="center",
-        fontsize=7.6,
+        fontsize=7.2,
         color="#475569",
     )
-    fig.tight_layout(rect=[0.02, 0.07, 0.98, 0.96])
+    fig.tight_layout(rect=[0.02, 0.16, 0.98, 0.96])
     save_figure(fig, output_dir / "target_source_results")
 
 

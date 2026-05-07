@@ -681,6 +681,61 @@ def test_multiview_fusion_benchmark_can_fail_on_child_error(monkeypatch, tmp_pat
     assert rows[0]["camera_name"] == "base_camera"
 
 
+def test_multiview_fusion_benchmark_accepts_seed_range(monkeypatch, tmp_path: Path) -> None:
+    seen_commands = []
+
+    def fake_run(command, cwd, capture_output, text, check):
+        seen_commands.append(command)
+        output_dir = Path(command[command.index("--output-dir") + 1])
+        seed = int(command[command.index("--seed") + 1])
+        run_dir = output_dir / f"fake_run_{seed}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "query": command[command.index("--query") + 1],
+            "num_views": 1,
+            "num_memory_objects": 1,
+            "num_observations_added": 1,
+            "selected_object_id": "obj_0000",
+            "selected_overall_confidence": 0.7,
+            "should_reobserve": False,
+            "reobserve_reason": "confident_enough",
+            "pick_stage": "not_attempted",
+            "runtime_seconds": 1.0,
+            "artifacts": str(run_dir),
+        }
+        (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    output_dir = tmp_path / "benchmark"
+    monkeypatch.setattr(benchmark.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_multiview_fusion_benchmark.py",
+            "--queries",
+            "red cube",
+            "--start-seed",
+            "10",
+            "--num-seeds",
+            "3",
+            "--detector-backend",
+            "mock",
+            "--skip-clip",
+            "--view-preset",
+            "tabletop_3",
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+
+    benchmark.main()
+
+    assert [int(command[command.index("--seed") + 1]) for command in seen_commands] == [10, 11, 12]
+    summary = json.loads((output_dir / "benchmark_summary.json").read_text(encoding="utf-8"))
+    assert summary["total_runs"] == 3
+
+
 def _args(
     output_dir: Path,
     skip_clip: bool,
