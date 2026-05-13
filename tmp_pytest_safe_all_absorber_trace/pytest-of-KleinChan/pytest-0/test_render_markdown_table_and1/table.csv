@@ -1,2 +1,0 @@
-label,detector_backend,skip_clip,total_runs,mean_raw_num_detections,mean_num_ranked_candidates,fraction_top1_changed_by_rerank,fraction_with_3d_target,pick_success_rate,mean_runtime_seconds
-Detector + CLIP,hf,False,6,2.0,2.0,0.5,1.0,0.0,2.25

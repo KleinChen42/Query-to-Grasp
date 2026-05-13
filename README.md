@@ -1,37 +1,56 @@
 # Query-to-Grasp
 
-Language-queryable 3D semantic target retrieval and placeholder grasp execution
-in ManiSkill.
+**A Target-Source Diagnostic Framework for Open-Vocabulary RGB-D Manipulation**
 
-The current project is a research prototype for a paper/demo baseline. It does
-not train new models. Instead, it connects open-vocabulary 2D perception, RGB-D
-geometry, confidence-aware 3D object memory, deterministic target selection, and
-structured benchmark/report artifacts.
+This repository contains the code, benchmark scripts, generated summaries,
+and paper artifacts for the Query-to-Grasp diagnostic framework.
 
-## Current Scope
+**Paper status:** Submitted to *Robotics and Autonomous Systems*.
 
-Implemented:
+---
 
-- ManiSkill RGB-D observation wrapper and export utilities.
-- Query parser with deterministic fallback rules.
-- GroundingDINO detector wrapper with HF, original-adapter, and mock backends.
-- Optional OpenCLIP reranking.
-- RGB-D 2D-to-3D lifting with corrected ManiSkill `cam2world_gl` convention.
-- Safe placeholder pick executor that validates targets without claiming real
-  robot-control success.
-- Single-view benchmark/report pipeline.
-- Ambiguity benchmark helper for reranking headroom diagnostics.
-- Multi-view object memory and confidence-aware fusion debug path.
-- Target selection traces and open-loop re-observation policy diagnostics.
-- Paper-ready table/report/figure-pack helpers.
+## Overview
 
-Not implemented yet:
+Open-vocabulary detectors can localize language-described objects in 2D, but
+robot manipulation requires a geometrically stable, cross-view consistent, and
+executable 3D action target. Query-to-Grasp studies this
+**retrieval-to-execution interface** explicitly: it keeps semantic retrieval,
+RGB-D lifting, camera-frame alignment, target-source selection, multi-view
+memory, re-observation, and scripted execution as separable modules.
 
-- Real low-level robot grasp control.
-- Closed-loop camera movement after re-observation decisions.
-- Web demo.
-- Training code.
-- Large-scale cluttered-scene evaluation.
+This framework is a **simulated diagnostic benchmark** for studying
+open-vocabulary RGB-D manipulation. It does **not** claim real-robot deployment.
+
+---
+
+## Repository Structure
+
+```
+Query-to-Grasp/
+├── src/                    # Core Python source
+│   ├── env/                # ManiSkill environment wrapper
+│   ├── perception/         # GroundingDINO, CLIP reranking, mask projection, query parsing
+│   ├── geometry/           # 3D geometry utilities
+│   ├── memory/             # Multi-view 3D object memory
+│   ├── policy/             # Target selection and re-observation policy
+│   ├── manipulation/       # Scripted pick/pick-place executors
+│   ├── eval/               # Metrics computation
+│   └── io/                 # I/O utilities
+├── scripts/                # Benchmark runners, table/figure generation
+├── tests/                  # Unit and integration tests
+├── configs/                # Query configuration files
+├── paper_ras/              # Paper LaTeX source (RAS submission)
+│   ├── main.tex
+│   ├── references.bib
+│   ├── figures/            # Vector and raster figures for paper
+│   └── tables/             # Generated LaTeX and CSV tables
+├── docs/                   # Architecture documentation, experiment reports
+├── notebooks/              # Jupyter debug notebooks
+├── requirements.txt        # Python dependencies
+└── LICENSE                 # MIT License
+```
+
+---
 
 ## Architecture
 
@@ -48,44 +67,35 @@ flowchart LR
     L --> M["3D object memory + fusion"]
     M --> T["target selector + trace"]
     T --> U["re-observation decision"]
-    T --> X["placeholder pick"]
+    T --> X["scripted pick / pick-place"]
     U --> A["JSON / CSV / Markdown artifacts"]
     X --> A
 ```
 
-See `docs/architecture_query_to_grasp.md` for the implemented architecture and
-paper artifact map.
+See [`docs/architecture_query_to_grasp.md`](docs/architecture_query_to_grasp.md)
+for the implemented architecture and paper artifact map.
 
-## Install
+---
 
-Python 3.10+ is recommended. The mock path is dependency-light; HF and ManiSkill
-runs require the relevant simulation and model packages.
+## Installation
+
+Python 3.10+ is recommended.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate   # Linux/macOS
+# .\\.venv\\Scripts\\Activate.ps1   # Windows PowerShell
 pip install -r requirements.txt
 pip install pytest
 ```
 
-On Windows PowerShell:
+> **Note:** Exact large-scale experiments were run on a GPU cluster. Cluster-specific SSH, synchronization, and launch scripts are excluded from the public artifact for security and portability.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-pip install pytest
-```
-
-For HF GroundingDINO diagnostics:
-
-```bash
-PYTHONPATH=$PWD python scripts/check_hf_groundingdino_env.py --try-model-load
-```
+---
 
 ## Quickstart
 
-Stable dependency-light smoke run:
+Dependency-light smoke run (mock detector, no GPU needed):
 
 ```bash
 PYTHONPATH=$PWD python scripts/run_single_view_pick.py \
@@ -94,17 +104,86 @@ PYTHONPATH=$PWD python scripts/run_single_view_pick.py \
   --mock-box-position center \
   --skip-clip \
   --depth-scale 1000 \
-  --output-dir outputs/colab_pick_smoke
+  --output-dir outputs/smoke_pick
 ```
 
-Expected result: a structured run folder containing JSON summaries, parsed
-query output, 3D target data, and a placeholder pick result. `pick_success=false`
-is expected because the executor intentionally does not send low-level robot
-actions.
+Expected: a structured run folder with JSON summaries, parsed query output, 3D
+target data, and a placeholder pick result. `pick_success=false` is expected
+because the placeholder executor does not send low-level robot actions.
 
-## HF Single-View Baseline
+---
 
-No CLIP:
+## Reproducing Paper Tables and Figures
+
+### Generate tables
+
+The paper tables are generated from benchmark summary CSVs:
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_ras_tables_figures.py
+```
+
+Pre-generated tables are in `paper_ras/tables/`:
+- `table_external_crop_200_with_ci.tex` — External RGB-D crop baselines
+- `table_noisy_oracle_with_ci.tex` — Noisy-oracle sensitivity
+- `table_noncube_gate_with_ci.tex` — Non-cube PickSingleYCB diagnostic
+- `table_target_ladder_with_ci.tex` — Target-source ladder
+- `table_sensor_stress_with_ci.tex` — Synthetic RGB-D stress test
+- `table_failure_taxonomy.tex` — Failure taxonomy
+
+### Generate figures
+
+```bash
+PYTHONPATH=$PWD python scripts/generate_paper_figures.py
+```
+
+Pre-generated figures are in `paper_ras/figures/`.
+
+### Compile paper
+
+```bash
+cd paper_ras
+latexmk -pdf main.tex
+```
+
+---
+
+## Data and Artifacts
+
+### Included
+
+- **Benchmark summary CSVs/JSONs**: Lightweight summaries used to generate
+  paper tables and figures.
+- **Generated LaTeX tables**: Ready-to-compile table fragments.
+- **Generated figures**: PDF and PNG versions of all paper figures.
+- **Table/figure generation scripts**: Python scripts that reproduce the paper's
+  tables and figures from the included summaries.
+
+### Excluded
+
+- **Raw massive outputs**: Per-run observation images, depth maps, and detection
+  overlays (tens of thousands of files) are not included.
+- **Model weights**: GroundingDINO and CLIP weights should be obtained through
+  HuggingFace.
+- **External assets**: ManiSkill and YCB assets should be obtained from their
+  official sources and are not redistributed in this repository.
+- **Cluster-specific launch scripts**: SSH, synchronization, and remote
+  execution scripts are excluded for security and portability.
+
+---
+
+## Claim Boundary
+
+This repository supports a **simulated diagnostic framework**. It does **not**
+claim real-robot deployment or general manipulation competence. The scripted
+executor is a diagnostic instrument: it fixes the control layer so that
+differences in measured performance can be attributed to target-source quality.
+
+---
+
+## Running Benchmarks
+
+### Single-view pick benchmark
 
 ```bash
 PYTHONPATH=$PWD python scripts/run_single_view_pick_benchmark.py \
@@ -116,30 +195,7 @@ PYTHONPATH=$PWD python scripts/run_single_view_pick_benchmark.py \
   --output-dir outputs/benchmark_hf_no_clip
 ```
 
-With CLIP:
-
-```bash
-PYTHONPATH=$PWD python scripts/run_single_view_pick_benchmark.py \
-  --queries "red cube" "blue mug" \
-  --seeds 0 1 2 \
-  --detector-backend hf \
-  --use-clip \
-  --depth-scale 1000 \
-  --output-dir outputs/benchmark_hf_with_clip
-```
-
-Generate the report:
-
-```bash
-PYTHONPATH=$PWD python scripts/generate_benchmark_report.py \
-  --benchmark-dir outputs/benchmark_hf_no_clip \
-  --compare-benchmark-dir outputs/benchmark_hf_with_clip
-```
-
-## Ambiguity Benchmark
-
-The ambiguity helper reuses the single-view benchmark pipeline and loads
-curated queries from `configs/ambiguity_queries.txt`.
+### Ambiguity benchmark
 
 ```bash
 PYTHONPATH=$PWD python scripts/run_ambiguity_benchmark.py \
@@ -152,158 +208,46 @@ PYTHONPATH=$PWD python scripts/run_ambiguity_benchmark.py \
   --generate-report
 ```
 
-Run again with `--use-clip` to test whether reranking changes top-1 under
-broader prompts.
-
-## Multi-View Fusion Debug
-
-Corrected virtual `tabletop_3` multi-view run:
-
-```bash
-PYTHONPATH=$PWD python scripts/run_multiview_fusion_debug.py \
-  --query "red cube" \
-  --seed 0 \
-  --detector-backend hf \
-  --skip-clip \
-  --depth-scale 1000 \
-  --view-preset tabletop_3 \
-  --camera-name base_camera \
-  --output-dir outputs/multiview_debug_red_cube
-```
-
-Fusion benchmark:
-
-```bash
-PYTHONPATH=$PWD python scripts/run_multiview_fusion_benchmark.py \
-  --queries "red cube" "blue mug" \
-  --seeds 0 1 2 \
-  --detector-backend hf \
-  --skip-clip \
-  --depth-scale 1000 \
-  --view-preset tabletop_3 \
-  --camera-name base_camera \
-  --output-dir outputs/multiview_fusion_tabletop3_hf_no_clip
-```
-
-Comparison table:
-
-```bash
-PYTHONPATH=$PWD python scripts/generate_fusion_comparison_table.py \
-  --single-view "HF single no CLIP=outputs/benchmark_hf_no_clip" \
-  --fusion "HF tabletop_3 fusion no CLIP=outputs/multiview_fusion_tabletop3_hf_no_clip" \
-  --output-md outputs/fusion_comparison_table.md \
-  --output-csv outputs/fusion_comparison_table.csv
-```
-
-## Re-Observation Diagnostics
-
-The policy currently produces a decision artifact; it does not automatically
-move cameras and rerun perception.
-
-```bash
-PYTHONPATH=$PWD python scripts/generate_reobserve_policy_report.py \
-  --benchmark HF_no_CLIP=outputs/multiview_fusion_tabletop3_hf_no_clip \
-  --benchmark HF_with_CLIP=outputs/multiview_fusion_tabletop3_hf_with_clip \
-  --output-md outputs/reobserve_policy_report.md \
-  --output-json outputs/reobserve_policy_report.json
-```
-
-Post-selection continuity margin sweep:
-
-```bash
-PYTHONPATH=$PWD python scripts/run_post_selection_margin_sweep.py \
-  --queries-file configs/ambiguity_queries_compact.txt \
-  --seeds 0 \
-  --detector-backend hf \
-  --use-clip \
-  --depth-scale 1000 \
-  --view-preset tabletop_3 \
-  --camera-name base_camera \
-  --output-dir outputs/post_selection_margin_sweep_with_clip \
-  --generate-policy-report \
-  --fail-on-child-error
-```
-
-## H200 Sync Workflow
-
-For H200 runs, keep the local workspace and remote `OpenMythos_test` tree in
-sync with the checked-in helpers in `scripts/`.
-
-Push changed repo files to the remote workspace:
-
-```powershell
-$env:SSH_KEY_PASSPHRASE = "..."
-powershell -ExecutionPolicy Bypass -File scripts/sync_h200_files.ps1 `
-  -Direction push `
-  -Paths @("scripts/run_multiview_fusion_benchmark.py", "src/policy/target_selector.py")
-```
-
-Pull a benchmark/report directory back to local `outputs/`:
-
-```powershell
-$env:SSH_KEY_PASSPHRASE = "..."
-powershell -ExecutionPolicy Bypass -File scripts/sync_h200_files.ps1 `
-  -Direction pull `
-  -Recursive `
-  -Paths @("outputs/h200_60071_post_selection_continuity_ambiguity_compact_seed0")
-```
-
-Run a non-interactive remote command from the same SSH setup:
-
-```powershell
-$env:SSH_KEY_PASSPHRASE = "..."
-powershell -ExecutionPolicy Bypass -File scripts/invoke_h200_command.ps1 `
-  -RemoteCommand "source ~/q2g_venv/bin/activate && python --version"
-```
-
-## Paper Figure Pack
-
-Collect the current paper/demo artifacts into one captioned folder:
-
-```bash
-PYTHONPATH=$PWD python scripts/build_paper_figure_pack.py \
-  --output-dir outputs/paper_figure_pack_latest
-```
-
-The pack includes the architecture note, ablation tables, geometry reports,
-memory diagnostics, selection trace, re-observation report, and milestone log
-when those source artifacts are present.
-
-## Current Evidence Summary
-
-Current H200 benchmark evidence supports these conservative conclusions:
-
-- HF GroundingDINO is runnable for the small single-view baseline.
-- CLIP does not currently change top-1 because detector candidate multiplicity
-  remains low.
-- Ambiguity prompts raise candidate count only modestly in the tested setting.
-- Correcting the RGB-D/camera-pose convention reduces same-label cross-view
-  spread from `1.0693 m` to `0.0518 m`.
-- Corrected `tabletop_3` fusion reduces mean memory fragmentation from `3.3333`
-  to `1.3333` objects per run in the current small benchmark.
-- CLIP increases selected-object confidence in corrected fusion, but does not
-  change selected-object rate or re-observation decisions in the current runs.
-
-See `docs/paper_milestone_log.md` and `docs/paper_draft_outline.md` for the
-running paper-oriented record.
+---
 
 ## Testing
-
-Run the lightweight suite:
 
 ```bash
 PYTHONPATH=$PWD pytest -q tests
 ```
 
-Model-download and ManiSkill-heavy commands should be treated as environment
-smoke/integration runs rather than unit tests.
+---
 
 ## Known Limitations
 
-- Placeholder pick is intentionally not real grasp control.
+- All experiments are simulated (ManiSkill); no physical robot results.
+- The scripted executor is intentionally limited to isolate target-source
+  effects.
 - Re-observation is open-loop diagnostics only.
-- The web demo is not implemented yet.
-- Experiments are still small and centered on `PickCube-v1` plus virtual camera
-  presets.
-- CLIP is currently a confidence/diagnostic term, not a proven performance
-  improvement.
+- Language grounding uses simple queries, not relation-heavy reasoning.
+- Experiments are centered on PickCube, StackCube, and PickSingleYCB tasks.
+
+---
+
+## Citation
+
+```bibtex
+@article{chen2026querytograsp,
+  title   = {Query-to-Grasp: A Target-Source Diagnostic Framework
+             for Open-Vocabulary RGB-D Manipulation},
+  author  = {Chen, Zhuo},
+  journal = {Robotics and Autonomous Systems},
+  year    = {2026},
+  note    = {Submitted manuscript}
+}
+```
+
+---
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for
+details.
+
+External assets such as ManiSkill/YCB assets should be obtained from their
+official sources and are not redistributed in this repository.

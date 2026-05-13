@@ -1,1 +1,0 @@
-{"total_runs": 6, "detector_backend": "hf", "skip_clip": true, "aggregate_metrics": {"total_runs": 6, "mean_raw_num_detections": 1.0, "mean_num_detections": 1.0, "mean_num_ranked_candidates": 1.0, "fraction_top1_changed_by_rerank": 0.0, "fraction_with_3d_target": 1.0, "pick_success_rate": 0.0, "mean_runtime_seconds": 1.0}}

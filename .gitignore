@@ -1,9 +1,12 @@
+# Python bytecode
 __pycache__/
 *.py[cod]
 *$py.class
 
+# Testing
 .pytest_cache/
 .pytest_tmp*/
+tmp_pytest*/
 tmp_pytest_safe*/
 local_pytest_temp_test/
 .mypy_cache/
@@ -11,16 +14,74 @@ local_pytest_temp_test/
 .coverage
 htmlcov/
 
+# Virtual environments
 /.venv/
 /venv/
 /env/
 
+# Outputs and logs
 /outputs/
 data/logs/
 data/videos/
 data/pointclouds/
 data/debug_frames/
+*.log
 
+# Notebooks
 .ipynb_checkpoints/
+
+# OS files
 .DS_Store
 Thumbs.db
+
+# Local / remote ops — excluded for public release
+connect.ps1
+connect.bat
+ssh_askpass.cmd
+tmp_*
+*_patch.tgz
+paper*.zip
+paper_ras*.zip
+remote_run_*.sh
+
+# H200 / cluster scripts
+scripts/h200_common.ps1
+scripts/invoke_h200_command.ps1
+scripts/sync_h200_files.ps1
+scripts/remote_place_artifact_inventory.sh
+scripts/remote_ras_artifact_inventory.sh
+
+# Secrets / keys
+.env
+*.pem
+*.key
+*.ppk
+id_rsa*
+*_rsa*
+*.pub
+.ssh/
+secrets.*
+*token*
+*passphrase*
+*password*
+
+# Generated / cache
+.cache/
+
+# Large or raw outputs
+wandb/
+runs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Archives
+*.zip
+*.tgz
+
+# Scratch / private notes
+CODEX_TASK_SPEC*.md
+结果.md
+private_notes_removed_from_public/
+repo_cleanup_report.md

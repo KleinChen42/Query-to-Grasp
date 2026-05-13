@@ -1,3 +1,0 @@
-pickcube_crop_top_surface_clean	PickCube-v1	red cube	sim_topdown	crop_top_surface	none	cube	0.0	0.0
-stackcube_pick_box_center_depth_drop10	StackCube-v1	red cube	sim_topdown	box_center_depth	none	cube	0.0	0.10
-stackcube_pickplace_crop_top_surface_depth5mm	StackCube-v1	red cube	sim_pick_place	crop_top_surface	predicted_place_object	green cube	0.005	0.0

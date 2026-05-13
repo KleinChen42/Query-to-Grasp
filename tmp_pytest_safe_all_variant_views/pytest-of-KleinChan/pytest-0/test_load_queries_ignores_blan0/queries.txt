@@ -1,6 +1,0 @@
-# exact objects
-
-red cube
-  blue mug  
-# broad queries
-object
