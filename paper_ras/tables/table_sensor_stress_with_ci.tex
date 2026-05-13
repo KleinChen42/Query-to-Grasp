@@ -1,0 +1,41 @@
+\begin{table*}[t]
+\centering
+\caption{Synthetic RGB-D sensor-stress diagnostic. Noise and dropout are applied before 3D target extraction. Values are success rates with Wilson 95\% confidence intervals. This is a simulation proxy, not real-world validation.}
+\label{tab:sensor-stress}
+\small
+\begin{tabular}{llrrrr}
+\toprule
+Task / source & Condition & $N$ & Target avail. & Pick & Task/raw \\
+\midrule
+PickCube pick / box center & clean & 100 & 1.000 [0.963,1.000] & 0.010 [0.002,0.054] & 0.020 [0.006,0.070] \\
+PickCube pick / box center & depth noise 5 mm & 100 & 1.000 [0.963,1.000] & 0.080 [0.041,0.150] & 0.020 [0.006,0.070] \\
+PickCube pick / box center & depth noise 10 mm & 100 & 1.000 [0.963,1.000] & 0.200 [0.133,0.289] & 0.020 [0.006,0.070] \\
+PickCube pick / box center & depth dropout 10\% & 100 & 1.000 [0.963,1.000] & 0.060 [0.028,0.125] & 0.020 [0.006,0.070] \\
+PickCube pick / box center & depth dropout 20\% & 100 & 1.000 [0.963,1.000] & 0.110 [0.063,0.186] & 0.020 [0.006,0.070] \\
+\midrule
+PickCube pick / crop top-surface & clean & 100 & 1.000 [0.963,1.000] & 0.990 [0.946,0.998] & 0.010 [0.002,0.054] \\
+PickCube pick / crop top-surface & depth noise 5 mm & 100 & 1.000 [0.963,1.000] & 1.000 [0.963,1.000] & 0.030 [0.010,0.085] \\
+PickCube pick / crop top-surface & depth noise 10 mm & 100 & 1.000 [0.963,1.000] & 0.970 [0.915,0.990] & 0.010 [0.002,0.054] \\
+PickCube pick / crop top-surface & depth dropout 10\% & 100 & 1.000 [0.963,1.000] & 0.980 [0.930,0.994] & 0.010 [0.002,0.054] \\
+PickCube pick / crop top-surface & depth dropout 20\% & 100 & 1.000 [0.963,1.000] & 0.970 [0.915,0.990] & 0.010 [0.002,0.054] \\
+\midrule
+StackCube pick / box center & clean & 100 & 1.000 [0.963,1.000] & 0.080 [0.041,0.150] & 0.000 [0.000,0.037] \\
+StackCube pick / box center & depth noise 5 mm & 100 & 1.000 [0.963,1.000] & 0.190 [0.125,0.278] & 0.000 [0.000,0.037] \\
+StackCube pick / box center & depth noise 10 mm & 100 & 1.000 [0.963,1.000] & 0.280 [0.201,0.375] & 0.000 [0.000,0.037] \\
+StackCube pick / box center & depth dropout 10\% & 100 & 1.000 [0.963,1.000] & 0.100 [0.055,0.174] & 0.000 [0.000,0.037] \\
+StackCube pick / box center & depth dropout 20\% & 100 & 1.000 [0.963,1.000] & 0.150 [0.093,0.233] & 0.000 [0.000,0.037] \\
+\midrule
+StackCube pick / crop top-surface & clean & 100 & 1.000 [0.963,1.000] & 0.840 [0.756,0.899] & 0.000 [0.000,0.037] \\
+StackCube pick / crop top-surface & depth noise 5 mm & 100 & 1.000 [0.963,1.000] & 0.800 [0.711,0.867] & 0.000 [0.000,0.037] \\
+StackCube pick / crop top-surface & depth noise 10 mm & 100 & 1.000 [0.963,1.000] & 0.820 [0.733,0.883] & 0.000 [0.000,0.037] \\
+StackCube pick / crop top-surface & depth dropout 10\% & 100 & 1.000 [0.963,1.000] & 0.840 [0.756,0.899] & 0.000 [0.000,0.037] \\
+StackCube pick / crop top-surface & depth dropout 20\% & 100 & 1.000 [0.963,1.000] & 0.810 [0.722,0.875] & 0.000 [0.000,0.037] \\
+\midrule
+StackCube pick-place / crop top-surface & clean & 100 & 1.000 [0.963,1.000] & 0.760 [0.668,0.833] & 0.570 [0.472,0.663] \\
+StackCube pick-place / crop top-surface & depth noise 5 mm & 100 & 1.000 [0.963,1.000] & 0.720 [0.625,0.799] & 0.600 [0.502,0.691] \\
+StackCube pick-place / crop top-surface & depth noise 10 mm & 100 & 1.000 [0.963,1.000] & 0.750 [0.657,0.825] & 0.610 [0.512,0.700] \\
+StackCube pick-place / crop top-surface & depth dropout 10\% & 100 & 1.000 [0.963,1.000] & 0.750 [0.657,0.825] & 0.590 [0.492,0.681] \\
+StackCube pick-place / crop top-surface & depth dropout 20\% & 100 & 1.000 [0.963,1.000] & 0.720 [0.625,0.799] & 0.600 [0.502,0.691] \\
+\bottomrule
+\end{tabular}
+\end{table*}

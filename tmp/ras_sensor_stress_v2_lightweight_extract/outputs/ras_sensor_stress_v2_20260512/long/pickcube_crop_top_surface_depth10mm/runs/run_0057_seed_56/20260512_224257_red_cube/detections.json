@@ -1,0 +1,39 @@
+{
+  "candidates": [
+    {
+      "box_xyxy": [
+        62.56500244140625,
+        82.50643920898438,
+        68.26397705078125,
+        89.01332092285156
+      ],
+      "det_score": 0.741917610168457,
+      "image_crop_path": null,
+      "metadata": {
+        "model_id": "IDEA-Research/grounding-dino-tiny"
+      },
+      "phrase": "red cube",
+      "source": "transformers_groundingdino"
+    }
+  ],
+  "parameters": {
+    "box_threshold": 0.35,
+    "detector_backend": "hf",
+    "mock_box_position": null,
+    "text_threshold": 0.25,
+    "top_k": 10
+  },
+  "query": {
+    "attributes": [
+      "red"
+    ],
+    "normalized_prompt": "red cube",
+    "raw_query": "red cube",
+    "relations": [],
+    "synonyms": [
+      "cube",
+      "block"
+    ],
+    "target_name": "cube"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "candidates": [
+    {
+      "box_xyxy": [
+        64.58700561523438,
+        81.49992370605469,
+        70.33555603027344,
+        88.30982971191406
+      ],
+      "det_score": 0.7364969253540039,
+      "image_crop_path": null,
+      "metadata": {
+        "model_id": "IDEA-Research/grounding-dino-tiny"
+      },
+      "phrase": "green cube",
+      "source": "transformers_groundingdino"
+    }
+  ],
+  "query": {
+    "attributes": [
+      "green"
+    ],
+    "normalized_prompt": "green cube",
+    "raw_query": "green cube",
+    "relations": [],
+    "synonyms": [
+      "cube",
+      "block"
+    ],
+    "target_name": "cube"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "candidates_3d": [
+    {
+      "box_area": 56,
+      "box_xyxy": [
+        36.52299118041992,
+        65.51451873779297,
+        42.34440231323242,
+        72.17700958251953
+      ],
+      "camera_xyz": [
+        -0.2707796096801758,
+        0.04935270547866821,
+        0.6963175535202026
+      ],
+      "depth_valid_ratio": 1.0,
+      "grasp_camera_xyz": null,
+      "grasp_metadata": {
+        "applied": false,
+        "component_radius": 0.03,
+        "elevated_z_offset": 0.015,
+        "local_support_radius": 0.04,
+        "local_support_z_margin": 0.012,
+        "min_elevated_points": 12,
+        "min_points": 20,
+        "num_workspace_points": 0,
+        "reason": "too_few_workspace_points",
+        "strategy": "workspace_elevated_xy_low_z",
+        "support_z_percentile": 10.0,
+        "workspace_bounds": {
+          "abs_x_max": 0.2,
+          "abs_y_max": 0.2,
+          "z_max": 0.08,
+          "z_min": -0.02
+        }
+      },
+      "grasp_num_points": 0,
+      "grasp_world_xyz": null,
+      "metadata": {
+        "box_bounds_xyxy_exclusive": [
+          36,
+          65,
+          43,
+          73
+        ],
+        "box_center_world_xyz": [
+          -0.07477256655693054,
+          -0.2597094476222992,
+          0.04838672652840614
+        ],
+        "camera_frame_conversion": "opencv_to_opengl",
+        "center_strategy": "median",
+        "extrinsics_source": "sensor_param.base_camera.cam2world_gl",
+        "intrinsics_source": "provided"
+      },
+      "num_points": 56,
+      "point_cloud_path": null,
+      "segmentation_id": null,
+      "world_xyz": [
+        -0.09641718864440918,
+        -0.2707796096801758,
+        0.010965496301651001
+      ]
+    }
+  ]
+}

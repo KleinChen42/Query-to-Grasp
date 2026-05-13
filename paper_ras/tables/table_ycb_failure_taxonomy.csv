@@ -1,0 +1,9 @@
+target_source,stage,count,rate,n,interpretation
+box_center_depth,grasp_not_confirmed,1575,0.984375,1600,crop-derived target is available but not reliably executable
+box_center_depth,success,25,0.015625,1600,successful top-down pick
+crop_median,grasp_not_confirmed,1553,0.970625,1600,crop-derived target is available but not reliably executable
+crop_median,success,47,0.029375,1600,successful top-down pick
+crop_top_surface,grasp_not_confirmed,1543,0.964375,1600,crop-derived target is available but not reliably executable
+crop_top_surface,success,57,0.035625,1600,successful top-down pick
+oracle_object_pose,success,1016,0.635,1600,successful top-down pick
+oracle_object_pose,grasp_not_confirmed,584,0.365,1600,controller/object-geometry limit under privileged target

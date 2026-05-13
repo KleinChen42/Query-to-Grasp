@@ -1,0 +1,15 @@
+dataset,env_id,target_source,n,median_error_cm,pick_success_rate
+external_crop_200,PickCube-v1,box_center_depth,277,2.558861,0.007220216606498195
+external_crop_200,PickCube-v1,crop_median,281,1.704411,0.9395017793594306
+external_crop_200,PickCube-v1,crop_top_surface,281,1.726497,0.9928825622775801
+external_crop_200,PickCube-v1,oracle_object_pose,280,0.0,1.0
+external_crop_200,StackCube-v1,box_center_depth,400,2.587783,0.085
+external_crop_200,StackCube-v1,crop_median,400,1.709329,0.77
+external_crop_200,StackCube-v1,crop_top_surface,400,1.754492,0.7725
+external_crop_200,StackCube-v1,oracle_object_pose,200,0.0,0.945
+noisy_oracle,PickCube-v1,refined,150,2.9792875,0.5533333333333333
+noisy_oracle,StackCube-v1,refined,300,2.9792875,0.4
+ycb_1600,PickSingleYCB-v1,box_center_depth,1600,45.912481,0.015625
+ycb_1600,PickSingleYCB-v1,crop_median,1600,39.936921,0.029375
+ycb_1600,PickSingleYCB-v1,crop_top_surface,1600,39.936921,0.035625
+ycb_1600,PickSingleYCB-v1,oracle_object_pose,1600,0.0,0.635

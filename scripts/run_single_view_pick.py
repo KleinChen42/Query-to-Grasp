@@ -20,7 +20,7 @@ from scripts.run_single_view_query import build_clip_prompts, rank_detections_wi
 from src.env.maniskill_env import ManiSkillScene  # noqa: E402
 from src.io.execution_video import ExecutionVideoRecorder  # noqa: E402
 from src.io.export_utils import export_observation_frame, write_json  # noqa: E402
-from src.manipulation.oracle_targets import find_stackcube_oracle_place_xyz  # noqa: E402
+from src.manipulation.oracle_targets import find_oracle_pick_xyz, find_stackcube_oracle_place_xyz  # noqa: E402
 from src.manipulation.place_targets import PredictedPlaceTarget, select_candidate_place_target  # noqa: E402
 from src.perception.clip_rerank import rerank_candidates_with_clip  # noqa: E402
 from src.perception.grounding_dino import detect_candidates  # noqa: E402
@@ -45,8 +45,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--grasp-target-mode",
         default="semantic",
-        choices=["semantic", "refined"],
-        help="Target point used for pick execution. refined uses an opt-in workspace-filtered point when available.",
+        choices=["semantic", "refined", "box_center_depth", "crop_median", "crop_top_surface", "oracle_object_pose"],
+        help=(
+            "Target point used for pick execution. "
+            "semantic/crop_median: median of all valid depth points in the crop. "
+            "refined/crop_top_surface: workspace-filtered elevated component target. "
+            "box_center_depth: single box-center pixel depth projected to 3D. "
+            "oracle_object_pose: privileged ground-truth object position (upper bound only)."
+        ),
     )
     parser.add_argument(
         "--place-target-source",
@@ -96,6 +102,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--detector-weight", type=float, default=0.5)
     parser.add_argument("--clip-weight", type=float, default=0.5)
     parser.add_argument("--depth-scale", type=float, default=1.0)
+    parser.add_argument(
+        "--depth-noise-std-m",
+        type=float,
+        default=0.0,
+        help="Synthetic Gaussian depth noise std in meters, applied before 3D target extraction.",
+    )
+    parser.add_argument(
+        "--depth-dropout-prob",
+        type=float,
+        default=0.0,
+        help="Synthetic probability of dropping each valid depth pixel before 3D target extraction.",
+    )
     parser.add_argument("--fallback-fov-degrees", type=float, default=60.0)
     parser.add_argument("--use-segmentation", action="store_true", help="Restrict 3D lifting to a dominant segmentation id.")
     parser.add_argument("--segmentation-id", type=int, default=None, help="Specific segmentation id to use for 3D lifting.")
@@ -143,6 +161,7 @@ def main() -> None:
         if frame.depth is None:
             raise RuntimeError("The observation parser did not find a depth map; cannot lift detections to 3D.")
 
+        sensor_stress_metadata = apply_synthetic_depth_stress(frame=frame, args=args)
         export_observation_frame(frame=frame, output_dir=run_dir / "observation", env_name=args.env_id, step_name="reset")
 
         detections = detect_candidates(
@@ -235,6 +254,8 @@ def main() -> None:
             target_xyz, coordinate_frame, target_source = choose_pick_target(
                 candidate_3d,
                 grasp_target_mode=args.grasp_target_mode,
+                env=scene.env,
+                env_id=args.env_id,
             )
             noise_std = float(getattr(args, "oracle_pick_noise_std", 0.0))
             if target_xyz is not None and noise_std > 0.0:
@@ -294,6 +315,7 @@ def main() -> None:
             detector_top_phrase=_top_phrase(detections),
             final_top_phrase=_top_phrase(reranked),
             top1_changed_by_rerank=_top1_changed_by_rerank(detections, reranked, skip_clip=args.skip_clip),
+            sensor_stress_metadata=sensor_stress_metadata,
         )
         write_json(summary, run_dir / "summary.json")
         print_pick_summary(summary)
@@ -304,15 +326,57 @@ def main() -> None:
 def choose_pick_target(
     candidate_3d: Candidate3D,
     grasp_target_mode: str = "semantic",
+    env: Any = None,
+    env_id: str = "",
 ) -> tuple[np.ndarray | None, str | None, str | None]:
-    """Choose the point used for pick execution without changing semantic 3D reporting."""
+    """Choose the point used for pick execution without changing semantic 3D reporting.
 
-    if grasp_target_mode not in {"semantic", "refined"}:
-        raise ValueError(f"Unknown grasp target mode: {grasp_target_mode}")
-    if grasp_target_mode == "refined" and candidate_3d.grasp_world_xyz is not None:
-        return np.asarray(candidate_3d.grasp_world_xyz, dtype=np.float32), "world", "grasp_world_xyz"
+    Supported modes:
+        semantic / crop_median: median of all valid depth points in the 2D crop.
+        refined / crop_top_surface: workspace-filtered elevated component target.
+        box_center_depth: single box-center pixel depth projected to 3D world.
+        oracle_object_pose: privileged ground-truth object position (upper bound).
+    """
+
+    _VALID_MODES = {"semantic", "refined", "box_center_depth", "crop_median", "crop_top_surface", "oracle_object_pose"}
+    if grasp_target_mode not in _VALID_MODES:
+        raise ValueError(f"Unknown grasp target mode: {grasp_target_mode}. Valid: {sorted(_VALID_MODES)}")
+
+    # --- Oracle upper bound ---
+    if grasp_target_mode == "oracle_object_pose":
+        if env is None:
+            return None, None, "oracle_object_pose_no_env"
+        oracle_xyz, _meta = find_oracle_pick_xyz(env, env_id=env_id)
+        if oracle_xyz is not None:
+            return np.asarray(oracle_xyz, dtype=np.float32), "world", "oracle_object_pose"
+        return None, None, "oracle_object_pose_not_found"
+
+    # --- Box center depth (simplest baseline) ---
+    if grasp_target_mode == "box_center_depth":
+        box_center = candidate_3d.metadata.get("box_center_world_xyz")
+        if box_center is not None:
+            return np.asarray(box_center, dtype=np.float32), "world", "box_center_depth"
+        # Fallback to crop median if center depth failed
+        if candidate_3d.world_xyz is not None:
+            return np.asarray(candidate_3d.world_xyz, dtype=np.float32), "world", "box_center_depth_fallback_median"
+        return None, None, None
+
+    # --- Crop top-surface / refined (workspace-filtered elevated component) ---
+    if grasp_target_mode in ("refined", "crop_top_surface"):
+        if candidate_3d.grasp_world_xyz is not None:
+            target_name = "crop_top_surface_lcc" if grasp_target_mode == "crop_top_surface" else "grasp_world_xyz"
+            return np.asarray(candidate_3d.grasp_world_xyz, dtype=np.float32), "world", target_name
+        # Fallback to crop median
+        if candidate_3d.world_xyz is not None:
+            return np.asarray(candidate_3d.world_xyz, dtype=np.float32), "world", "world_xyz"
+        if candidate_3d.camera_xyz is not None:
+            return np.asarray(candidate_3d.camera_xyz, dtype=np.float32), "camera", "camera_xyz"
+        return None, None, None
+
+    # --- Crop median / semantic (default: median of all valid depth points) ---
+    target_name = "crop_median_xyz" if grasp_target_mode == "crop_median" else "world_xyz"
     if candidate_3d.world_xyz is not None:
-        return np.asarray(candidate_3d.world_xyz, dtype=np.float32), "world", "world_xyz"
+        return np.asarray(candidate_3d.world_xyz, dtype=np.float32), "world", target_name
     if candidate_3d.camera_xyz is not None:
         return np.asarray(candidate_3d.camera_xyz, dtype=np.float32), "camera", "camera_xyz"
     return None, None, None
@@ -330,6 +394,67 @@ def build_sensor_kwargs(args: argparse.Namespace) -> dict[str, Any]:
     if int(width) <= 0 or int(height) <= 0:
         raise ValueError("--sensor-width and --sensor-height must be positive.")
     return {"sensor_configs": {"width": int(width), "height": int(height)}}
+
+
+def apply_synthetic_depth_stress(frame: Any, args: argparse.Namespace) -> dict[str, Any]:
+    """Apply opt-in RGB-D degradation to the current observation frame.
+
+    The perturbation is deliberately limited to the depth image used by target
+    extraction. It is off by default and records enough metadata to keep the
+    resulting stress-test rows auditable.
+    """
+
+    noise_std_m = float(getattr(args, "depth_noise_std_m", 0.0) or 0.0)
+    dropout_prob = float(getattr(args, "depth_dropout_prob", 0.0) or 0.0)
+    if noise_std_m < 0.0:
+        raise ValueError("--depth-noise-std-m must be non-negative.")
+    if not 0.0 <= dropout_prob <= 1.0:
+        raise ValueError("--depth-dropout-prob must be between 0 and 1.")
+
+    depth = getattr(frame, "depth", None)
+    if depth is None:
+        return {
+            "depth_noise_std_m": noise_std_m,
+            "depth_dropout_prob": dropout_prob,
+            "applied": False,
+            "reason": "no_depth",
+        }
+
+    depth_array = np.asarray(depth, dtype=np.float32).copy()
+    valid_before = np.isfinite(depth_array) & (depth_array > 0)
+    valid_before_count = int(np.count_nonzero(valid_before))
+    metadata: dict[str, Any] = {
+        "depth_noise_std_m": noise_std_m,
+        "depth_dropout_prob": dropout_prob,
+        "depth_scale": float(getattr(args, "depth_scale", 1.0)),
+        "valid_depth_pixels_before": valid_before_count,
+        "valid_depth_pixels_after": valid_before_count,
+        "dropped_depth_pixels": 0,
+        "applied": noise_std_m > 0.0 or dropout_prob > 0.0,
+    }
+    if not metadata["applied"]:
+        return metadata
+
+    rng = np.random.default_rng(seed=int(args.seed) + 30000)
+    if noise_std_m > 0.0 and valid_before_count > 0:
+        raw_noise_std = noise_std_m * float(getattr(args, "depth_scale", 1.0))
+        depth_array[valid_before] = depth_array[valid_before] + rng.normal(
+            loc=0.0,
+            scale=raw_noise_std,
+            size=valid_before_count,
+        ).astype(np.float32)
+        depth_array[~np.isfinite(depth_array) | (depth_array < 0)] = 0.0
+
+    valid_after_noise = np.isfinite(depth_array) & (depth_array > 0)
+    if dropout_prob > 0.0 and np.any(valid_after_noise):
+        dropout_mask = rng.random(depth_array.shape) < dropout_prob
+        dropped_mask = valid_after_noise & dropout_mask
+        depth_array[dropped_mask] = 0.0
+        metadata["dropped_depth_pixels"] = int(np.count_nonzero(dropped_mask))
+
+    metadata["valid_depth_pixels_after"] = int(np.count_nonzero(np.isfinite(depth_array) & (depth_array > 0)))
+    frame.depth = depth_array
+    return metadata
 
 
 def execute_single_view_target(
@@ -580,10 +705,12 @@ def build_summary(
     detector_top_phrase: str | None,
     final_top_phrase: str | None,
     top1_changed_by_rerank: bool,
+    sensor_stress_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a concise run summary."""
 
     metadata = pick_result.get("metadata") if isinstance(pick_result.get("metadata"), dict) else {}
+    sensor_stress_metadata = sensor_stress_metadata or {}
     return {
         "query": args.query,
         "normalized_prompt": parsed_query["normalized_prompt"],
@@ -622,6 +749,12 @@ def build_summary(
         "execution_video": metadata.get("execution_video"),
         "runtime_seconds": float(runtime_seconds),
         "artifacts": str(run_dir),
+        "depth_noise_std_m": float(sensor_stress_metadata.get("depth_noise_std_m", 0.0)),
+        "depth_dropout_prob": float(sensor_stress_metadata.get("depth_dropout_prob", 0.0)),
+        "valid_depth_pixels_before": sensor_stress_metadata.get("valid_depth_pixels_before"),
+        "valid_depth_pixels_after": sensor_stress_metadata.get("valid_depth_pixels_after"),
+        "dropped_depth_pixels": sensor_stress_metadata.get("dropped_depth_pixels"),
+        "sensor_stress_applied": bool(sensor_stress_metadata.get("applied", False)),
     }
 
 

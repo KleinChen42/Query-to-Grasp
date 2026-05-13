@@ -1,0 +1,44 @@
+\begin{table}[t]
+\centering
+\caption{Failure taxonomy used to interpret target-source diagnostics. The
+table separates target-source failure, executor mismatch, and
+placement/reference failure.}
+\label{tab:failure-taxonomy}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{p{0.18\linewidth}p{0.24\linewidth}p{0.20\linewidth}p{0.24\linewidth}}
+\toprule
+Failure mode & Typical evidence & Affected sources & Diagnostic interpretation \\
+\midrule
+Target formed but pick fails &
+\texttt{target\_available}=1, \texttt{pick\_success}=0 &
+PickSingleYCB crop sources &
+3D target exists but is not executable by the current primitive \\
+\midrule
+Oracle succeeds, crop fails &
+\texttt{oracle\_object\_pose} far above crop-derived sources &
+PickSingleYCB, crop baselines &
+Target-source quality, not only controller availability, limits execution \\
+\midrule
+Oracle also fails &
+Oracle pick success near zero or unstable &
+LiftPeg and incompatible non-cube settings &
+Executor geometry mismatch; not counted as perception-only failure \\
+\midrule
+Box-center depth weak &
+Low pick success despite target availability &
+\texttt{box\_center\_depth} &
+2D box center is not a reliable 3D action point \\
+\midrule
+Placement/reference failure &
+Pick succeeds but place or task fails &
+StackCube predicted-reference rows &
+Reference-object association or placement-target precision is the bottleneck \\
+\midrule
+Sensor-stress sensitivity &
+Success or target statistics change under depth noise/dropout &
+Sensor-stress rows &
+RGB-D degradation perturbs the target-source interface \\
+\bottomrule
+\end{tabular}
+\end{table}

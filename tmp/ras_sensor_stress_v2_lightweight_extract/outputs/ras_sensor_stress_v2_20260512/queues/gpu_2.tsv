@@ -1,0 +1,3 @@
+pickcube_box_center_depth_depth10mm	PickCube-v1	red cube	sim_topdown	box_center_depth	none	cube	0.010	0.0
+stackcube_pick_box_center_depth_clean	StackCube-v1	red cube	sim_topdown	box_center_depth	none	cube	0.0	0.0
+stackcube_pick_crop_top_surface_drop10	StackCube-v1	red cube	sim_topdown	crop_top_surface	none	cube	0.0	0.10

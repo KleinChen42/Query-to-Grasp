@@ -1,0 +1,15 @@
+\begin{tabular}{lllll}
+\toprule
+Setting & Source & Metric & Success (95\% CI) & Claim \\
+\midrule
+PC pick & semantic center & pick & 0.964 [0.877, 0.990] & pick ablation \\
+PC pick & refined grasp & pick & 1.000 [0.935, 1.000] & pick ablation \\
+PC tabletop & memory grasp & pick & 1.000 [0.935, 1.000] & simulated pick \\
+PC pick & crop top-surface & pick & 0.980 [0.961, 0.990] & crop diagnostic \\
+SC Q+PG single & predicted green ref. & task & 0.552 [0.508, 0.595] & non-oracle bridge \\
+SC Q+PG tabletop & predicted green ref. & task & 0.472 [0.429, 0.516] & non-oracle bridge \\
+SC Q+PG closed-loop & predicted green ref. & task & 0.446 [0.403, 0.490] & non-oracle bridge \\
+SC broad ref. single & predicted broad ref. & task & 0.360 [0.297, 0.429] & query specificity \\
+SC oracle pick-place & oracle A + oracle B & task & 0.880 [0.762, 0.944] & oracle upper bound \\
+\bottomrule
+\end{tabular}

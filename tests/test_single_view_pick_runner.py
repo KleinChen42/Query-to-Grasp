@@ -425,6 +425,10 @@ def test_single_view_pick_benchmark_forwards_seed_range_and_oracle_noise(monkeyp
             "0.02",
             "--oracle-place-noise-std",
             "0.01",
+            "--depth-noise-std-m",
+            "0.005",
+            "--depth-dropout-prob",
+            "0.1",
             "--output-dir",
             str(output_dir),
         ],
@@ -435,7 +439,11 @@ def test_single_view_pick_benchmark_forwards_seed_range_and_oracle_noise(monkeyp
     assert [int(command[command.index("--seed") + 1]) for command in seen_commands] == [5, 6, 7]
     assert all(command[command.index("--oracle-pick-noise-std") + 1] == "0.02" for command in seen_commands)
     assert all(command[command.index("--oracle-place-noise-std") + 1] == "0.01" for command in seen_commands)
+    assert all(command[command.index("--depth-noise-std-m") + 1] == "0.005" for command in seen_commands)
+    assert all(command[command.index("--depth-dropout-prob") + 1] == "0.1" for command in seen_commands)
     summary = json.loads((output_dir / "benchmark_summary.json").read_text(encoding="utf-8"))
     assert summary["oracle_pick_noise_std"] == 0.02
     assert summary["oracle_place_noise_std"] == 0.01
+    assert summary["depth_noise_std_m"] == 0.005
+    assert summary["depth_dropout_prob"] == 0.1
     assert summary["total_runs"] == 3

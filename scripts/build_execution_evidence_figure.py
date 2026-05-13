@@ -36,7 +36,7 @@ DEFAULT_STORIES = (
     MontageStory(
         label="stackcube_single_bridge_success",
         title="StackCube bridge success",
-        subtitle="query pick -> oracle_cubeB_pose",
+        subtitle="query pick + diagnostic place",
         run_dir=Path("outputs/h200_60071_demo_execution_capture_native720_latest/stackcube_query_place_success/20260501_163530_red_cube"),
         expected_task_success=True,
         frame_fraction=0.88,
@@ -44,7 +44,7 @@ DEFAULT_STORIES = (
     MontageStory(
         label="stackcube_tabletop_success",
         title="Tabletop success",
-        subtitle="task_guard target + oracle place",
+        subtitle="task-guarded target",
         run_dir=Path("outputs/h200_60071_demo_execution_capture_native720_latest/stackcube_tabletop_success/20260501_163902_red_cube"),
         expected_task_success=True,
         frame_fraction=0.88,
@@ -132,11 +132,11 @@ def build_execution_evidence_figure(
             bbox=dict(facecolor=color, alpha=0.72, edgecolor="none", pad=2.6),
         )
 
-    fig.suptitle("Representative ManiSkill executions from the supplemental video", fontsize=10.5, y=0.99)
+    fig.suptitle("Representative ManiSkill diagnostic executions", fontsize=10.5, y=0.99)
     fig.text(
         0.5,
         0.01,
-        "Visualization only: benchmark rates are reported in Table I; StackCube placement uses oracle_cubeB_pose.",
+        "Visualization only: RAS claims are reported in the controlled tables; oracle clips are privileged diagnostics.",
         ha="center",
         fontsize=7.4,
         color="#475569",

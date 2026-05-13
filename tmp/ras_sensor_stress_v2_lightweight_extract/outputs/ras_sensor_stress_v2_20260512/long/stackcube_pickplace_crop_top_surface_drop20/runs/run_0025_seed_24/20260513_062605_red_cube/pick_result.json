@@ -1,0 +1,71 @@
+{
+  "grasp_attempted": false,
+  "is_grasped": null,
+  "message": "sim_pick_place requires a valid predicted place object when --place-target-source predicted_place_object is used.",
+  "metadata": {
+    "executor": null,
+    "grasp_metadata": {
+      "applied": true,
+      "component_count": 1,
+      "component_fallback_reason": null,
+      "component_radius": 0.03,
+      "component_selection_strategy": "largest_component_then_low_spread",
+      "component_sizes": [
+        25
+      ],
+      "elevated_point_count": 25,
+      "elevated_z_offset": 0.015,
+      "fallback_reason": null,
+      "local_support_point_count": 16,
+      "local_support_radius": 0.04,
+      "local_support_z_margin": 0.012,
+      "min_elevated_points": 12,
+      "min_points": 20,
+      "num_workspace_points": 45,
+      "reason": "component_elevated_xy_with_local_support_z",
+      "selected_component_size": 25,
+      "selected_component_spread": 0.024769730865955353,
+      "selected_component_xy": [
+        0.1426232010126114,
+        -0.11768749356269836
+      ],
+      "strategy": "workspace_elevated_xy_low_z",
+      "support_z": 0.0030161142349243164,
+      "support_z_percentile": 10.0,
+      "workspace_bounds": {
+        "abs_x_max": 0.2,
+        "abs_y_max": 0.2,
+        "z_max": 0.08,
+        "z_min": -0.02
+      }
+    },
+    "grasp_target_mode": "crop_top_surface",
+    "grasp_world_xyz": [
+      0.1426232010126114,
+      -0.11768749356269836,
+      0.003103911876678467
+    ],
+    "oracle_pick_noise_std": 0.0,
+    "pick_executor_cli": "sim_pick_place",
+    "semantic_world_xyz": [
+      0.1426232010126114,
+      -0.11878124624490738,
+      0.034162938594818115
+    ],
+    "target_coordinate_frame": "world",
+    "target_used_for_pick": "crop_top_surface_lcc"
+  },
+  "pick_success": false,
+  "place_attempted": false,
+  "place_success": false,
+  "place_xyz": [],
+  "stage": "not_attempted",
+  "success": false,
+  "target_xyz": [],
+  "task_success": null,
+  "trajectory_summary": {
+    "executed_stages": [],
+    "num_env_steps": 0,
+    "planned_stages": []
+  }
+}

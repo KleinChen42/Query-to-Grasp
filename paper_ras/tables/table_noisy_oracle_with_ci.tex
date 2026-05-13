@@ -1,0 +1,15 @@
+\begin{tabular}{lllllll}
+\toprule
+Environment & Mode & Target source & Place source & N & Metric & Success (95\% CI) \\
+\midrule
+PickCube-v1 & noisy pick & oracle\_object\_pose + 1cm pick noise & none & 250 & pick & 0.824 [0.772, 0.866] \\
+PickCube-v1 & noisy pick & oracle\_object\_pose + 2cm pick noise & none & 250 & pick & 0.488 [0.427, 0.550] \\
+PickCube-v1 & noisy pick & oracle\_object\_pose + 5cm pick noise & none & 250 & pick & 0.112 [0.079, 0.157] \\
+StackCube-v1 & noisy pick & oracle\_object\_pose + 1cm pick noise & none & 250 & pick & 0.740 [0.682, 0.790] \\
+StackCube-v1 & noisy pick & oracle\_object\_pose + 2cm pick noise & none & 250 & pick & 0.404 [0.345, 0.466] \\
+StackCube-v1 & noisy pick & oracle\_object\_pose + 5cm pick noise & none & 250 & pick & 0.068 [0.043, 0.106] \\
+StackCube-v1 & noisy place & oracle\_object\_pose & oracle\_cubeB\_pose + 1cm place noise & 50 & task & 0.520 [0.385, 0.652] \\
+StackCube-v1 & noisy place & oracle\_object\_pose & oracle\_cubeB\_pose + 2cm place noise & 250 & task & 0.312 [0.258, 0.372] \\
+StackCube-v1 & noisy place & oracle\_object\_pose & oracle\_cubeB\_pose + 5cm place noise & 250 & task & 0.040 [0.022, 0.072] \\
+\bottomrule
+\end{tabular}

@@ -46,9 +46,13 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "paper_related_work_citation_plan" in labels
     assert "iros_icra_upgrade_roadmap" in labels
     assert "h200_paper_revision_report" in labels
+    assert "external_grasp_and_noncube_results" in labels
     assert "paper_revision_results_summary" in labels
     assert "paper_revision_results_rows" in labels
     assert "paper_revision_results_json" in labels
+    assert "external_crop_200seed_summary" in labels
+    assert "external_crop_200seed_rows" in labels
+    assert "external_crop_200seed_json" in labels
     assert "paper_latex_main" in labels
     assert "paper_latex_ieeetran_class" in labels
     assert "paper_latex_references" in labels
@@ -58,6 +62,7 @@ def test_default_artifacts_include_architecture_note() -> None:
     assert "paper_geometry_memory_ablation_figure" in labels
     assert "paper_target_source_results_figure" in labels
     assert "paper_stackcube_failure_taxonomy_figure" in labels
+    assert "paper_external_crop_200seed_figure" in labels
     assert "fused_memory_grasp_targeted_summary" in labels
     assert "fused_memory_grasp_ablation_no_clip" in labels
     assert "fused_memory_grasp_ablation_closed_loop" in labels

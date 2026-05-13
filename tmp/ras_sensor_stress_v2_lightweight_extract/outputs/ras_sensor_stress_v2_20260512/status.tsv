@@ -1,0 +1,69 @@
+step	status	started_at	finished_at	note
+launcher	running	2026-05-12T20:55:08+08:00		gate-then-long sensor stress
+gate	running	2026-05-12T20:55:08+08:00		3-seed sensor-stress compatibility gate
+gate/pickcube_crop_top_surface_clean	running	2026-05-12T20:55:08+08:00		GPU 0
+gate/pickcube_crop_top_surface_depth10mm	running	2026-05-12T20:55:08+08:00		GPU 1
+gate/pickcube_crop_top_surface_drop20	running	2026-05-12T20:55:08+08:00		GPU 2
+gate/stackcube_pick_crop_top_surface_depth10mm	running	2026-05-12T20:55:08+08:00		GPU 3
+gate/stackcube_pick_crop_top_surface_drop20	running	2026-05-12T20:55:08+08:00		GPU 4
+gate/stackcube_pickplace_crop_top_surface_depth10mm	running	2026-05-12T20:55:08+08:00		GPU 5
+gate/pickcube_crop_top_surface_drop20	ok	2026-05-12T20:55:08+08:00	2026-05-12T21:01:37+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/gate_pickcube_crop_top_surface_drop20.log
+gate/pickcube_crop_top_surface_clean	ok	2026-05-12T20:55:08+08:00	2026-05-12T21:01:37+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/gate_pickcube_crop_top_surface_clean.log
+gate/pickcube_crop_top_surface_depth10mm	ok	2026-05-12T20:55:08+08:00	2026-05-12T21:01:38+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/gate_pickcube_crop_top_surface_depth10mm.log
+gate/stackcube_pick_crop_top_surface_drop20	ok	2026-05-12T20:55:08+08:00	2026-05-12T21:01:39+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/gate_stackcube_pick_crop_top_surface_drop20.log
+gate/stackcube_pick_crop_top_surface_depth10mm	ok	2026-05-12T20:55:08+08:00	2026-05-12T21:01:41+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/gate_stackcube_pick_crop_top_surface_depth10mm.log
+gate/stackcube_pickplace_crop_top_surface_depth10mm	ok	2026-05-12T20:55:08+08:00	2026-05-12T21:01:43+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/gate_stackcube_pickplace_crop_top_surface_depth10mm.log
+gate	ok		2026-05-12T21:01:43+08:00	all gate rows completed
+long	running	2026-05-12T21:01:43+08:00		25 jobs x 100 seeds, 8 GPU workers
+long/pickcube_box_center_depth_clean	running	2026-05-12T21:01:43+08:00		GPU 0
+long/pickcube_box_center_depth_depth10mm	running	2026-05-12T21:01:43+08:00		GPU 2
+long/pickcube_box_center_depth_depth5mm	running	2026-05-12T21:01:43+08:00		GPU 1
+long/pickcube_box_center_depth_drop10	running	2026-05-12T21:01:43+08:00		GPU 3
+long/pickcube_box_center_depth_drop20	running	2026-05-12T21:01:43+08:00		GPU 4
+long/pickcube_crop_top_surface_clean	running	2026-05-12T21:01:43+08:00		GPU 5
+long/pickcube_crop_top_surface_depth5mm	running	2026-05-12T21:01:43+08:00		GPU 6
+long/pickcube_crop_top_surface_depth10mm	running	2026-05-12T21:01:43+08:00		GPU 7
+long/pickcube_crop_top_surface_depth10mm	ok	2026-05-12T21:01:43+08:00	2026-05-13T00:01:19+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_crop_top_surface_depth10mm.log
+long/stackcube_pick_crop_top_surface_clean	running	2026-05-13T00:01:19+08:00		GPU 7
+long/pickcube_box_center_depth_clean	ok	2026-05-12T21:01:43+08:00	2026-05-13T00:01:40+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_box_center_depth_clean.log
+long/pickcube_crop_top_surface_drop10	running	2026-05-13T00:01:40+08:00		GPU 0
+long/pickcube_box_center_depth_depth10mm	ok	2026-05-12T21:01:43+08:00	2026-05-13T00:01:41+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_box_center_depth_depth10mm.log
+long/stackcube_pick_box_center_depth_clean	running	2026-05-13T00:01:41+08:00		GPU 2
+long/pickcube_box_center_depth_drop20	ok	2026-05-12T21:01:43+08:00	2026-05-13T00:03:07+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_box_center_depth_drop20.log
+long/stackcube_pick_box_center_depth_depth10mm	running	2026-05-13T00:03:07+08:00		GPU 4
+long/pickcube_box_center_depth_drop10	ok	2026-05-12T21:01:43+08:00	2026-05-13T00:03:09+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_box_center_depth_drop10.log
+long/stackcube_pick_box_center_depth_depth5mm	running	2026-05-13T00:03:09+08:00		GPU 3
+long/pickcube_crop_top_surface_depth5mm	ok	2026-05-12T21:01:43+08:00	2026-05-13T00:03:29+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_crop_top_surface_depth5mm.log
+long/stackcube_pick_box_center_depth_drop20	running	2026-05-13T00:03:29+08:00		GPU 6
+long/pickcube_box_center_depth_depth5mm	ok	2026-05-12T21:01:43+08:00	2026-05-13T00:03:30+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_box_center_depth_depth5mm.log
+long/pickcube_crop_top_surface_drop20	running	2026-05-13T00:03:30+08:00		GPU 1
+long/pickcube_crop_top_surface_clean	ok	2026-05-12T21:01:43+08:00	2026-05-13T00:04:58+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_crop_top_surface_clean.log
+long/stackcube_pick_box_center_depth_drop10	running	2026-05-13T00:04:58+08:00		GPU 5
+long/pickcube_crop_top_surface_drop10	ok	2026-05-13T00:01:40+08:00	2026-05-13T02:54:56+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_crop_top_surface_drop10.log
+long/stackcube_pick_crop_top_surface_depth5mm	running	2026-05-13T02:54:56+08:00		GPU 0
+long/pickcube_crop_top_surface_drop20	ok	2026-05-13T00:03:30+08:00	2026-05-13T02:55:22+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_pickcube_crop_top_surface_drop20.log
+long/stackcube_pick_crop_top_surface_depth10mm	running	2026-05-13T02:55:22+08:00		GPU 1
+long/stackcube_pick_box_center_depth_clean	ok	2026-05-13T00:01:41+08:00	2026-05-13T02:57:58+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_box_center_depth_clean.log
+long/stackcube_pick_crop_top_surface_drop10	running	2026-05-13T02:57:58+08:00		GPU 2
+long/stackcube_pick_box_center_depth_drop20	ok	2026-05-13T00:03:29+08:00	2026-05-13T03:01:04+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_box_center_depth_drop20.log
+long/stackcube_pickplace_crop_top_surface_depth10mm	running	2026-05-13T03:01:04+08:00		GPU 6
+long/stackcube_pick_box_center_depth_depth5mm	ok	2026-05-13T00:03:09+08:00	2026-05-13T03:01:04+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_box_center_depth_depth5mm.log
+long/stackcube_pick_crop_top_surface_drop20	running	2026-05-13T03:01:04+08:00		GPU 3
+long/stackcube_pick_crop_top_surface_clean	ok	2026-05-13T00:01:19+08:00	2026-05-13T03:01:29+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_crop_top_surface_clean.log
+long/stackcube_pickplace_crop_top_surface_drop10	running	2026-05-13T03:01:29+08:00		GPU 7
+long/stackcube_pick_box_center_depth_depth10mm	ok	2026-05-13T00:03:07+08:00	2026-05-13T03:03:04+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_box_center_depth_depth10mm.log
+long/stackcube_pickplace_crop_top_surface_clean	running	2026-05-13T03:03:04+08:00		GPU 4
+long/stackcube_pick_box_center_depth_drop10	ok	2026-05-13T00:04:58+08:00	2026-05-13T03:08:05+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_box_center_depth_drop10.log
+long/stackcube_pickplace_crop_top_surface_depth5mm	running	2026-05-13T03:08:05+08:00		GPU 5
+long/stackcube_pick_crop_top_surface_depth5mm	ok	2026-05-13T02:54:56+08:00	2026-05-13T05:33:18+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_crop_top_surface_depth5mm.log
+long/stackcube_pickplace_crop_top_surface_drop20	running	2026-05-13T05:33:18+08:00		GPU 0
+long/stackcube_pick_crop_top_surface_depth10mm	ok	2026-05-13T02:55:22+08:00	2026-05-13T05:35:11+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_crop_top_surface_depth10mm.log
+long/stackcube_pick_crop_top_surface_drop20	ok	2026-05-13T03:01:04+08:00	2026-05-13T05:40:58+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_crop_top_surface_drop20.log
+long/stackcube_pick_crop_top_surface_drop10	ok	2026-05-13T02:57:58+08:00	2026-05-13T05:42:28+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pick_crop_top_surface_drop10.log
+long/stackcube_pickplace_crop_top_surface_depth10mm	ok	2026-05-13T03:01:04+08:00	2026-05-13T05:46:44+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pickplace_crop_top_surface_depth10mm.log
+long/stackcube_pickplace_crop_top_surface_drop10	ok	2026-05-13T03:01:29+08:00	2026-05-13T05:46:45+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pickplace_crop_top_surface_drop10.log
+long/stackcube_pickplace_crop_top_surface_clean	ok	2026-05-13T03:03:04+08:00	2026-05-13T05:50:13+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pickplace_crop_top_surface_clean.log
+long/stackcube_pickplace_crop_top_surface_depth5mm	ok	2026-05-13T03:08:05+08:00	2026-05-13T05:54:55+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pickplace_crop_top_surface_depth5mm.log
+long/stackcube_pickplace_crop_top_surface_drop20	ok	2026-05-13T05:33:18+08:00	2026-05-13T09:24:29+08:00	failed_rows=0 log=outputs/ras_sensor_stress_v2_20260512/logs/long_stackcube_pickplace_crop_top_surface_drop20.log
+long	ok		2026-05-13T09:24:29+08:00	all long jobs completed
+launcher	ok		2026-05-13T09:24:29+08:00	sensor stress complete

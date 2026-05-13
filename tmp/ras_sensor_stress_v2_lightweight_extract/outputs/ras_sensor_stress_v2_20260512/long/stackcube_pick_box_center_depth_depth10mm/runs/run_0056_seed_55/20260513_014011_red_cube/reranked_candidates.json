@@ -1,0 +1,59 @@
+{
+  "candidates": [
+    {
+      "box_xyxy": [
+        73.537353515625,
+        84.46456909179688,
+        81.05229187011719,
+        93.20924377441406
+      ],
+      "clip_score": 0.0,
+      "det_score": 0.5833765864372253,
+      "fused_2d_score": 0.5833765864372253,
+      "image_crop_path": null,
+      "metadata": {
+        "detector_metadata": {
+          "model_id": "IDEA-Research/grounding-dino-tiny"
+        },
+        "detector_source": "transformers_groundingdino",
+        "skip_clip": true
+      },
+      "phrase": "red cube",
+      "rank": 0,
+      "source": "detector_only"
+    },
+    {
+      "box_xyxy": [
+        80.58032989501953,
+        71.61654663085938,
+        86.4367904663086,
+        78.42686462402344
+      ],
+      "clip_score": 0.0,
+      "det_score": 0.475957989692688,
+      "fused_2d_score": 0.475957989692688,
+      "image_crop_path": null,
+      "metadata": {
+        "detector_metadata": {
+          "model_id": "IDEA-Research/grounding-dino-tiny"
+        },
+        "detector_source": "transformers_groundingdino",
+        "skip_clip": true
+      },
+      "phrase": "red cube",
+      "rank": 1,
+      "source": "detector_only"
+    }
+  ],
+  "clip_prompts": [
+    "red cube",
+    "red block"
+  ],
+  "parameters": {
+    "clip_model_name": "ViT-B-32",
+    "clip_pretrained": "laion2b_s34b_b79k",
+    "clip_weight": 0.5,
+    "detector_weight": 0.5,
+    "skip_clip": true
+  }
+}

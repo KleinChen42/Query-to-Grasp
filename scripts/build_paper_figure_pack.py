@@ -208,6 +208,15 @@ DEFAULT_ARTIFACTS = (
         ),
     ),
     ArtifactSpec(
+        label="external_grasp_and_noncube_results",
+        source_path=Path("docs/external_grasp_and_noncube_results.md"),
+        category="notes",
+        caption=(
+            "Experiment A/B freeze covering external RGB-D crop-grasp baselines "
+            "and the LiftPeg non-cube executor-compatibility diagnostic."
+        ),
+    ),
+    ArtifactSpec(
         label="paper_revision_results_summary",
         source_path=Path("outputs/paper_revision_results_summary_latest/paper_revision_results_summary.md"),
         category="tables",
@@ -227,6 +236,27 @@ DEFAULT_ARTIFACTS = (
         source_path=Path("outputs/paper_revision_results_summary_latest/paper_revision_results_summary.json"),
         category="tables",
         caption="JSON version of the frozen paper-revision result summary.",
+    ),
+    ArtifactSpec(
+        label="external_crop_200seed_summary",
+        source_path=Path("outputs/paper_revision_results_summary_latest/external_crop_200seed_summary.md"),
+        category="tables",
+        caption=(
+            "Generated 200-seed external crop-grasp and non-cube feasibility "
+            "summary used for the revised paper table and figure."
+        ),
+    ),
+    ArtifactSpec(
+        label="external_crop_200seed_rows",
+        source_path=Path("outputs/paper_revision_results_summary_latest/external_crop_200seed_summary.csv"),
+        category="tables",
+        caption="Machine-readable rows for the 200-seed external crop-grasp summary.",
+    ),
+    ArtifactSpec(
+        label="external_crop_200seed_json",
+        source_path=Path("outputs/paper_revision_results_summary_latest/external_crop_200seed_summary.json"),
+        category="tables",
+        caption="JSON version of the 200-seed external crop-grasp summary.",
     ),
     ArtifactSpec(
         label="paper_latex_main",
@@ -300,6 +330,15 @@ DEFAULT_ARTIFACTS = (
         category="paper",
         caption=(
             "Camera-ready StackCube expanded failure taxonomy figure used by the LaTeX draft."
+        ),
+    ),
+    ArtifactSpec(
+        label="paper_external_crop_200seed_figure",
+        source_path=Path("paper/figures/external_crop_200seed_results.pdf"),
+        category="paper",
+        caption=(
+            "Camera-ready 200-seed external RGB-D crop baseline figure used by "
+            "the LaTeX draft."
         ),
     ),
     ArtifactSpec(

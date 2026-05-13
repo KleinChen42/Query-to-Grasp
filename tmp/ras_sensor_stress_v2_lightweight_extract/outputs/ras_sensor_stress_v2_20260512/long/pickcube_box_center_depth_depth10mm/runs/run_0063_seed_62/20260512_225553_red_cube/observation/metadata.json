@@ -1,0 +1,188 @@
+{
+  "arrays": {
+    "depth": {
+      "dtype": "float32",
+      "shape": [
+        128,
+        128
+      ]
+    },
+    "rgb": {
+      "dtype": "uint8",
+      "shape": [
+        128,
+        128,
+        3
+      ]
+    },
+    "segmentation": null
+  },
+  "camera_info": {
+    "camera_name": null,
+    "extrinsic": [
+      [
+        0.0,
+        -0.7808687686920166,
+        0.6246950626373291,
+        0.30000001192092896
+      ],
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.6246950626373291,
+        0.7808687686920166,
+        0.6000000238418579
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "extrinsic_key": "sensor_param.base_camera.cam2world_gl",
+    "intrinsic": [
+      [
+        64.0,
+        0.0,
+        64.0
+      ],
+      [
+        0.0,
+        64.0,
+        64.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "intrinsic_key": "sensor_param.base_camera.intrinsic_cv",
+    "metadata": {}
+  },
+  "created_at_utc": "2026-05-12T14:56:20.863258+00:00",
+  "environment_name": "PickCube-v1",
+  "modalities_present": {
+    "depth": true,
+    "rgb": true,
+    "segmentation": false
+  },
+  "observation_keys_present": [
+    "agent.qpos",
+    "agent.qvel",
+    "extra.is_grasped",
+    "extra.tcp_pose",
+    "extra.goal_pos",
+    "sensor_param.base_camera.extrinsic_cv",
+    "sensor_param.base_camera.cam2world_gl",
+    "sensor_param.base_camera.intrinsic_cv",
+    "sensor_data.base_camera.depth",
+    "sensor_data.base_camera.rgb"
+  ],
+  "observation_summary": {
+    "agent.qpos": {
+      "dtype": "float32",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        9
+      ]
+    },
+    "agent.qvel": {
+      "dtype": "float32",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        9
+      ]
+    },
+    "extra.goal_pos": {
+      "dtype": "float32",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        3
+      ]
+    },
+    "extra.is_grasped": {
+      "dtype": "bool",
+      "python_type": "Tensor",
+      "shape": [
+        1
+      ]
+    },
+    "extra.tcp_pose": {
+      "dtype": "float32",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        7
+      ]
+    },
+    "sensor_data.base_camera.depth": {
+      "dtype": "int16",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        128,
+        128,
+        1
+      ]
+    },
+    "sensor_data.base_camera.rgb": {
+      "dtype": "uint8",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        128,
+        128,
+        3
+      ]
+    },
+    "sensor_param.base_camera.cam2world_gl": {
+      "dtype": "float32",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        4,
+        4
+      ]
+    },
+    "sensor_param.base_camera.extrinsic_cv": {
+      "dtype": "float32",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        3,
+        4
+      ]
+    },
+    "sensor_param.base_camera.intrinsic_cv": {
+      "dtype": "float32",
+      "python_type": "Tensor",
+      "shape": [
+        1,
+        3,
+        3
+      ]
+    }
+  },
+  "saved_files": {
+    "depth": "outputs/ras_sensor_stress_v2_20260512/long/pickcube_box_center_depth_depth10mm/runs/run_0063_seed_62/20260512_225553_red_cube/observation/depth.npy",
+    "rgb": "outputs/ras_sensor_stress_v2_20260512/long/pickcube_box_center_depth_depth10mm/runs/run_0063_seed_62/20260512_225553_red_cube/observation/rgb.png"
+  },
+  "source_keys": {
+    "depth": "sensor_data.base_camera.depth",
+    "extrinsic": "sensor_param.base_camera.cam2world_gl",
+    "intrinsic": "sensor_param.base_camera.intrinsic_cv",
+    "rgb": "sensor_data.base_camera.rgb",
+    "segmentation": null
+  },
+  "step_name": "reset"
+}

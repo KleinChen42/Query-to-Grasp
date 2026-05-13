@@ -1,0 +1,183 @@
+{
+  "grasp_attempted": true,
+  "is_grasped": true,
+  "message": "Simulated oracle pick-place executed and ManiSkill task success was detected.",
+  "metadata": {
+    "action_convention": "[dx, dy, dz, gripper]; gripper +1=open, -1=close",
+    "control_mode": "pd_ee_delta_pos",
+    "env_type": "TimeLimitWrapper",
+    "executor": "SimulatedPickPlaceExecutor",
+    "grasp_metadata": {
+      "applied": true,
+      "component_count": 1,
+      "component_fallback_reason": null,
+      "component_radius": 0.03,
+      "component_selection_strategy": "largest_component_then_low_spread",
+      "component_sizes": [
+        36
+      ],
+      "elevated_point_count": 36,
+      "elevated_z_offset": 0.015,
+      "fallback_reason": null,
+      "local_support_point_count": 9,
+      "local_support_radius": 0.04,
+      "local_support_z_margin": 0.012,
+      "min_elevated_points": 12,
+      "min_points": 20,
+      "num_workspace_points": 56,
+      "reason": "component_elevated_xy_with_local_support_z",
+      "selected_component_size": 36,
+      "selected_component_spread": 0.03696684539318085,
+      "selected_component_xy": [
+        0.02841944992542267,
+        -0.12438851594924927
+      ],
+      "strategy": "workspace_elevated_xy_low_z",
+      "support_z": -0.005424767732620239,
+      "support_z_percentile": 10.0,
+      "workspace_bounds": {
+        "abs_x_max": 0.2,
+        "abs_y_max": 0.2,
+        "z_max": 0.08,
+        "z_min": -0.02
+      }
+    },
+    "grasp_target_mode": "crop_top_surface",
+    "grasp_world_xyz": [
+      0.02841944992542267,
+      -0.12438851594924927,
+      -0.005336582660675049
+    ],
+    "oracle_pick_noise_std": 0.0,
+    "pick_executor_cli": "sim_pick_place",
+    "place_height_offset": 0.06,
+    "place_pick_xy_distance": 0.07829241454601288,
+    "place_query": "green cube",
+    "place_selection_reason": "first_ranked_candidate_far_from_pick",
+    "place_target_metadata": {
+      "num_candidates": 2,
+      "num_close_to_pick_rejected": 1,
+      "num_eligible_candidates": 1,
+      "num_invalid_candidates": 0,
+      "place_pick_xy_distance": 0.07829241454601288,
+      "place_query": "green cube",
+      "place_target_z": 0.02,
+      "raw_semantic_world_xyz": [
+        0.03693439066410065,
+        -0.04708351567387581,
+        0.01071968674659729
+      ],
+      "selected_candidate_index": 0,
+      "selected_clip_score": 0.0,
+      "selected_depth_valid_ratio": 1.0,
+      "selected_det_score": 0.6105287075042725,
+      "selected_fused_2d_score": 0.6105287075042725,
+      "selected_grasp_world_xyz": [
+        0.03848537802696228,
+        -0.04674588143825531,
+        0.0017684996128082275
+      ],
+      "selected_num_points": 56,
+      "selected_phrase": "green cube",
+      "selected_world_xyz": [
+        0.03848537802696228,
+        -0.04674588143825531,
+        0.019999999552965164
+      ],
+      "selection_reason": "first_ranked_candidate_far_from_pick"
+    },
+    "place_target_source": "predicted_place_object",
+    "place_target_xyz": [
+      0.03848537802696228,
+      -0.04674588143825531,
+      0.019999999552965164
+    ],
+    "semantic_world_xyz": [
+      0.028154700994491577,
+      -0.12494488060474396,
+      0.021680057048797607
+    ],
+    "target_coordinate_frame": "world",
+    "target_used_for_pick": "crop_top_surface_lcc"
+  },
+  "pick_success": true,
+  "pick_xyz": [
+    0.02841944992542267,
+    -0.12438851594924927,
+    -0.005336582660675049
+  ],
+  "place_attempted": true,
+  "place_success": true,
+  "place_xyz": [
+    0.03848537802696228,
+    -0.04674588143825531,
+    0.019999999552965164
+  ],
+  "stage": "success",
+  "success": true,
+  "target_xyz": [
+    0.02841944992542267,
+    -0.12438851594924927,
+    -0.005336582660675049
+  ],
+  "task_success": true,
+  "trajectory_summary": {
+    "executed_stages": [
+      "move_above_pick",
+      "descend_to_pick",
+      "close_gripper",
+      "lift_from_pick",
+      "move_above_place",
+      "descend_to_place",
+      "open_gripper",
+      "settle"
+    ],
+    "final_info": {
+      "elapsed_steps": [
+        85
+      ],
+      "is_cubeA_grasped": [
+        false
+      ],
+      "is_cubeA_on_cubeB": [
+        true
+      ],
+      "is_cubeA_static": [
+        true
+      ],
+      "stage": "settle",
+      "success": [
+        true
+      ]
+    },
+    "final_tcp_xyz": [
+      0.038481924682855606,
+      -0.046761468052864075,
+      0.07999595999717712
+    ],
+    "grasp_info_keys": [
+      "is_cubeA_grasped"
+    ],
+    "num_env_steps": 85,
+    "planned_stages": [
+      "move_above_pick",
+      "descend_to_pick",
+      "close_gripper",
+      "lift_from_pick",
+      "move_above_place",
+      "descend_to_place",
+      "open_gripper",
+      "settle"
+    ],
+    "stage_step_counts": {
+      "close_gripper": 20,
+      "descend_to_pick": 30,
+      "descend_to_place": 30,
+      "lift_from_pick": 40,
+      "move_above_pick": 40,
+      "move_above_place": 60,
+      "open_gripper": 20,
+      "settle": 20
+    }
+  }
+}

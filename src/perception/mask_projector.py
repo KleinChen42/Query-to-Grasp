@@ -194,6 +194,17 @@ def lift_box_to_3d(
     if shifted_grasp_candidate is not None:
         grasp_candidate = shifted_grasp_candidate
 
+    # --- Box center depth → world xyz (for box_center_depth target source) ---
+    box_center_world_xyz = _compute_box_center_world_xyz(
+        depth_array=depth_array,
+        box_bounds=(x0, y0, x1, y1),
+        intrinsic=intrinsic_used,
+        extrinsic=extrinsic,
+        extrinsic_source=extrinsic_source,
+        min_depth=min_depth,
+        max_depth=max_depth,
+    )
+
     point_cloud_path = None
     if output_point_cloud_path is not None:
         points_for_cloud = world_points if world_points is not None else camera_points
@@ -215,12 +226,71 @@ def lift_box_to_3d(
             "extrinsics_source": extrinsic_source or ("provided" if extrinsic is not None else "missing"),
             "camera_frame_conversion": camera_frame_conversion_for_source(extrinsic_source),
             "center_strategy": center_strategy,
+            "box_center_world_xyz": (
+                None if box_center_world_xyz is None
+                else box_center_world_xyz.astype(float).tolist()
+            ),
         },
         grasp_world_xyz=grasp_candidate["grasp_world_xyz"],
         grasp_camera_xyz=grasp_candidate["grasp_camera_xyz"],
         grasp_num_points=grasp_candidate["grasp_num_points"],
         grasp_metadata=grasp_candidate["grasp_metadata"],
     )
+
+
+def _compute_box_center_world_xyz(
+    depth_array: np.ndarray,
+    box_bounds: tuple[int, int, int, int],
+    intrinsic: np.ndarray,
+    extrinsic: np.ndarray | None,
+    extrinsic_source: str | None,
+    min_depth: float = 1e-6,
+    max_depth: float | None = None,
+    center_patch_radius: int = 2,
+) -> np.ndarray | None:
+    """Compute world xyz for the box center pixel using single-point depth.
+
+    This is the simplest possible RGB-D target baseline: take the center of
+    the GroundingDINO 2D box, read its depth, and project to 3D.
+    If the center depth is invalid, fall back to the median of a small patch.
+    """
+
+    x0, y0, x1, y1 = box_bounds
+    if x1 <= x0 or y1 <= y0:
+        return None
+    if extrinsic is None:
+        return None
+
+    cx = (x0 + x1) // 2
+    cy = (y0 + y1) // 2
+    height, width = depth_array.shape
+
+    # Try center pixel first
+    center_z = float(depth_array[cy, cx]) if 0 <= cy < height and 0 <= cx < width else float("nan")
+    if not (np.isfinite(center_z) and center_z > min_depth and (max_depth is None or center_z <= max_depth)):
+        # Fallback: median of small center patch
+        r = center_patch_radius
+        py0 = max(0, cy - r)
+        py1 = min(height, cy + r + 1)
+        px0 = max(0, cx - r)
+        px1 = min(width, cx + r + 1)
+        patch = depth_array[py0:py1, px0:px1]
+        valid = patch[np.isfinite(patch) & (patch > min_depth)]
+        if max_depth is not None:
+            valid = valid[valid <= max_depth]
+        if valid.size == 0:
+            return None
+        center_z = float(np.median(valid))
+
+    # Project to camera frame
+    intrinsic_array = np.asarray(intrinsic, dtype=np.float32)
+    cam_x = (float(cx) - float(intrinsic_array[0, 2])) * center_z / float(intrinsic_array[0, 0])
+    cam_y = (float(cy) - float(intrinsic_array[1, 2])) * center_z / float(intrinsic_array[1, 1])
+    camera_point = np.array([[cam_x, cam_y, center_z]], dtype=np.float32)
+
+    # Transform to world frame
+    world_point = transform_camera_points(camera_point, extrinsic, extrinsic_source=extrinsic_source)
+    return world_point[0].astype(np.float32)
 
 
 def clip_box_to_bounds(box_xyxy: np.ndarray | Sequence[float], width: int, height: int) -> tuple[int, int, int, int]:

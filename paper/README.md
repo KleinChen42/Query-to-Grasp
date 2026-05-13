@@ -14,6 +14,8 @@ Query-to-Grasp simulated manipulation paper.
 - `figures/pipeline_overview.pdf`, `figures/geometry_memory_ablation.pdf`,
   `figures/target_source_results.pdf`, and
   `figures/stackcube_failure_taxonomy.pdf`: supporting paper figures.
+- `figures/external_crop_200seed_results.pdf`: 200-seed external RGB-D
+  crop baseline figure generated from frozen H200 summaries.
 
 ## Structural Check
 
@@ -62,6 +64,7 @@ Upload these tracked files for the current conference draft:
 - `figures/geometry_memory_ablation.pdf`
 - `figures/target_source_results.pdf`
 - `figures/stackcube_failure_taxonomy.pdf`
+- `figures/external_crop_200seed_results.pdf`
 
 ## Current Claim Boundary
 
@@ -86,6 +89,7 @@ Refresh copied artifacts with:
 
 ```powershell
 $env:PYTHONPATH=(Get-Location).Path
+python scripts/generate_external_crop_200seed_summary.py --output-dir outputs/paper_revision_results_summary_latest --figure-dir paper/figures
 python scripts/build_paper_figure_pack.py --output-dir outputs/paper_figure_pack_latest --skip-missing
 ```
 

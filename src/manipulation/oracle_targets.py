@@ -104,3 +104,45 @@ def _json_safe_value(value: Any) -> Any:
         return array.tolist()
     except Exception:
         return None if value is None else str(value)
+
+
+def find_oracle_pick_xyz(env: Any, env_id: str = "") -> tuple[np.ndarray | None, dict[str, Any]]:
+    """Return privileged pick target xyz for any supported environment.
+
+    Searches for known actor attributes across PickCube, StackCube, and
+    LiftPegUpright environments. Returns ``(xyz, metadata)`` or
+    ``(None, metadata)`` if no oracle is found.
+    """
+
+    unwrapped = getattr(env, "unwrapped", env)
+    env_lower = env_id.lower() if env_id else ""
+    metadata: dict[str, Any] = {"env_id": env_id, "oracle_source": None}
+
+    # StackCube → cubeA
+    if "stack" in env_lower:
+        try:
+            targets = find_stackcube_oracle_place_targets(env)
+            metadata["oracle_source"] = "stackcube_cubeA"
+            metadata.update(targets.metadata)
+            return targets.pick_xyz, metadata
+        except RuntimeError:
+            pass
+
+    # Generic search for known actor names
+    _ACTOR_CANDIDATES = [
+        "obj", "cube", "cubeA", "cube_a", "peg",
+        "target_object", "object", "goal_obj",
+    ]
+    for name in _ACTOR_CANDIDATES:
+        actor = getattr(unwrapped, name, None)
+        if actor is None:
+            continue
+        xyz = _pose_xyz(actor)
+        if xyz is not None:
+            metadata["oracle_source"] = f"actor.{name}"
+            metadata["actor_type"] = type(actor).__name__
+            return xyz, metadata
+
+    metadata["oracle_source"] = "not_found"
+    return None, metadata
+

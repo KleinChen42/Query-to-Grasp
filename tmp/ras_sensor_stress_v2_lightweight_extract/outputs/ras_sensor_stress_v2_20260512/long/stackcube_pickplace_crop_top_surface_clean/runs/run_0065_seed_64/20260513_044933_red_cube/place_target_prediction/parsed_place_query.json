@@ -1,0 +1,13 @@
+{
+  "attributes": [
+    "green"
+  ],
+  "normalized_prompt": "green cube",
+  "raw_query": "green cube",
+  "relations": [],
+  "synonyms": [
+    "cube",
+    "block"
+  ],
+  "target_name": "cube"
+}

@@ -1,0 +1,90 @@
+{
+  "candidates_3d": [
+    {
+      "box_area": 64,
+      "box_xyxy": [
+        74.81016540527344,
+        71.54423522949219,
+        81.45664978027344,
+        78.27786254882812
+      ],
+      "camera_xyz": [
+        0.13633926212787628,
+        0.1024598702788353,
+        0.6499388217926025
+      ],
+      "depth_valid_ratio": 1.0,
+      "grasp_camera_xyz": [
+        0.14375990629196167,
+        0.13349133729934692,
+        0.6571881175041199
+      ],
+      "grasp_metadata": {
+        "applied": true,
+        "component_count": 1,
+        "component_fallback_reason": null,
+        "component_radius": 0.03,
+        "component_selection_strategy": "largest_component_then_low_spread",
+        "component_sizes": [
+          21
+        ],
+        "elevated_point_count": 21,
+        "elevated_z_offset": 0.015,
+        "fallback_reason": null,
+        "local_support_point_count": 18,
+        "local_support_radius": 0.04,
+        "local_support_z_margin": 0.012,
+        "min_elevated_points": 12,
+        "min_points": 20,
+        "num_workspace_points": 55,
+        "reason": "component_elevated_xy_with_local_support_z",
+        "selected_component_size": 21,
+        "selected_component_spread": 0.021251516416668892,
+        "selected_component_xy": [
+          -0.020387738943099976,
+          0.13863487541675568
+        ],
+        "strategy": "workspace_elevated_xy_low_z",
+        "support_z": -0.0005037069204263389,
+        "support_z_percentile": 10.0,
+        "workspace_bounds": {
+          "abs_x_max": 0.2,
+          "abs_y_max": 0.2,
+          "z_max": 0.08,
+          "z_min": -0.02
+        }
+      },
+      "grasp_num_points": 21,
+      "grasp_world_xyz": [
+        -0.020387738943099976,
+        0.13863487541675568,
+        0.004413723945617676
+      ],
+      "metadata": {
+        "box_bounds_xyxy_exclusive": [
+          74,
+          71,
+          82,
+          79
+        ],
+        "box_center_world_xyz": [
+          -0.001106858253479004,
+          0.13429027795791626,
+          0.054711997509002686
+        ],
+        "camera_frame_conversion": "opencv_to_opengl",
+        "center_strategy": "median",
+        "extrinsics_source": "sensor_param.base_camera.cam2world_gl",
+        "intrinsics_source": "provided"
+      },
+      "num_points": 64,
+      "point_cloud_path": null,
+      "segmentation_id": null,
+      "world_xyz": [
+        -0.013752728700637817,
+        0.13633926212787628,
+        0.011114418506622314
+      ]
+    }
+  ]
+}

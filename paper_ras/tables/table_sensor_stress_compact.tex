@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\caption{Compact synthetic RGB-D sensor-stress summary. Values are success
+rates. Pick-only rows report pick success; the StackCube pick-place row reports
+task success with crop-top-surface pick targets and predicted green-cube
+placement.}
+\label{tab:sensor-stress-compact}
+\small
+\begin{tabular}{llllll}
+\toprule
+Task / source & Clean & 5mm & 10mm & Drop10 & Drop20 \\
+\midrule
+PickCube pick / box center & 0.01 & 0.08 & 0.20 & 0.06 & 0.11 \\
+PickCube pick / crop top-surface & 0.99 & 1.00 & 0.97 & 0.98 & 0.97 \\
+StackCube pick / box center & 0.08 & 0.19 & 0.28 & 0.10 & 0.15 \\
+StackCube pick / crop top-surface & 0.84 & 0.80 & 0.82 & 0.84 & 0.81 \\
+StackCube pick-place / crop top-surface & 0.57 & 0.60 & 0.61 & 0.59 & 0.60 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -1,0 +1,45 @@
+{
+  "min_xy_distance_from_pick": 0.05,
+  "place_query": "green cube",
+  "place_target_source": "predicted_place_object",
+  "selected": {
+    "metadata": {
+      "num_candidates": 1,
+      "num_close_to_pick_rejected": 0,
+      "num_eligible_candidates": 1,
+      "num_invalid_candidates": 0,
+      "place_pick_xy_distance": 0.1442834883928299,
+      "place_query": "green cube",
+      "place_target_z": 0.02,
+      "raw_semantic_world_xyz": [
+        -0.01975029706954956,
+        0.15479034185409546,
+        0.008408159017562866
+      ],
+      "selected_candidate_index": 0,
+      "selected_clip_score": 0.0,
+      "selected_depth_valid_ratio": 1.0,
+      "selected_det_score": 0.6982569694519043,
+      "selected_fused_2d_score": 0.6982569694519043,
+      "selected_grasp_world_xyz": [
+        -0.016075998544692993,
+        0.15106818079948425,
+        -0.0001538991928100586
+      ],
+      "selected_num_points": 64,
+      "selected_phrase": "green cube",
+      "selected_world_xyz": [
+        -0.016075998544692993,
+        0.15106818079948425,
+        0.019999999552965164
+      ],
+      "selection_reason": "first_ranked_candidate_far_from_pick"
+    },
+    "place_xyz": [
+      -0.016075998544692993,
+      0.15106818079948425,
+      0.019999999552965164
+    ],
+    "source": "predicted_place_object"
+  }
+}

@@ -67,6 +67,8 @@ flowchart LR
 | Oracle pick-place | `--pick-executor sim_pick_place --place-target-source oracle_cubeB_pose` | Privileged StackCube upper-bound and controller diagnostic. |
 | Predicted pick-place | `--pick-executor sim_pick_place --place-target-source predicted_place_object --place-query "green cube"` | Non-oracle reference-object placement bridge. |
 | Noisy oracle sensitivity | `--oracle-pick-noise-std`, `--oracle-place-noise-std` | Centimeter-scale target precision sensitivity analysis. |
+| External crop-grasp baselines | `--grasp-target-mode box_center_depth`, `crop_median`, `crop_top_surface` | Tests whether simple RGB-D crop targets are enough after 2D grounding. |
+| Generic oracle pick probe | `--grasp-target-mode oracle_object_pose` | Privileged pick upper bound for compatible ManiSkill actors. |
 | Seed-range launcher | `--start-seed`, `--num-seeds` | Long H200 validation without explicit seed lists. |
 | Continuous video capture | `--capture-execution-video` and native sensor resolution flags | Representative execution videos for supplemental material. |
 
@@ -79,14 +81,17 @@ history.
 | ---: | --- | --- | --- |
 | 1 | oracle object pose | none | Pick controller upper bound. |
 | 2 | semantic center | none | Raw RGB-D target-source baseline. |
-| 3 | refined grasp point | none | Workspace-filtered grasp target. |
-| 4 | fused memory grasp point | none | Multi-view target-source to simulated pick. |
-| 5 | task-guard selected target | none | StackCube pick-only compatibility. |
-| 6 | oracle cubeA pose | oracle cubeB pose | Fully privileged pick-place upper bound. |
-| 7 | query-derived cubeA target | oracle cubeB pose | Query-pick plus privileged-place bridge. |
-| 8 | query-derived cubeA target | predicted `green cube` reference | Main non-oracle reference-object placement bridge. |
-| 9 | query-derived cubeA target | predicted broad `cube` reference | Reference-query specificity ablation. |
-| 10 | noisy oracle targets | noisy oracle targets | Centimeter-scale target precision sensitivity. |
+| 3 | box-center depth | none | Simplest external RGB-D crop baseline; usually fails. |
+| 4 | crop median | none | Standard crop aggregation baseline. |
+| 5 | crop top-surface | none / predicted reference | Main deterministic crop-grasp heuristic. |
+| 6 | refined grasp point | none | Workspace-filtered grasp target. |
+| 7 | fused memory grasp point | none | Multi-view target-source to simulated pick. |
+| 8 | task-guard selected target | none | StackCube pick-only compatibility. |
+| 9 | oracle cubeA pose | oracle cubeB pose | Fully privileged pick-place upper bound. |
+| 10 | query-derived cubeA target | oracle cubeB pose | Query-pick plus privileged-place bridge. |
+| 11 | query-derived cubeA target | predicted `green cube` reference | Main non-oracle reference-object placement bridge. |
+| 12 | query-derived cubeA target | predicted broad `cube` reference | Reference-query specificity ablation. |
+| 13 | noisy oracle targets | noisy oracle targets | Centimeter-scale target precision sensitivity. |
 
 ## Evidence Path
 
@@ -112,6 +117,14 @@ history.
    diagnostic result.
 10. Noisy oracle sensitivity shows that 2 cm target perturbations sharply reduce
     execution success, explaining why recall gains can fail to improve control.
+11. External RGB-D crop baselines show that back-projecting a selected 2D box
+    center is not sufficient: `box_center_depth` reaches 0.010 PickCube pick
+    success and 0.080 StackCube pick success, while `crop_top_surface` reaches
+    0.990 and 0.840 respectively.
+12. A non-cube `LiftPegUpright-v1` diagnostic reaches 0.000 pick success even
+    with `oracle_object_pose`, showing that target-source quality is necessary
+    but not sufficient when the scripted top-down executor is geometrically
+    incompatible with the object.
 
 ## Paper-Revision Result Freeze
 
@@ -134,6 +147,16 @@ It covers:
 - broad vs explicit reference-query specificity;
 - PushCube, LiftPeg, PegInsertion, and StackPyramid target-source formation.
 
+The external crop-grasp and non-cube execution diagnostic is recorded in:
+
+```text
+docs/external_grasp_and_noncube_results.md
+```
+
+It covers `box_center_depth`, `crop_median`, `crop_top_surface`, and
+`oracle_object_pose` target modes on PickCube, StackCube, and
+`LiftPegUpright-v1`.
+
 ## Artifact Map
 
 | subsystem | main files | representative outputs |
@@ -151,6 +174,7 @@ It covers:
 | Place targets | `src/manipulation/place_targets.py` | predicted reference-object place targets |
 | Benchmark launchers | `scripts/run_*benchmark.py` | benchmark rows and summaries |
 | Paper summaries | `scripts/generate_paper_revision_results_summary.py` | frozen paper-revision tables |
+| External crop diagnostics | `docs/external_grasp_and_noncube_results.md` | Experiment A/B target-source tables |
 | Video capture | `scripts/run_demo_execution_capture_pack.py` | native-resolution execution videos |
 | Paper pack | `scripts/build_paper_figure_pack.py` | packed paper support artifacts |
 

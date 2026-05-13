@@ -1,0 +1,69 @@
+{
+  "candidates": [
+    {
+      "box_xyxy": [
+        55.596588134765625,
+        68.47025299072266,
+        60.088340759277344,
+        75.14147186279297
+      ],
+      "det_score": 0.4064345061779022,
+      "image_crop_path": null,
+      "metadata": {
+        "model_id": "IDEA-Research/grounding-dino-tiny"
+      },
+      "phrase": "red cube",
+      "source": "transformers_groundingdino"
+    },
+    {
+      "box_xyxy": [
+        45.602294921875,
+        77.55140686035156,
+        52.27442169189453,
+        85.32048034667969
+      ],
+      "det_score": 0.3707577586174011,
+      "image_crop_path": null,
+      "metadata": {
+        "model_id": "IDEA-Research/grounding-dino-tiny"
+      },
+      "phrase": "red cube",
+      "source": "transformers_groundingdino"
+    },
+    {
+      "box_xyxy": [
+        0.00140380859375,
+        38.02186584472656,
+        127.0,
+        127.0
+      ],
+      "det_score": 0.3562524616718292,
+      "image_crop_path": null,
+      "metadata": {
+        "model_id": "IDEA-Research/grounding-dino-tiny"
+      },
+      "phrase": "red cube",
+      "source": "transformers_groundingdino"
+    }
+  ],
+  "parameters": {
+    "box_threshold": 0.35,
+    "detector_backend": "hf",
+    "mock_box_position": null,
+    "text_threshold": 0.25,
+    "top_k": 10
+  },
+  "query": {
+    "attributes": [
+      "red"
+    ],
+    "normalized_prompt": "red cube",
+    "raw_query": "red cube",
+    "relations": [],
+    "synonyms": [
+      "cube",
+      "block"
+    ],
+    "target_name": "cube"
+  }
+}

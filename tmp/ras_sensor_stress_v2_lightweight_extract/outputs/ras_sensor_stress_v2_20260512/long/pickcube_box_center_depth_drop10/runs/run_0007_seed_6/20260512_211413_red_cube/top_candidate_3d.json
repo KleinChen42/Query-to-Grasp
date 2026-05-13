@@ -1,0 +1,123 @@
+{
+  "query": {
+    "attributes": [
+      "red"
+    ],
+    "normalized_prompt": "red cube",
+    "raw_query": "red cube",
+    "relations": [],
+    "synonyms": [
+      "cube",
+      "block"
+    ],
+    "target_name": "cube"
+  },
+  "top_2d_candidate": {
+    "box_xyxy": [
+      62.579959869384766,
+      74.5816879272461,
+      67.36366271972656,
+      81.22855377197266
+    ],
+    "clip_score": 0.0,
+    "det_score": 0.7147717475891113,
+    "fused_2d_score": 0.7147717475891113,
+    "image_crop_path": null,
+    "metadata": {
+      "detector_metadata": {
+        "model_id": "IDEA-Research/grounding-dino-tiny"
+      },
+      "detector_source": "transformers_groundingdino",
+      "skip_clip": true
+    },
+    "phrase": "red cube",
+    "rank": 0,
+    "source": "detector_only"
+  },
+  "top_candidate_3d": {
+    "box_area": 48,
+    "box_xyxy": [
+      62.579959869384766,
+      74.5816879272461,
+      67.36366271972656,
+      81.22855377197266
+    ],
+    "camera_xyz": [
+      0.0,
+      0.1327812522649765,
+      0.6290000081062317
+    ],
+    "depth_valid_ratio": 0.9166666666666666,
+    "grasp_camera_xyz": [
+      0.009781249798834324,
+      0.15649999678134918,
+      0.6259999871253967
+    ],
+    "grasp_metadata": {
+      "applied": true,
+      "component_count": 1,
+      "component_fallback_reason": null,
+      "component_radius": 0.03,
+      "component_selection_strategy": "largest_component_then_low_spread",
+      "component_sizes": [
+        19
+      ],
+      "elevated_point_count": 19,
+      "elevated_z_offset": 0.015,
+      "fallback_reason": null,
+      "local_support_point_count": 16,
+      "local_support_radius": 0.04,
+      "local_support_z_margin": 0.012,
+      "min_elevated_points": 12,
+      "min_points": 20,
+      "num_workspace_points": 44,
+      "reason": "component_elevated_xy_with_local_support_z",
+      "selected_component_size": 19,
+      "selected_component_spread": 0.023848168551921844,
+      "selected_component_xy": [
+        0.014292299747467041,
+        0.009484374895691872
+      ],
+      "strategy": "workspace_elevated_xy_low_z",
+      "support_z": 0.0035138726234436035,
+      "support_z_percentile": 10.0,
+      "workspace_bounds": {
+        "abs_x_max": 0.2,
+        "abs_y_max": 0.2,
+        "z_max": 0.08,
+        "z_min": -0.02
+      }
+    },
+    "grasp_num_points": 19,
+    "grasp_world_xyz": [
+      0.014292299747467041,
+      0.009484374895691872,
+      0.0036066174507141113
+    ],
+    "metadata": {
+      "box_bounds_xyxy_exclusive": [
+        62,
+        74,
+        68,
+        82
+      ],
+      "box_center_world_xyz": [
+        0.02449483424425125,
+        0.009484374895691872,
+        0.043064892292022705
+      ],
+      "camera_frame_conversion": "opencv_to_opengl",
+      "center_strategy": "median",
+      "extrinsics_source": "sensor_param.base_camera.cam2world_gl",
+      "intrinsics_source": "provided"
+    },
+    "num_points": 44,
+    "point_cloud_path": null,
+    "segmentation_id": null,
+    "world_xyz": [
+      0.014292299747467041,
+      0.0,
+      0.010600268840789795
+    ]
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "grasp_attempted": true,
+  "is_grasped": false,
+  "message": "Simulated top-down pick executed, but ManiSkill did not report a grasp.",
+  "metadata": {
+    "action_convention": "[dx, dy, dz, gripper]; gripper +1=open, -1=close",
+    "control_mode": "pd_ee_delta_pos",
+    "env_type": "TimeLimitWrapper",
+    "executor": "SimulatedTopDownPickExecutor",
+    "grasp_metadata": {
+      "applied": true,
+      "component_count": 1,
+      "component_fallback_reason": null,
+      "component_radius": 0.03,
+      "component_selection_strategy": "largest_component_then_low_spread",
+      "component_sizes": [
+        20
+      ],
+      "elevated_point_count": 20,
+      "elevated_z_offset": 0.015,
+      "fallback_reason": null,
+      "local_support_point_count": 22,
+      "local_support_radius": 0.04,
+      "local_support_z_margin": 0.012,
+      "min_elevated_points": 12,
+      "min_points": 20,
+      "num_workspace_points": 56,
+      "reason": "component_elevated_xy_with_local_support_z",
+      "selected_component_size": 20,
+      "selected_component_spread": 0.023908551782369614,
+      "selected_component_xy": [
+        -0.030041515827178955,
+        -0.03032812476158142
+      ],
+      "strategy": "workspace_elevated_xy_low_z",
+      "support_z": 0.0036017298698425293,
+      "support_z_percentile": 10.0,
+      "workspace_bounds": {
+        "abs_x_max": 0.2,
+        "abs_y_max": 0.2,
+        "z_max": 0.08,
+        "z_min": -0.02
+      }
+    },
+    "grasp_target_mode": "box_center_depth",
+    "grasp_world_xyz": [
+      -0.030041515827178955,
+      -0.03032812476158142,
+      0.003728628158569336
+    ],
+    "oracle_pick_noise_std": 0.0,
+    "pick_executor_cli": "sim_topdown",
+    "semantic_world_xyz": [
+      -0.030041515827178955,
+      -0.03053906187415123,
+      0.004001975059509277
+    ],
+    "target_coordinate_frame": "world",
+    "target_used_for_pick": "box_center_depth"
+  },
+  "pick_success": false,
+  "stage": "grasp_not_confirmed",
+  "success": false,
+  "target_xyz": [
+    -0.01819918304681778,
+    -0.02967187575995922,
+    0.043923843652009964
+  ],
+  "task_success": false,
+  "trajectory_summary": {
+    "executed_stages": [
+      "move_above_target",
+      "descend",
+      "close_gripper",
+      "lift"
+    ],
+    "final_info": {
+      "elapsed_steps": [
+        32
+      ],
+      "is_grasped": [
+        false
+      ],
+      "is_obj_placed": [
+        false
+      ],
+      "is_robot_static": [
+        false
+      ],
+      "stage": "lift",
+      "success": [
+        false
+      ]
+    },
+    "final_tcp_xyz": [
+      -0.013303573243319988,
+      -0.03002471663057804,
+      0.235531747341156
+    ],
+    "grasp_info_keys": [
+      "is_grasped"
+    ],
+    "num_env_steps": 32,
+    "planned_stages": [
+      "move_above_target",
+      "descend",
+      "close_gripper",
+      "lift"
+    ],
+    "stage_step_counts": {
+      "close_gripper": 20,
+      "descend": 30,
+      "lift": 40,
+      "move_above_target": 40
+    }
+  }
+}

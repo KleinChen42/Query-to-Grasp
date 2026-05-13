@@ -365,6 +365,7 @@ manipulation success.}
 Setting & Env. & N & Primary target/source & Claim boundary \\
 \midrule
 Target-point ablation & PickCube & 55 & semantic center vs refined grasp & pick metric only \\
+External crop baselines & PickCube/StackCube & 200 & box center, crop median, crop top-surface & standard RGB-D crop comparison \\
 Full-query MV/CL & PickCube & 55 & memory grasp target & executable simulated pick \\
 Expanded pick-only & StackCube & 50 & task-guard target & cubeA grasp transfer \\
 Q-pick/OB-place & StackCube & 50 & query pick + oracle cubeB & partial bridge, privileged place \\
@@ -392,8 +393,10 @@ summarize the final target-source results. Additional diagnostic tables cover
 single-view ambiguity, corrected geometry, PickCube grasp success, StackCube
 failure taxonomy, oracle target sources, and the query-driven StackCube
 placement bridge. The paper-revision freeze adds noisy-oracle sensitivity,
-CLIP reranking, target-point ablation, and task-diversity target-source
-formation.
+CLIP reranking, target-point ablation, task-diversity target-source
+formation, and a 200-seed external RGB-D crop-grasp baseline. The final
+non-cube gate separates runtime compatibility failures in YCB/EGAD variants
+from a valid LiftPeg executor-geometry mismatch diagnostic.
 
 The experiments answer four diagnostic questions. Does language reranking
 change the selected target, or is 3D target quality the limiting factor? Does
@@ -518,6 +521,48 @@ target-point ablation makes this concrete: semantic centers reach
 retrieval target, fused memory, and controller can agree well enough to execute
 successful simulated picks across the full ambiguity set.
 
+\begin{table}[t]
+\centering
+\caption{External RGB-D crop target baselines over 200 seeds. Box-center depth
+is the simplest reviewer baseline; crop top-surface is the deterministic
+workspace-aware crop heuristic used for the external-style comparison.}
+\label{tab:external-crop}
+\scriptsize
+\setlength{\tabcolsep}{3.0pt}
+\begin{tabular}{lrrr}
+\toprule
+Target source & PickCube pick & StackCube pick & StackCube task \\
+\midrule
+Box-center depth & 0.010 & 0.085 & 0.000 \\
+Crop median & 0.935 & 0.795 & 0.565 \\
+Crop top-surface & 0.990 & 0.800 & 0.585 \\
+Oracle pose & 1.000 & 0.945 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:external-crop} answers the standard crop-grasp baseline
+question directly. Back-projecting the detected box center is not a useful
+manipulation target in these runs, reaching only \texttt{0.010} PickCube and
+\texttt{0.085} StackCube pick success. Aggregating the selected crop is much
+stronger, and the top-surface crop heuristic reaches \texttt{0.990} PickCube
+pick success, \texttt{0.800} StackCube pick-only success, and \texttt{0.585}
+StackCube non-oracle pick-place task success. Crop median is similarly strong
+(\texttt{0.935}, \texttt{0.795}, and \texttt{0.565}), showing that crop-level
+depth aggregation largely closes the gap in clean cube scenes while the
+single-pixel box center remains unusable. This result strengthens the
+target-source thesis: the detector can identify the object, but the specific
+RGB-D target extracted from the crop determines executability.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/external_crop_200seed_results.pdf}
+\caption{External RGB-D crop baselines over 200 seeds. Pick-only groups use
+pick success; the StackCube pick-place group uses task success with a predicted
+green-cube reference place target.}
+\label{fig:external-crop-200}
+\end{figure}
+
 \subsection{StackCube Exposes Cross-Task Limits}
 
 StackCube validates that the pipeline can transfer to a second ManiSkill task
@@ -610,14 +655,25 @@ CLIP-style semantic reranking is useful infrastructure, but it is not the
 dominant lever in these candidate pools. Geometry correction and memory-grasp
 fusion solve the primary PickCube execution path, while StackCube shows that
 task-specific target choice, object association, and placement-source
-privilege determine how far the same retrieval stack transfers. Additional
-target-source formation scans show that the perception-to-3D-target interface
-also runs on PushCube, LiftPeg, PegInsertion, and StackPyramid variants
-(\texttt{1.000}, \texttt{1.000}, \texttt{1.000}, and \texttt{0.970} target
-formation rates over 200 seeds, respectively), but those rows are not
+privilege determine how far the same retrieval stack transfers. The external
+crop baseline adds a reviewer-facing comparison: a selected 2D box is not
+enough if the 3D point source is a noisy single center pixel, while crop-level
+aggregation and top-surface filtering largely close the PickCube pick gap.
+Additional target-source formation scans show that the perception-to-3D-target
+interface also runs on PushCube, LiftPeg, PegInsertion, and StackPyramid
+variants (\texttt{1.000}, \texttt{1.000}, \texttt{1.000}, and \texttt{0.970}
+target formation rates over 200 seeds, respectively), but those rows are not
 manipulation-success claims because the scripted top-down controller is not
-task-compatible with all of these families. This is why the paper treats oracle
-targets, noisy-oracle probes, and query/oracle bridges as diagnostic
+task-compatible with all of these families. The 50-seed non-cube gate further
+separates compatibility from execution: PickSingleYCB, PickClutterYCB, and
+PickSingleEGAD fail at runtime in the installed simulation setup and are
+therefore not counted as negative manipulation evidence. LiftPeg is a valid
+executor-mismatch probe: \texttt{oracle\_object\_pose} and
+\texttt{crop\_top\_surface} provide targets for all 50/50 runs, but
+\texttt{sim\_topdown} still reaches \texttt{0.000} pick success. This means
+target-source quality is necessary but not sufficient when object geometry and
+controller approach are mismatched. This is why the paper treats oracle
+targets, noisy-oracle probes, query/oracle bridges, and non-cube diagnostics as
 instruments: they expose which part of the retrieval-to-execution chain fails
 before adding more policy capacity.
 
@@ -672,8 +728,13 @@ transfer while exposing target-source, placement-target, reference-query, and
 closed-loop association limits. Noisy-oracle perturbations show that
 centimeter-scale target errors are enough to explain large execution losses,
 and the 500-seed predicted-place bridge shows that explicit reference-object
-perception can partially close the oracle-placement gap. These results provide
-a reproducible basis for a simulated diagnostic systems paper. The next
+perception can partially close the oracle-placement gap. External crop-grasp
+baselines show that box-center depth is a poor manipulation target, while crop
+aggregation and top-surface selection are strong non-oracle baselines in clean
+cube scenes. A non-cube gate shows that YCB/EGAD variants require compatible
+runtime assets and that LiftPeg still fails even with oracle targets when the
+executor is geometrically mismatched. These results provide a reproducible
+basis for a simulated diagnostic systems paper. The next
 technical steps are richer relation grounding, broader task-compatible
 controllers, and real-world transfer, each of which should be evaluated as a
 separate source of evidence rather than folded into the present target-source

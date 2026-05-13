@@ -61,6 +61,12 @@ def summarize_run(summary: dict[str, Any], pick_result: dict[str, Any]) -> dict[
         "execution_video_path": _execution_video_path(summary),
         "execution_video_status": _execution_video_status(summary),
         "runtime_seconds": runtime_seconds,
+        "depth_noise_std_m": _as_float(summary.get("depth_noise_std_m"), default=0.0),
+        "depth_dropout_prob": _as_float(summary.get("depth_dropout_prob"), default=0.0),
+        "valid_depth_pixels_before": _as_int(summary.get("valid_depth_pixels_before"), default=0),
+        "valid_depth_pixels_after": _as_int(summary.get("valid_depth_pixels_after"), default=0),
+        "dropped_depth_pixels": _as_int(summary.get("dropped_depth_pixels"), default=0),
+        "sensor_stress_applied": _as_bool(summary.get("sensor_stress_applied", False)),
         "artifacts": str(summary.get("artifacts") or ""),
     }
 

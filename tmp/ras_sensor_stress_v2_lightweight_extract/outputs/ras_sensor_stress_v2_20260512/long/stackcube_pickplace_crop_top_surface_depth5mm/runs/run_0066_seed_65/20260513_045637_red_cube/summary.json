@@ -1,0 +1,95 @@
+{
+  "artifacts": "outputs/ras_sensor_stress_v2_20260512/long/stackcube_pickplace_crop_top_surface_depth5mm/runs/run_0066_seed_65/20260513_045637_red_cube",
+  "camera_xyz": [
+    -0.14498886466026306,
+    0.1247677430510521,
+    0.6400834321975708
+  ],
+  "depth_dropout_prob": 0.0,
+  "depth_noise_std_m": 0.005,
+  "detector_top_phrase": "red cube",
+  "dropped_depth_pixels": 0,
+  "execution_video": null,
+  "final_top_phrase": "red cube",
+  "grasp_attempted": true,
+  "grasp_metadata": {
+    "applied": true,
+    "component_count": 1,
+    "component_fallback_reason": null,
+    "component_radius": 0.03,
+    "component_selection_strategy": "largest_component_then_low_spread",
+    "component_sizes": [
+      27
+    ],
+    "elevated_point_count": 27,
+    "elevated_z_offset": 0.015,
+    "fallback_reason": null,
+    "local_support_point_count": 16,
+    "local_support_radius": 0.04,
+    "local_support_z_margin": 0.012,
+    "min_elevated_points": 12,
+    "min_points": 20,
+    "num_workspace_points": 64,
+    "reason": "component_elevated_xy_with_local_support_z",
+    "selected_component_size": 27,
+    "selected_component_spread": 0.02566412277519703,
+    "selected_component_xy": [
+      0.0037256181240081787,
+      -0.13674747943878174
+    ],
+    "strategy": "workspace_elevated_xy_low_z",
+    "support_z": -0.0025129616260528564,
+    "support_z_percentile": 10.0,
+    "workspace_bounds": {
+      "abs_x_max": 0.2,
+      "abs_y_max": 0.2,
+      "z_max": 0.08,
+      "z_min": -0.02
+    }
+  },
+  "grasp_target_mode": "crop_top_surface",
+  "grasp_world_xyz": [
+    0.0037256181240081787,
+    -0.13674747943878174,
+    0.003633469343185425
+  ],
+  "is_grasped": true,
+  "normalized_prompt": "red cube",
+  "num_3d_points": 64,
+  "num_detections": 1,
+  "num_ranked_candidates": 1,
+  "pick_message": "Simulated oracle pick-place executed and ManiSkill task success was detected.",
+  "pick_stage": "success",
+  "pick_success": true,
+  "place_attempted": true,
+  "place_message": "Simulated oracle pick-place executed and ManiSkill task success was detected.",
+  "place_pick_xy_distance": 0.09910880029201508,
+  "place_query": "green cube",
+  "place_selection_reason": "first_ranked_candidate_far_from_pick",
+  "place_success": true,
+  "place_target_source": "predicted_place_object",
+  "place_target_xyz": [
+    0.09825657308101654,
+    -0.10697411745786667,
+    0.019999999552965164
+  ],
+  "query": "red cube",
+  "raw_num_detections": 1,
+  "runtime_seconds": 101.62951498292387,
+  "semantic_world_xyz": [
+    0.0011943578720092773,
+    -0.14498886466026306,
+    0.007944256067276001
+  ],
+  "sensor_stress_applied": true,
+  "target_used_for_pick": "crop_top_surface_lcc",
+  "task_success": true,
+  "top1_changed_by_rerank": false,
+  "valid_depth_pixels_after": 16384,
+  "valid_depth_pixels_before": 16384,
+  "world_xyz": [
+    0.0011943578720092773,
+    -0.14498886466026306,
+    0.007944256067276001
+  ]
+}

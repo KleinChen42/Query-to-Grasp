@@ -1,0 +1,91 @@
+{
+  "artifacts": "outputs/ras_sensor_stress_v2_20260512/long/pickcube_crop_top_surface_drop10/runs/run_0033_seed_32/20260513_005952_red_cube",
+  "camera_xyz": [
+    -0.052921876311302185,
+    0.18317186832427979,
+    0.5929999947547913
+  ],
+  "depth_dropout_prob": 0.1,
+  "depth_noise_std_m": 0.0,
+  "detector_top_phrase": "red cube",
+  "dropped_depth_pixels": 1631,
+  "execution_video": null,
+  "final_top_phrase": "red cube",
+  "grasp_attempted": true,
+  "grasp_metadata": {
+    "applied": true,
+    "component_count": 1,
+    "component_fallback_reason": null,
+    "component_radius": 0.03,
+    "component_selection_strategy": "largest_component_then_low_spread",
+    "component_sizes": [
+      24
+    ],
+    "elevated_point_count": 24,
+    "elevated_z_offset": 0.015,
+    "fallback_reason": null,
+    "local_support_point_count": 28,
+    "local_support_radius": 0.04,
+    "local_support_z_margin": 0.012,
+    "min_elevated_points": 12,
+    "min_points": 20,
+    "num_workspace_points": 70,
+    "reason": "component_elevated_xy_with_local_support_z",
+    "selected_component_size": 24,
+    "selected_component_spread": 0.02257930301129818,
+    "selected_component_xy": [
+      0.0741727352142334,
+      -0.049406252801418304
+    ],
+    "strategy": "workspace_elevated_xy_low_z",
+    "support_z": 0.003103911876678467,
+    "support_z_percentile": 10.0,
+    "workspace_bounds": {
+      "abs_x_max": 0.2,
+      "abs_y_max": 0.2,
+      "z_max": 0.08,
+      "z_min": -0.02
+    }
+  },
+  "grasp_target_mode": "crop_top_surface",
+  "grasp_world_xyz": [
+    0.0741727352142334,
+    -0.049406252801418304,
+    0.0036310553550720215
+  ],
+  "is_grasped": true,
+  "normalized_prompt": "red cube",
+  "num_3d_points": 70,
+  "num_detections": 1,
+  "num_ranked_candidates": 1,
+  "pick_message": "Simulated top-down pick executed and grasp was detected.",
+  "pick_stage": "success",
+  "pick_success": true,
+  "place_attempted": false,
+  "place_message": null,
+  "place_pick_xy_distance": null,
+  "place_query": "cube",
+  "place_selection_reason": null,
+  "place_success": null,
+  "place_target_source": "none",
+  "place_target_xyz": null,
+  "query": "red cube",
+  "raw_num_detections": 1,
+  "runtime_seconds": 106.05661035515368,
+  "semantic_world_xyz": [
+    0.07707414031028748,
+    -0.052921876311302185,
+    0.0038164854049682617
+  ],
+  "sensor_stress_applied": true,
+  "target_used_for_pick": "crop_top_surface_lcc",
+  "task_success": false,
+  "top1_changed_by_rerank": false,
+  "valid_depth_pixels_after": 14753,
+  "valid_depth_pixels_before": 16384,
+  "world_xyz": [
+    0.07707414031028748,
+    -0.052921876311302185,
+    0.0038164854049682617
+  ]
+}

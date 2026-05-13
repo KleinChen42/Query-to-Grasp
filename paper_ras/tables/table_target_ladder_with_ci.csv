@@ -1,0 +1,10 @@
+setting,env,target_source,primary_metric,success_count,n,success_rate,ci_low,ci_high,artifact_source,claim_boundary,label
+PickCube pick,PickCube-v1,semantic center,pick,53,55,0.9636363636363636,0.8767653602534898,0.9899704587106665,paper_revision_results_summary.csv,pick-only target-source ablation,PickCube semantic target
+PickCube pick,PickCube-v1,refined grasp point,pick,55,55,1.0,0.9347150988829137,1.0,paper_revision_results_summary.csv,pick-only target-source ablation,PickCube refined target
+PickCube tabletop,PickCube-v1,memory_grasp_world_xyz,pick,55,55,1.0,0.9347150988829137,1.0,outputs/paper_submission_audit_latest/final_main_results_table.md,simulated pick benchmark,PickCube memory grasp tabletop
+PickCube pick,PickCube-v1,crop_top_surface,pick,392,400,0.98,0.9609302068117018,0.9897900140150545,ras_external_crop_freeze_summary.csv,external crop diagnostic,PickCube crop top-surface
+StackCube Q+pred single,StackCube-v1,predicted_place_object_green_cube,task,276,500,0.552,0.5081797380106159,0.5950273305813827,paper_revision_results_summary.csv,non-oracle bridge,StackCube refined predicted place single 500
+StackCube Q+pred tabletop,StackCube-v1,predicted_place_object_green_cube,task,236,500,0.472,0.42862273473006285,0.5158042283357841,paper_revision_results_summary.csv,non-oracle bridge,StackCube refined predicted place tabletop 500
+StackCube Q+pred closed-loop,StackCube-v1,predicted_place_object_green_cube,task,223,500,0.446,0.4030063915853302,0.4898170371845176,paper_revision_results_summary.csv,non-oracle bridge,StackCube refined predicted place closed-loop 500
+StackCube broad reference single,StackCube-v1,predicted_place_object_broad_cube,task,72,200,0.36,0.2966919730456654,0.42858471833996925,paper_revision_results_summary.csv,reference query ablation,StackCube broad place query single
+StackCube oracle pick-place,StackCube-v1,oracle_cubeA_pose + oracle_cubeB_pose,task,44,50,0.88,0.7619518261679701,0.9438239984906773,outputs/h200_60071_oracle_stackcube_place_seed0_49/benchmark_summary.json,privileged diagnostic upper bound,Oracle StackCube pick-place

@@ -47,6 +47,12 @@ CSV_COLUMNS = [
     "execution_video_path",
     "execution_video_status",
     "runtime_seconds",
+    "depth_noise_std_m",
+    "depth_dropout_prob",
+    "valid_depth_pixels_before",
+    "valid_depth_pixels_after",
+    "dropped_depth_pixels",
+    "sensor_stress_applied",
     "artifacts",
 ]
 
@@ -69,11 +75,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-clip", dest="skip_clip", action="store_true", default=False)
     parser.add_argument("--use-clip", dest="skip_clip", action="store_false", help="Run CLIP reranking. This is the default unless --skip-clip is set.")
     parser.add_argument("--depth-scale", type=float, default=1000.0)
+    parser.add_argument("--depth-noise-std-m", type=float, default=0.0, help="Synthetic Gaussian depth noise std in meters forwarded to child runs.")
+    parser.add_argument("--depth-dropout-prob", type=float, default=0.0, help="Synthetic valid-depth pixel dropout probability forwarded to child runs.")
     parser.add_argument("--env-id", default="PickCube-v1")
     parser.add_argument("--obs-mode", default="rgbd")
     parser.add_argument("--control-mode", default=None)
     parser.add_argument("--pick-executor", default="placeholder", choices=["placeholder", "sim_topdown", "sim_pick_place"])
-    parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined"])
+    parser.add_argument("--grasp-target-mode", default="semantic", choices=["semantic", "refined", "box_center_depth", "crop_median", "crop_top_surface", "oracle_object_pose"])
     parser.add_argument("--place-target-source", default="none", choices=["none", "oracle_cubeB_pose", "predicted_place_object"])
     parser.add_argument("--place-query", default="cube")
     parser.add_argument("--place-min-distance-from-pick", type=float, default=0.05)
@@ -133,6 +141,8 @@ def main() -> None:
         "detector_backend": args.detector_backend,
         "skip_clip": bool(args.skip_clip),
         "depth_scale": float(args.depth_scale),
+        "depth_noise_std_m": float(getattr(args, "depth_noise_std_m", 0.0)),
+        "depth_dropout_prob": float(getattr(args, "depth_dropout_prob", 0.0)),
         "control_mode": args.control_mode,
         "pick_executor": args.pick_executor,
         "grasp_target_mode": args.grasp_target_mode,
@@ -263,6 +273,10 @@ def build_child_command(args: argparse.Namespace, query: str, seed: int, output_
         args.mock_box_position,
         "--depth-scale",
         str(args.depth_scale),
+        "--depth-noise-std-m",
+        str(args.depth_noise_std_m),
+        "--depth-dropout-prob",
+        str(args.depth_dropout_prob),
         "--output-dir",
         str(output_dir),
     ]
@@ -341,6 +355,12 @@ def failed_row(
         "is_grasped": False,
         "pick_stage": "run_failed",
         "runtime_seconds": 0.0,
+        "depth_noise_std_m": None,
+        "depth_dropout_prob": None,
+        "valid_depth_pixels_before": None,
+        "valid_depth_pixels_after": None,
+        "dropped_depth_pixels": None,
+        "sensor_stress_applied": None,
         "artifacts": artifacts,
         "run_failed": True,
         "error_message": message,

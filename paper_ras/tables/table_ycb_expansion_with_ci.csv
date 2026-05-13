@@ -1,0 +1,5 @@
+env,query,target_source,n,success_count,pick_success_rate,ci_low,ci_high,target_available,grasp_attempted,failed_runs,mean_num_detections,mean_num_3d_points,main_failure,claim_boundary
+PickSingleYCB-v1,object,box_center_depth,1600,25,0.015625,0.010605706397482813,0.0229646060075125,1.0,1.0,0,1.4325,2094.15875,grasp_not_confirmed,non-cube crop target-source diagnostic
+PickSingleYCB-v1,object,crop_median,1600,47,0.029375,0.022161855299290042,0.0388425901729183,1.0,1.0,0,1.4325,2094.15875,grasp_not_confirmed,non-cube crop target-source diagnostic
+PickSingleYCB-v1,object,crop_top_surface,1600,57,0.035625,0.027598055651204705,0.045876450306100484,1.0,1.0,0,1.4325,2094.15875,grasp_not_confirmed,non-cube crop target-source diagnostic
+PickSingleYCB-v1,object,oracle_object_pose,1600,1016,0.635,0.6111130576207555,0.6582402488573362,1.0,1.0,0,1.4325,2094.15875,grasp_not_confirmed,privileged executor-feasibility probe

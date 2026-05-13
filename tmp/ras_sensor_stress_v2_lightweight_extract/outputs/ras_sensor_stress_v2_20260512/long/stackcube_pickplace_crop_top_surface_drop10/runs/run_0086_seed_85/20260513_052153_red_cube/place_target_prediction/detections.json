@@ -1,0 +1,47 @@
+{
+  "candidates": [
+    {
+      "box_xyxy": [
+        56.559913635253906,
+        76.47227478027344,
+        62.31084442138672,
+        83.11460876464844
+      ],
+      "det_score": 0.6105287075042725,
+      "image_crop_path": null,
+      "metadata": {
+        "model_id": "IDEA-Research/grounding-dino-tiny"
+      },
+      "phrase": "green cube",
+      "source": "transformers_groundingdino"
+    },
+    {
+      "box_xyxy": [
+        48.603755950927734,
+        75.44593811035156,
+        54.250736236572266,
+        82.12184143066406
+      ],
+      "det_score": 0.4211338758468628,
+      "image_crop_path": null,
+      "metadata": {
+        "model_id": "IDEA-Research/grounding-dino-tiny"
+      },
+      "phrase": "green cube",
+      "source": "transformers_groundingdino"
+    }
+  ],
+  "query": {
+    "attributes": [
+      "green"
+    ],
+    "normalized_prompt": "green cube",
+    "raw_query": "green cube",
+    "relations": [],
+    "synonyms": [
+      "cube",
+      "block"
+    ],
+    "target_name": "cube"
+  }
+}
